@@ -2514,7 +2514,7 @@
 
     <script>
         // ====== VERSIÓN 4.6 - MEJORADA CON SISTEMA DE RADIO ======
-        const VERSION = "4.6";
+        const VERSION = "4.7";
         const SYSTEM_NAME = "RADCOM MASTER";
         
         const chars = [
@@ -2547,6 +2547,9 @@
         };
 
         // ====== VARIABLES GLOBALES ======
+        let recognition = null;
+        let recognizing = false;
+        let voiceSendTimer = null; // La variable para los 5 segundos
         let peer = null;
         let myPeerId = null;
         let connections = {};
@@ -5554,4 +5557,5 @@ Mensaje automático del Sistema RADCOM v4.6`;
     <!-- Iconos de FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </body>
+
 </html>
