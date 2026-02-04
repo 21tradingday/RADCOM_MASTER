@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <link rel="manifest" href="manifest.json">   
-   
+<head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RADCOM MASTER v4.7 - SISTEMA DE COMUNICACIÓN SEGURA</title>
@@ -2743,7 +2739,7 @@
 
         // ======== RECONOCIMIENTO DE VOZ v4.7 ========
 
-       function initVoiceRecognition() {
+        function initVoiceRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 updateMonitor("Reconocimiento de voz no soportado en este navegador.", "warning");
@@ -2764,33 +2760,24 @@
                     status.textContent = "Escuchando...";
                     status.classList.add("active");
                 }
-                updateMonitor("🎤 DICTADO ACTIVO - Hable ahora...", "info");
+                updateMonitor("Dictado de voz ACTIVADO.", "info");
             };
 
             recognition.onresult = (event) => {
                 const input = document.getElementById("inputMsg");
                 if (!input) return;
-
                 let finalText = "";
-                for (let i = event.resultIndex; i < event.results.length; i++) {
+                for (let i = 0; i < event.results.length; i++) {
                     const result = event.results[i];
                     if (result.isFinal) {
                         finalText += result[0].transcript;
                     }
                 }
-
                 if (finalText) {
-                    // ESCRIBE EN EL INPUT PERO NO ENVÍA
-                    // Añade el texto al existente con un espacio
-                    const currentVal = input.value.trim();
-                    input.value = (currentVal ? currentVal + " " : "") + finalText.trim();
-                    
-                    // Ejecuta tus validaciones visuales de la versión 4.7
+                    input.value = (input.value ? input.value + " " : "") + finalText.trim();
                     validateInput();
                     realTimePreview();
                     realTimeTableHighlight();
-                    
-                    updateMonitor(`📝 CAPTADO: "${finalText.trim()}" (Listo para enviar)`);
                 }
             };
 
@@ -2808,6 +2795,22 @@
                     status.classList.remove("active");
                 }
             };
+        }
+
+        function toggleVoiceInput() {
+            if (!recognition) {
+                initVoiceRecognition();
+                if (!recognition) return;
+            }
+            if (recognizing) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch(e) {
+                    console.warn("Recognition already started:", e);
+                }
+            }
         }
 
         // ====== FUNCIONES DE SISTEMA DE ID ======
@@ -5546,38 +5549,6 @@ Mensaje automático del Sistema RADCOM v4.6`;
             
             document.getElementById('inputMsg').addEventListener('keydown', handleSendMessage);
         };
-        // ====== MÓDULO DE MEMORIA RADCOM v4.7 ======
-
-function saveToLocalStorage(sender, msg) {
-    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
-    history.push({
-        time: new Date().toLocaleTimeString(),
-        sender: sender,
-        text: msg
-    });
-    if(history.length > 30) history.shift(); // Guardar últimos 30 mensajes
-    localStorage.setItem('radcom_history_v47', JSON.stringify(history));
-}
-
-function loadHistoryFromLocal() {
-    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
-    if(history.length > 0) {
-        updateMonitor("📂 RECUPERANDO MENSAJES GUARDADOS...");
-        history.forEach(item => {
-            // Se muestran en el log pero con un estilo más apagado (dimmed)
-            const logContainer = document.getElementById('logContainer');
-            if(logContainer) {
-                const div = document.createElement('div');
-                div.style.borderLeft = "2px solid #333";
-                div.style.paddingLeft = "5px";
-                div.style.marginBottom = "2px";
-                div.style.color = "#00aa66"; 
-                div.innerHTML = `<small>[Historial ${item.time}]</small> <b>${item.sender}:</b> ${item.text}`;
-                logContainer.appendChild(div);
-            }
-        });
-    }
-}
     </script>
     
     <!-- Iconos de FontAwesome -->
