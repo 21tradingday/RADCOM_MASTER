@@ -1744,6 +1744,35 @@
             color: #ff6600;
         }
 
+        /* === MEJORAS PARA EL INDICADOR DE VOZ v4.7 === */
+        #mic-status.active {
+            color: #ff6600;
+            font-weight: bold;
+            animation: voicePulse 1.5s infinite;
+        }
+
+        @keyframes voicePulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .mic-btn.listening {
+            animation: micPulse 1s infinite;
+        }
+
+        @keyframes micPulse {
+            0% { 
+                box-shadow: 0 0 5px rgba(255, 68, 68, 0.5);
+            }
+            50% { 
+                box-shadow: 0 0 15px rgba(255, 68, 68, 0.8);
+            }
+            100% { 
+                box-shadow: 0 0 5px rgba(255, 68, 68, 0.5);
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -2335,7 +2364,7 @@
                 </span>
             </div>
             
-            <!-- MODIFICADO: CON MICRÓFONO -->
+            <!-- MODIFICADO: CON MICRÓFONO MEJORADO -->
             <div style="display:flex; height:36px; align-items:center; padding:4px 5px; gap:4px; border-bottom:1px solid #222;">
                 <!-- BOTÓN LIMPIAR -->
                 <button class="clear-chat-btn" onclick="clearChat()" style="flex:0 0 auto; width:36px" title="Limpiar chat">
@@ -2513,7 +2542,7 @@
     </div>
 
     <script>
-        // ====== VERSIÓN 4.6 - MEJORADA CON SISTEMA DE RADIO ======
+        // ====== VERSIÓN 4.7 - CON RECONOCIMIENTO DE VOZ MEJORADO ======
         const VERSION = "4.7";
         const SYSTEM_NAME = "RADCOM MASTER";
         
@@ -2547,9 +2576,6 @@
         };
 
         // ====== VARIABLES GLOBALES ======
-        let recognition = null;
-        let recognizing = false;
-        let voiceSendTimer = null; // La variable para los 5 segundos
         let peer = null;
         let myPeerId = null;
         let connections = {};
@@ -2578,7 +2604,7 @@
         let morseAudioContext = null;
         let isPlayingMorse = false;
 
-        // ====== VARIABLES PARA RECONOCIMIENTO DE VOZ v4.7 ======
+        // ====== VARIABLES PARA RECONOCIMIENTO DE VOZ v4.7 MEJORADO ======
         let recognition = null;
         let recognizing = false;
 
@@ -2740,7 +2766,7 @@
             '9': { word: 'NINE', pronunciation: 'NIN-ER' }
         };
 
-        // ======== RECONOCIMIENTO DE VOZ v4.7 ========
+        // ======== RECONOCIMIENTO DE VOZ v4.7 (CON ENVÍO AUTOMÁTICO) ========
 
         function initVoiceRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2752,7 +2778,8 @@
             recognition = new SpeechRecognition();
             recognition.lang = "es-ES";
             recognition.continuous = false;
-            recognition.interimResults = true;
+            recognition.interimResults = false; // Solo resultados finales
+            recognition.maxAlternatives = 1;
 
             recognition.onstart = () => {
                 recognizing = true;
@@ -2760,59 +2787,133 @@
                 const status = document.getElementById("mic-status");
                 if (micBtn) micBtn.classList.add("listening");
                 if (status) {
-                    status.textContent = "Escuchando...";
+                    status.textContent = "ESCUCHANDO...";
                     status.classList.add("active");
                 }
-                updateMonitor("Dictado de voz ACTIVADO.", "info");
+                updateMonitor("🎤 MODO VOZ ACTIVADO - HABLA AHORA", "info");
+                playStrongBeep(800, 100);
             };
 
             recognition.onresult = (event) => {
                 const input = document.getElementById("inputMsg");
                 if (!input) return;
-                let finalText = "";
-                for (let i = 0; i < event.results.length; i++) {
-                    const result = event.results[i];
-                    if (result.isFinal) {
-                        finalText += result[0].transcript;
-                    }
-                }
-                if (finalText) {
-                    input.value = (input.value ? input.value + " " : "") + finalText.trim();
+                
+                const transcript = event.results[0][0].transcript.trim();
+                
+                if (transcript) {
+                    // Mostrar el texto reconocido en el campo de entrada
+                    input.value = transcript;
+                    
+                    // Actualizar vistas previas
                     validateInput();
                     realTimePreview();
                     realTimeTableHighlight();
+                    
+                    updateMonitor(`🎤 Reconocido: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`, "info");
+                    playStrongBeep(600, 50);
+                    
+                    // ENVÍO AUTOMÁTICO DESPUÉS DE 1.5 SEGUNDOS
+                    setTimeout(() => {
+                        if (input.value.trim() && !recognizing) {
+                            updateMonitor("⚡ ENVIANDO MENSAJE DE VOZ...", "info");
+                            
+                            // Pequeña pausa para mostrar el mensaje
+                            setTimeout(() => {
+                                const mode = document.getElementById('inputMode').value;
+                                
+                                // Verificar conexiones antes de enviar
+                                const onlineCount = Object.keys(connections).filter(id => 
+                                    connections[id]?.status === 'online').length;
+                                
+                                if (onlineCount === 0) {
+                                    updateMonitor("⚠️ No hay conexiones activas para enviar", "warning");
+                                    playStrongBeep(300, 200);
+                                    return;
+                                }
+                                
+                                // Enviar según el modo
+                                if (mode === 'phonetic') {
+                                    sendRadioMessage();
+                                } else {
+                                    sendMessage();
+                                }
+                                
+                                // Restablecer el campo de entrada
+                                input.value = "";
+                                
+                            }, 300);
+                        }
+                    }, 1500);
                 }
             };
 
             recognition.onerror = (event) => {
-                updateMonitor("Error de voz: " + event.error, "error");
+                console.error("Error de reconocimiento de voz:", event.error);
+                
+                if (event.error === 'no-speech') {
+                    updateMonitor("🎤 No se detectó voz. Intenta de nuevo.", "warning");
+                } else if (event.error === 'audio-capture') {
+                    updateMonitor("🎤 No se pudo acceder al micrófono.", "error");
+                } else if (event.error === 'not-allowed') {
+                    updateMonitor("🎤 Permiso de micrófono denegado.", "error");
+                } else {
+                    updateMonitor(`🎤 Error de voz: ${event.error}`, "error");
+                }
+                
+                resetVoiceUI();
             };
 
             recognition.onend = () => {
-                recognizing = false;
-                const micBtn = document.getElementById("micBtn");
-                const status = document.getElementById("mic-status");
-                if (micBtn) micBtn.classList.remove("listening");
-                if (status) {
-                    status.textContent = "Voz OFF";
-                    status.classList.remove("active");
-                }
+                resetVoiceUI();
             };
         }
 
+        // Función auxiliar para restablecer la UI de voz
+        function resetVoiceUI() {
+            recognizing = false;
+            const micBtn = document.getElementById("micBtn");
+            const status = document.getElementById("mic-status");
+            if (micBtn) micBtn.classList.remove("listening");
+            if (status) {
+                status.textContent = "Voz OFF";
+                status.classList.remove("active");
+            }
+        }
+
         function toggleVoiceInput() {
+            // Si ya está activo, detenerlo
+            if (recognizing) {
+                try {
+                    recognition.stop();
+                    updateMonitor("🎤 Modo voz desactivado", "info");
+                } catch(e) {
+                    console.log("Reconocimiento ya detenido");
+                }
+                return;
+            }
+            
+            // Inicializar si es necesario
             if (!recognition) {
                 initVoiceRecognition();
-                if (!recognition) return;
-            }
-            if (recognizing) {
-                recognition.stop();
-            } else {
-                try {
-                    recognition.start();
-                } catch(e) {
-                    console.warn("Recognition already started:", e);
+                if (!recognition) {
+                    updateMonitor("❌ No se pudo inicializar reconocimiento de voz", "error");
+                    return;
                 }
+            }
+            
+            // Limpiar campo de entrada antes de empezar
+            const input = document.getElementById("inputMsg");
+            if (input) {
+                input.value = "";
+            }
+            
+            // Intentar iniciar el reconocimiento
+            try {
+                recognition.start();
+            } catch(e) {
+                console.error("Error al iniciar reconocimiento:", e);
+                updateMonitor("❌ Error al acceder al micrófono. Verifica permisos.", "error");
+                resetVoiceUI();
             }
         }
 
@@ -5552,10 +5653,42 @@ Mensaje automático del Sistema RADCOM v4.6`;
             
             document.getElementById('inputMsg').addEventListener('keydown', handleSendMessage);
         };
+
+        // ====== MÓDULO DE MEMORIA RADCOM v4.7 ======
+
+function saveToLocalStorage(sender, msg) {
+    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
+    history.push({
+        time: new Date().toLocaleTimeString(),
+        sender: sender,
+        text: msg
+    });
+    if(history.length > 30) history.shift(); // Guardar últimos 30 mensajes
+    localStorage.setItem('radcom_history_v47', JSON.stringify(history));
+}
+
+function loadHistoryFromLocal() {
+    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
+    if(history.length > 0) {
+        updateMonitor("📂 RECUPERANDO MENSAJES GUARDADOS...");
+        history.forEach(item => {
+            // Se muestran en el log pero con un estilo más apagado (dimmed)
+            const logContainer = document.getElementById('logContainer');
+            if(logContainer) {
+                const div = document.createElement('div');
+                div.style.borderLeft = "2px solid #333";
+                div.style.paddingLeft = "5px";
+                div.style.marginBottom = "2px";
+                div.style.color = "#00aa66"; 
+                div.innerHTML = `<small>[Historial ${item.time}]</small> <b>${item.sender}:</b> ${item.text}`;
+                logContainer.appendChild(div);
+            }
+        });
+    }
+}
     </script>
     
     <!-- Iconos de FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </body>
-
 </html>
