@@ -790,7 +790,7 @@
         #saved-peers-container::-webkit-scrollbar-thumb:hover {
             background: rgba(0, 255, 136, 0.7);
         }
-        
+
         /* === BOTÓN REVIVIR CONEXIONES MEJORADO === */
         .revive-btn {
             width: 100%;
@@ -2487,12 +2487,12 @@
         </div>
     </div>
 
-    <!-- Modal de configuración (MEJORADO CON DETECCIÓN DE RED) -->
+    <!-- Modal de configuración (sin cambios) -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <button class="modal-close" onclick="hideSettings()">&times;</button>
             <div class="modal-title">
-                <i class="fas fa-cog"></i> CONFIGURACIÓN v4.7.1 - DETECCIÓN REAL DE RED
+                <i class="fas fa-cog"></i> CONFIGURACIÓN v4.7
             </div>
             
             <div style="margin-bottom:10px;">
@@ -2555,23 +2555,10 @@
                 </div>
             </div>
             
-            <!-- NUEVA SECCIÓN MEJORADA: DETECCIÓN REAL DE RED -->
-            <div style="margin-bottom:15px; border:1px solid #333; padding:10px; border-radius:3px; background:rgba(0,20,40,0.3);">
-                <div style="color:#00ff88; font-size:0.75rem; margin-bottom:8px; display:flex; align-items:center; gap:5px;">
-                    <i class="fas fa-network-wired"></i> DETECCIÓN REAL DE TIPO DE RED
+            <div style="margin-bottom:10px;">
+                <div style="color:#00ff88; font-size:0.75rem; margin-bottom:6px;">
+                    <i class="fas fa-network-wired"></i> TIPO DE CONEXIÓN
                 </div>
-                
-                <div style="margin-bottom:8px;">
-                    <label style="display:flex; align-items:center; color:#00ff88; font-size:0.7rem; cursor:pointer;">
-                        <input type="checkbox" id="networkAutoDetect" checked style="margin-right:6px;" 
-                               onchange="toggleNetworkAutoDetect()">
-                        Detectar automáticamente tipo de red
-                    </label>
-                    <div style="font-size:0.6rem; color:#888; margin-left:20px; margin-top:2px;">
-                        Usa la API del navegador para detectar WiFi vs Datos Móviles
-                    </div>
-                </div>
-                
                 <div class="connection-type-selector">
                     <div class="connection-type-btn active" id="btn-wifi" onclick="selectConnectionType('wifi')">
                         <div class="connection-icon">
@@ -2592,29 +2579,8 @@
                         </div>
                     </div>
                 </div>
-                
-                <div id="connection-status" style="font-size:0.65rem; margin-top:8px; text-align:center;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                        <span style="color:#00ffea;">Estado actual:</span>
-                        <span id="current-connection-type" style="color:#00ff88; font-weight:bold;">WiFi (Auto)</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="color:#00ffea;">Red detectada:</span>
-                        <span id="real-network-type" style="color:#0088ff;">Detectando...</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:3px;">
-                        <span style="color:#00ffea;">Velocidad:</span>
-                        <span id="network-speed" style="color:#ffaa00;">---</span>
-                    </div>
-                </div>
-                
-                <div style="margin-top:8px; text-align:center;">
-                    <button onclick="checkNetworkStatus()" 
-                            style="padding:4px 8px; background:#333; color:#00ffea; 
-                                   border:1px solid #444; border-radius:2px; cursor:pointer; 
-                                   font-size:0.6rem; width:100%;">
-                        <i class="fas fa-sync-alt"></i> VERIFICAR ESTADO DE RED
-                    </button>
+                <div id="connection-status" style="font-size:0.65rem; color:#00ffea; margin-top:5px; text-align:center;">
+                    Estado: <span id="current-connection-type">WiFi</span>
                 </div>
             </div>
             
@@ -2639,10 +2605,6 @@
                     <input type="checkbox" id="aggressiveRevive" checked style="margin-right:4px;">
                     Revivir agresivo
                 </label>
-                <label style="display:block; margin-bottom:4px; color:#00ff88; font-size:0.75rem;">
-                    <input type="checkbox" id="optimizeForCellular" style="margin-right:4px;">
-                    Optimizar para datos móviles
-                </label>
             </div>
             
             <button onclick="saveSettings()" style="width:100%; padding:7px; background:#00ff88; 
@@ -2654,8 +2616,8 @@
     </div>
 
     <script>
-        // ====== VERSIÓN 4.7.1 - CON DETECCIÓN REAL DE RED ======
-        const VERSION = "4.7.1";
+        // ====== VERSIÓN 4.7 - CON RECONOCIMIENTO DE VOZ MEJORADO ======
+        const VERSION = "4.7";
         const SYSTEM_NAME = "RADCOM MASTER";
         
         const chars = [
@@ -2878,291 +2840,155 @@
             '9': { word: 'NINE', pronunciation: 'NIN-ER' }
         };
 
-        // ====== VARIABLES PARA DETECCIÓN REAL DE RED ======
-        let realNetworkType = 'unknown';
-        let networkAutoDetect = true;
-        let networkStatus = {
-            type: 'unknown',
-            effectiveType: '4g',
-            downlink: 10,
-            rtt: 50,
-            saveData: false,
-            lastUpdated: Date.now()
-        };
+        // ======== RECONOCIMIENTO DE VOZ v4.7 (CON ENVÍO AUTOMÁTICO) ========
 
-        // Array de tipos de red válidos
-        const VALID_NETWORK_TYPES = ['wifi', 'cellular', 'ethernet', 'wimax', 'bluetooth', 'none', 'unknown', 'other'];
-
-        // ====== FUNCIONES DE DETECCIÓN REAL DE RED ======
-
-        function getNetworkConnection() {
-            // Obtiene el objeto connection con soporte para todos los navegadores
-            return navigator.connection || 
-                   navigator.mozConnection || 
-                   navigator.webkitConnection || 
-                   null;
-        }
-
-        function getNetworkType() {
-            const connection = getNetworkConnection();
-            
-            if (!connection) {
-                console.warn('❌ API de Información de Red no disponible en este navegador.');
-                return 'unknown';
-            }
-            
-            // Detectar tipo de conexión
-            let type = connection.type || connection.effectiveType || 'unknown';
-            
-            // Normalizar tipos
-            if (type === 'cellular' || type.includes('4g') || type.includes('3g') || type.includes('2g')) {
-                return 'cellular';
-            } else if (VALID_NETWORK_TYPES.includes(type.toLowerCase())) {
-                return type.toLowerCase();
-            } else {
-                return 'unknown';
-            }
-        }
-
-        function getNetworkStatus() {
-            const connection = getNetworkConnection();
-            
-            if (!connection) {
-                return {
-                    type: 'unknown',
-                    effectiveType: 'unknown',
-                    downlink: 0,
-                    rtt: 0,
-                    saveData: false,
-                    timestamp: Date.now()
-                };
-            }
-            
-            return {
-                type: connection.type || 'unknown',
-                effectiveType: connection.effectiveType || 'unknown',
-                downlink: connection.downlink || 0,
-                rtt: connection.rtt || 0,
-                saveData: connection.saveData || false,
-                timestamp: Date.now()
-            };
-        }
-
-        function setupNetworkListener() {
-            const connection = getNetworkConnection();
-            
-            if (!connection) {
-                console.warn('⚠️ No se pudo establecer listener de red - API no disponible');
+        function initVoiceRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                updateMonitor("Reconocimiento de voz no soportado en este navegador.", "warning");
                 return;
             }
             
-            connection.addEventListener('change', () => {
-                const newType = getNetworkType();
-                const oldType = realNetworkType;
-                realNetworkType = newType;
-                
-                // Actualizar configuración automáticamente si auto-detección está activada
-                if (networkAutoDetect && oldType !== newType) {
-                    updateNetworkTypeAutomatically(newType);
-                }
-                
-                // Actualizar UI
-                updateNetworkStatusDisplay();
-                
-                // Log en monitor
-                const typeNames = {
-                    'wifi': 'WiFi',
-                    'cellular': 'Datos Móviles',
-                    'ethernet': 'Ethernet',
-                    'none': 'Sin Conexión',
-                    'unknown': 'Tipo Desconocido'
-                };
-                
-                updateMonitor(`📡 CAMBIO DE RED DETECTADO: ${typeNames[oldType] || oldType} → ${typeNames[newType] || newType}`);
-                
-                // Sonido de alerta
-                playNetworkChangeSound(newType);
-                
-                // Si no hay conexión, intentar recuperación
-                if (newType === 'none') {
-                    handleNetworkLoss();
-                }
-            });
-        }
+            recognition = new SpeechRecognition();
+            recognition.lang = "es-ES";
+            recognition.continuous = false;
+            recognition.interimResults = false; // Solo resultados finales
+            recognition.maxAlternatives = 1;
 
-        function updateNetworkTypeAutomatically(newType) {
-            // Solo actualizamos si el tipo es reconocido
-            if (newType === 'wifi' || newType === 'cellular') {
-                currentConnectionType = newType;
-                
-                // Actualizar UI en modal de configuración
-                document.querySelectorAll('.connection-type-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                if (newType === 'wifi') {
-                    document.getElementById('btn-wifi').classList.add('active');
-                    document.getElementById('current-connection-type').textContent = 'WiFi (Auto)';
-                } else if (newType === 'cellular') {
-                    document.getElementById('btn-mobile').classList.add('active');
-                    document.getElementById('current-connection-type').textContent = 'Datos Móviles (Auto)';
+            recognition.onstart = () => {
+                recognizing = true;
+                const micBtn = document.getElementById("micBtn");
+                const status = document.getElementById("mic-status");
+                if (micBtn) micBtn.classList.add("listening");
+                if (status) {
+                    status.textContent = "ESCUCHANDO...";
+                    status.classList.add("active");
                 }
-                
-                // Guardar configuración
-                saveConnectionType();
-                
-                updateMonitor(`⚡ Configuración actualizada automáticamente a: ${newType.toUpperCase()}`);
-            }
-        }
-
-        function updateNetworkStatusDisplay() {
-            const status = getNetworkStatus();
-            const statsPanel = document.querySelector('.stats-panel');
-            
-            if (!statsPanel) return;
-            
-            // Añadir o actualizar elemento de estado de red
-            let networkStat = document.getElementById('network-stat');
-            
-            if (!networkStat) {
-                networkStat = document.createElement('div');
-                networkStat.className = 'stat-item';
-                networkStat.id = 'network-stat';
-                statsPanel.appendChild(networkStat);
-            }
-            
-            const typeNames = {
-                'wifi': 'WiFi',
-                'cellular': 'Móvil',
-                'ethernet': 'Eth',
-                'none': 'Offline',
-                'unknown': '?'
+                updateMonitor("🎤 MODO VOZ ACTIVADO - HABLA AHORA", "info");
+                playStrongBeep(800, 100);
             };
-            
-            const displayType = typeNames[status.type] || status.type.substring(0, 4);
-            const speed = status.downlink > 0 ? `${status.downlink.toFixed(1)} Mb/s` : '---';
-            
-            networkStat.innerHTML = `
-                <div class="stat-value" style="color:${getNetworkColor(status.type)}">${displayType}</div>
-                <div class="stat-label">RED</div>
-            `;
-            
-            // Actualizar tooltip con más información
-            networkStat.title = `Tipo: ${status.type}\nVelocidad: ${speed}\nLatencia: ${status.rtt}ms`;
-        }
 
-        function getNetworkColor(type) {
-            switch(type) {
-                case 'wifi': return '#00ff88';
-                case 'cellular': return '#0088ff';
-                case 'ethernet': return '#ffaa00';
-                case 'none': return '#ff3300';
-                default: return '#888';
-            }
-        }
-
-        function handleNetworkLoss() {
-            updateMonitor('⚠️ PÉRDIDA DE CONEXIÓN DETECTADA', 'warning');
-            
-            // Intentar recuperación automática después de 5 segundos
-            setTimeout(() => {
-                const currentType = getNetworkType();
-                if (currentType === 'none') {
-                    updateMonitor('🔄 Intentando recuperar conexión...', 'warning');
-                    // Aquí podrías intentar reconectar PeerJS
-                    if (peer && peer.disconnected) {
-                        peer.reconnect();
-                    }
+            recognition.onresult = (event) => {
+                const input = document.getElementById("inputMsg");
+                if (!input) return;
+                
+                const transcript = event.results[0][0].transcript.trim();
+                
+                if (transcript) {
+                    // Mostrar el texto reconocido en el campo de entrada
+                    input.value = transcript;
+                    
+                    // Actualizar vistas previas
+                    validateInput();
+                    realTimePreview();
+                    realTimeTableHighlight();
+                    
+                    updateMonitor(`🎤 Reconocido: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`, "info");
+                    playStrongBeep(600, 50);
+                    
+                    // ENVÍO AUTOMÁTICO DESPUÉS DE 1.5 SEGUNDOS
+                    setTimeout(() => {
+                        if (input.value.trim() && !recognizing) {
+                            updateMonitor("⚡ ENVIANDO MENSAJE DE VOZ...", "info");
+                            
+                            // Pequeña pausa para mostrar el mensaje
+                            setTimeout(() => {
+                                const mode = document.getElementById('inputMode').value;
+                                
+                                // Verificar conexiones antes de enviar
+                                const onlineCount = Object.keys(connections).filter(id => 
+                                    connections[id]?.status === 'online').length;
+                                
+                                if (onlineCount === 0) {
+                                    updateMonitor("⚠️ No hay conexiones activas para enviar", "warning");
+                                    playStrongBeep(300, 200);
+                                    return;
+                                }
+                                
+                                // Enviar según el modo
+                                if (mode === 'phonetic') {
+                                    sendRadioMessage();
+                                } else {
+                                    sendMessage();
+                                }
+                                
+                                // Restablecer el campo de entrada
+                                input.value = "";
+                                
+                            }, 300);
+                        }
+                    }, 1500);
                 }
-            }, 5000);
-        }
-
-        function playNetworkChangeSound(type) {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            initAudio();
-            if (!audioContext) return;
-            
-            let time = audioContext.currentTime;
-            
-            // Sonido diferente según el tipo de red
-            const tones = {
-                'wifi': [1000, 1200, 1400],
-                'cellular': [800, 1000, 1200],
-                'none': [300, 150, 300],
-                'unknown': [500, 700, 900]
-            }[type] || [800, 1000, 1200];
-            
-            tones.forEach((freq, index) => {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = freq;
-                oscillator.type = 'sine';
-                
-                gainNode.gain.setValueAtTime(0.3, time);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
-                
-                oscillator.start(time);
-                oscillator.stop(time + 0.1);
-                
-                time += 0.15;
-            });
-        }
-
-        function checkNetworkStatus() {
-            const status = getNetworkStatus();
-            realNetworkType = status.type;
-            
-            // Actualizar UI en modal
-            document.getElementById('real-network-type').textContent = 
-                status.type === 'cellular' ? 'Datos Móviles' : 
-                status.type === 'wifi' ? 'WiFi' : 
-                status.type.charAt(0).toUpperCase() + status.type.slice(1);
-            
-            document.getElementById('network-speed').textContent = 
-                status.downlink > 0 ? `${status.downlink.toFixed(1)} Mb/s` : 'Desconocida';
-            
-            // Mostrar información detallada
-            const typeNames = {
-                'wifi': 'Red WiFi',
-                'cellular': 'Datos Móviles (4G/5G)',
-                'ethernet': 'Cable Ethernet',
-                'none': 'Sin conexión',
-                'unknown': 'Tipo desconocido'
             };
-            
-            const detailedInfo = `
-                ${typeNames[status.type] || 'Tipo de red'}: ${status.type}
-                Velocidad estimada: ${status.downlink > 0 ? status.downlink.toFixed(1) + ' Mb/s' : 'Desconocida'}
-                Latencia: ${status.rtt > 0 ? status.rtt + ' ms' : 'Desconocida'}
-                Modo ahorro datos: ${status.saveData ? 'ACTIVADO' : 'DESACTIVADO'}
-                Última actualización: ${new Date().toLocaleTimeString()}
-            `;
-            
-            updateMonitor(`📊 ESTADO DE RED:\n${detailedInfo}`);
-            playStrongBeep(700, 100);
+
+            recognition.onerror = (event) => {
+                console.error("Error de reconocimiento de voz:", event.error);
+                
+                if (event.error === 'no-speech') {
+                    updateMonitor("🎤 No se detectó voz. Intenta de nuevo.", "warning");
+                } else if (event.error === 'audio-capture') {
+                    updateMonitor("🎤 No se pudo acceder al micrófono.", "error");
+                } else if (event.error === 'not-allowed') {
+                    updateMonitor("🎤 Permiso de micrófono denegado.", "error");
+                } else {
+                    updateMonitor(`🎤 Error de voz: ${event.error}`, "error");
+                }
+                
+                resetVoiceUI();
+            };
+
+            recognition.onend = () => {
+                resetVoiceUI();
+            };
         }
 
-        function toggleNetworkAutoDetect() {
-            networkAutoDetect = document.getElementById('networkAutoDetect').checked;
-            localStorage.setItem('radcom_network_autodetect', networkAutoDetect);
-            
-            if (networkAutoDetect) {
-                // Si se activa, detectar red actual
-                const currentType = getNetworkType();
-                if (currentType !== 'unknown') {
-                    updateNetworkTypeAutomatically(currentType);
+        // Función auxiliar para restablecer la UI de voz
+        function resetVoiceUI() {
+            recognizing = false;
+            const micBtn = document.getElementById("micBtn");
+            const status = document.getElementById("mic-status");
+            if (micBtn) micBtn.classList.remove("listening");
+            if (status) {
+                status.textContent = "Voz OFF";
+                status.classList.remove("active");
+            }
+        }
+
+        function toggleVoiceInput() {
+            // Si ya está activo, detenerlo
+            if (recognizing) {
+                try {
+                    recognition.stop();
+                    updateMonitor("🎤 Modo voz desactivado", "info");
+                } catch(e) {
+                    console.log("Reconocimiento ya detenido");
                 }
-                updateMonitor('✅ Detección automática de red ACTIVADA');
-            } else {
-                updateMonitor('⏸️ Detección automática de red DESACTIVADA');
+                return;
             }
             
-            playStrongBeep(600, 50);
+            // Inicializar si es necesario
+            if (!recognition) {
+                initVoiceRecognition();
+                if (!recognition) {
+                    updateMonitor("❌ No se pudo inicializar reconocimiento de voz", "error");
+                    return;
+                }
+            }
+            
+            // Limpiar campo de entrada antes de empezar
+            const input = document.getElementById("inputMsg");
+            if (input) {
+                input.value = "";
+            }
+            
+            // Intentar iniciar el reconocimiento
+            try {
+                recognition.start();
+            } catch(e) {
+                console.error("Error al iniciar reconocimiento:", e);
+                updateMonitor("❌ Error al acceder al micrófono. Verifica permisos.", "error");
+                resetVoiceUI();
+            }
         }
 
         // ====== FUNCIONES DE SISTEMA DE ID ======
@@ -3246,8 +3072,7 @@
                     debug: 0
                 };
                 
-                // Optimizar para tipo de red detectado
-                if (realNetworkType === 'cellular') {
+                if (currentConnectionType === 'mobile') {
                     iceConfig.config.iceServers = [
                         { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
                         { urls: 'stun:stun.l.google.com:19302' },
@@ -3256,9 +3081,6 @@
                         { urls: 'stun:stun3.l.google.com:19302' },
                         { urls: 'stun:stun4.l.google.com:19302' }
                     ];
-                    updateMonitor('📱 Optimizando conexión para DATOS MÓVILES...');
-                } else if (realNetworkType === 'wifi') {
-                    updateMonitor('📶 Optimizando conexión para WiFi...');
                 }
                 
                 peer = new Peer(peerId, iceConfig);
@@ -4648,73 +4470,82 @@
 
         // ====== FUNCIÓN DE EMERGENCIA SATELITAL ARREGLADA ======
 
-        async function sendSatelliteEmergency() {
-            // 1. RECUENTO REAL DE CONEXIONES (Actualizado al momento de pulsar)
+        
+            // Verificar que haya conexiones antes de enviar
             const onlineCount = Object.keys(connections).filter(id => 
-                connections[id] && connections[id].conn && connections[id].conn.open
-            ).length;
+                connections[id]?.status === 'online').length;
+            async function sendSatelliteEmergency() {
+    // 1. RECUENTO REAL DE CONEXIONES (Actualizado al momento de pulsar)
+    const onlineCount = Object.keys(connections).filter(id => 
+        connections[id] && connections[id].conn && connections[id].conn.open
+    ).length;
 
-            if (onlineCount === 0) {
-                updateMonitor("❌ ERROR: SIN CONEXIONES ACTIVAS", "error");
-                playStrongBeep(300, 200);
-                return;
-            }
-            
-            if (!confirm("🚨 ¿ENVIAR EMERGENCIA REAL?\nSe obtendrá GPS y Meteo del lugar del incidente.")) return;
-            
-            updateMonitor("📡 OBTENIENDO SENSORES REALES...");
-            playEmergencySatelliteTone();
+    if (onlineCount === 0) {
+        updateMonitor("❌ ERROR: SIN CONEXIONES ACTIVAS", "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    if (!confirm("🚨 ¿ENVIAR EMERGENCIA REAL?\nSe obtendrá GPS y Meteo del lugar del incidente.")) return;
+    
+    updateMonitor("📡 OBTENIENDO SENSORES REALES...");
+    playEmergencySatelliteTone();
 
-            // 2. OBTENER GPS REAL DEL DISPOSITIVO
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-                const alt = pos.coords.altitude ? Math.round(pos.coords.altitude) : "---";
+    // 2. OBTENER GPS REAL DEL DISPOSITIVO
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const alt = pos.coords.altitude ? Math.round(pos.coords.altitude) : "---";
 
-                // 3. OBTENER METEO REAL DE TU UBICACIÓN EXACTA
-                updateMonitor("🌡️ CONSULTANDO CLIMA SATELITAL...");
-                let infoMeteo = "Sin datos de clima";
-                try {
-                    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_gusts_10m&timezone=auto`);
-                    const data = await res.json();
-                    const c = data.current;
-                    infoMeteo = `T:${c.temperature_2m}°C | VNT:${c.wind_speed_10m}km/h | RCH:${c.wind_gusts_10m}km/h`;
-                } catch(e) { console.error("Error meteo"); }
+        // 3. OBTENER METEO REAL DE TU UBICACIÓN EXACTA
+        updateMonitor("🌡️ CONSULTANDO CLIMA SATELITAL...");
+        let infoMeteo = "Sin datos de clima";
+        try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_gusts_10m&timezone=auto`);
+            const data = await res.json();
+            const c = data.current;
+            infoMeteo = `T:${c.temperature_2m}°C | VNT:${c.wind_speed_10m}km/h | RCH:${c.wind_gusts_10m}km/h`;
+        } catch(e) { console.error("Error meteo"); }
 
-                // 4. CONSTRUIR MENSAJE REAL
-                const emergencyMessage = `🚨 EMERGENCIA REAL ATOM-80 🚨
+        // 4. CONSTRUIR MENSAJE REAL
+        const emergencyMessage = `🚨 EMERGENCIA REAL ATOM-80 🚨
 UBICACIÓN: ${lat.toFixed(5)}, ${lon.toFixed(5)}
 ALTITUD: ${alt}m
 METEO: ${infoMeteo}
 HORA: ${new Date().toLocaleTimeString()}
 SISTEMA: RADCOM v4.7.1 MAESTRA`;
 
-                // 5. ENVÍO DIRECTO (Sin bloqueos de Input)
-                updateMonitor("🚀 TRANSMITIENDO PAQUETE DE RESCATE...");
-                
-                Object.keys(connections).forEach(id => {
-                    const peerConn = connections[id].conn;
-                    if (peerConn && peerConn.open) {
-                        peerConn.send({
-                            type: 'satellite',
-                            content: emergencyMessage,
-                            sender: myPeerId,
-                            timestamp: new Date().toLocaleTimeString()
-                        });
-                    }
+        // 5. ENVÍO DIRECTO (Sin bloqueos de Input)
+        updateMonitor("🚀 TRANSMITIENDO PAQUETE DE RESCATE...");
+        
+        Object.keys(connections).forEach(id => {
+            const peerConn = connections[id].conn;
+            if (peerConn && peerConn.open) {
+                peerConn.send({
+                    type: 'satellite',
+                    content: emergencyMessage,
+                    sender: myPeerId,
+                    timestamp: new Date().toLocaleTimeString()
                 });
+            }
+        });
 
-                // Reflejar en el log local
-                displayMessage(`🚨 YO (EMERGENCIA SATELITAL): ${emergencyMessage}`, '', 'outgoing');
-                
-                updateMonitor("✅ SEÑAL DE SOCORRO ENVIADA");
-                alert("✅ EMERGENCIA TRANSMITIDA\n\nCoordenadas enviadas: " + lat.toFixed(5) + ", " + lon.toFixed(5));
+        // Reflejar en el log local
+        const logContainer = document.getElementById('logContainer');
+        const div = document.createElement('div');
+        div.className = 'msg-satellite';
+        div.style.background = "rgba(255,0,0,0.2)";
+        div.innerHTML = `<b>YO (EMERGENCIA):</b> ${emergencyMessage.replace(/\n/g, '<br>')}`;
+        logContainer.appendChild(div);
+        
+        updateMonitor("✅ SEÑAL DE SOCORRO ENVIADA");
+        alert("✅ EMERGENCIA TRANSMITIDA\n\nCoordenadas enviadas: " + lat.toFixed(5) + ", " + lon.toFixed(5));
 
-            }, (err) => {
-                updateMonitor("❌ ERROR CRÍTICO: GPS BLOQUEADO", "error");
-                alert("No se puede enviar emergencia sin GPS.");
-            }, { enableHighAccuracy: true });
-        }
+    }, (err) => {
+        updateMonitor("❌ ERROR CRÍTICO: GPS BLOQUEADO", "error");
+        alert("No se puede enviar emergencia sin GPS.");
+    }, { enableHighAccuracy: true });
+}
 
         function playEmergencySatelliteTone() {
             if (!document.getElementById('soundEnabled')?.checked) return;
@@ -5618,187 +5449,14 @@ SISTEMA: RADCOM v4.7.1 MAESTRA`;
             monitor.innerHTML = `<span style="color:${color}">${message}</span>`;
         }
 
-        // ====== FUNCIONES DE CONFIGURACIÓN MEJORADAS ======
-
-        function selectConnectionType(type) {
-            // Si la detección automática está activada, mostrar advertencia
-            if (networkAutoDetect) {
-                if (!confirm(`La detección automática está ACTIVADA.\n¿Deseas desactivarla y cambiar manualmente a ${type === 'wifi' ? 'WiFi' : 'Datos Móviles'}?`)) {
-                    return;
-                }
-                // Desactivar detección automática
-                networkAutoDetect = false;
-                document.getElementById('networkAutoDetect').checked = false;
-            }
-            
-            currentConnectionType = type;
-            
-            // Actualizar UI
-            document.querySelectorAll('.connection-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            if (type === 'wifi') {
-                document.getElementById('btn-wifi').classList.add('active');
-                document.getElementById('current-connection-type').textContent = 'WiFi';
-            } else if (type === 'mobile') {
-                document.getElementById('btn-mobile').classList.add('active');
-                document.getElementById('current-connection-type').textContent = 'Datos Móviles';
-            }
-            
-            updateMonitor(`⚡ Modo conexión cambiado a: ${type === 'wifi' ? 'WiFi' : 'Datos Móviles'}`);
-            playStrongBeep(800, 100);
-            
-            // Guardar configuración
-            saveConnectionType();
-            
-            // Si el tipo de red real es diferente, mostrar sugerencia
-            const realType = getNetworkType();
-            if (realType !== 'unknown' && realType !== type) {
-                const typeNames = {
-                    'wifi': 'WiFi',
-                    'cellular': 'Datos Móviles',
-                    'ethernet': 'Ethernet'
-                };
-                
-                updateMonitor(`💡 SUGERENCIA: Tu dispositivo está usando ${typeNames[realType] || realType}. ¿Deseas cambiarlo en ajustes?`, "warning");
-            }
-        }
-
-        function saveConnectionType() {
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
-            config.connectionType = currentConnectionType;
-            config.networkAutoDetect = networkAutoDetect;
-            localStorage.setItem('radcom_config_v4', JSON.stringify(config));
-        }
-
-        function loadSettings() {
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
-            
-            // Cargar configuración de red
-            networkAutoDetect = config.networkAutoDetect !== false;
-            currentConnectionType = config.connectionType || 'wifi';
-            
-            // Actualizar checkboxes
-            if (document.getElementById('networkAutoDetect')) {
-                document.getElementById('networkAutoDetect').checked = networkAutoDetect;
-            }
-            
-            // Cargar otras configuraciones
-            if (document.getElementById('autoReconnect')) {
-                document.getElementById('autoReconnect').checked = config.autoReconnect !== false;
-            }
-            if (document.getElementById('soundEnabled')) {
-                document.getElementById('soundEnabled').checked = config.soundEnabled !== false;
-            }
-            if (document.getElementById('saveHistory')) {
-                document.getElementById('saveHistory').checked = config.saveHistory !== false;
-            }
-            if (document.getElementById('fastRecovery')) {
-                document.getElementById('fastRecovery').checked = config.fastRecovery !== false;
-                fastRecovery = config.fastRecovery !== false;
-            }
-            if (document.getElementById('aggressiveRevive')) {
-                document.getElementById('aggressiveRevive').checked = config.aggressiveRevive !== false;
-                aggressiveRevive = config.aggressiveRevive !== false;
-            }
-            if (document.getElementById('optimizeForCellular')) {
-                document.getElementById('optimizeForCellular').checked = config.optimizeForCellular === true;
-            }
-        }
-
-        function saveSettings() {
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
-            
-            // Guardar configuración de red
-            config.networkAutoDetect = document.getElementById('networkAutoDetect').checked;
-            networkAutoDetect = config.networkAutoDetect;
-            
-            // Guardar otras configuraciones
-            config.autoReconnect = document.getElementById('autoReconnect').checked;
-            config.soundEnabled = document.getElementById('soundEnabled').checked;
-            config.saveHistory = document.getElementById('saveHistory').checked;
-            config.fastRecovery = document.getElementById('fastRecovery').checked;
-            config.aggressiveRevive = document.getElementById('aggressiveRevive').checked;
-            config.optimizeForCellular = document.getElementById('optimizeForCellular').checked;
-            config.systemName = document.getElementById('systemName').value;
-            
-            // Guardar configuración de ID
-            config.useFixedId = document.getElementById('useFixedId').checked;
-            config.fixedId = document.getElementById('customIdInput').value;
-            
-            localStorage.setItem('radcom_config_v4', JSON.stringify(config));
-            
-            // Si se cambió el ID fijo, reiniciar conexión
-            if (config.fixedId !== ID_SYSTEM.fixedId) {
-                ID_SYSTEM.fixedId = config.fixedId;
-                if (config.useFixedId) {
-                    updateMonitor("🔄 Reiniciando con nuevo ID fijo...");
-                    setTimeout(() => {
-                        if (peer) peer.destroy();
-                        setTimeout(() => initPeerJSEnhanced(), 1000);
-                    }, 500);
-                }
-            }
-            
-            hideSettings();
-            updateMonitor("✅ CONFIGURACIÓN GUARDADA");
-            playStrongBeep(800, 100);
-        }
-
-        function showSettings() {
-            document.getElementById('settingsModal').style.display = 'flex';
-            loadSettings();
-            
-            // Actualizar información de red en tiempo real
-            const status = getNetworkStatus();
-            realNetworkType = status.type;
-            
-            document.getElementById('real-network-type').textContent = 
-                status.type === 'cellular' ? 'Datos Móviles' : 
-                status.type === 'wifi' ? 'WiFi' : 
-                status.type.charAt(0).toUpperCase() + status.type.slice(1);
-            
-            document.getElementById('network-speed').textContent = 
-                status.downlink > 0 ? `${status.downlink.toFixed(1)} Mb/s` : 'Desconocida';
-            
-            // Actualizar botones según configuración actual
-            document.querySelectorAll('.connection-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            if (currentConnectionType === 'wifi') {
-                document.getElementById('btn-wifi').classList.add('active');
-                document.getElementById('current-connection-type').textContent = 
-                    networkAutoDetect ? 'WiFi (Auto)' : 'WiFi';
-            } else if (currentConnectionType === 'mobile') {
-                document.getElementById('btn-mobile').classList.add('active');
-                document.getElementById('current-connection-type').textContent = 
-                    networkAutoDetect ? 'Datos Móviles (Auto)' : 'Datos Móviles';
-            }
-        }
-
-        function hideSettings() {
-            document.getElementById('settingsModal').style.display = 'none';
-        }
-
         // ====== SONIDOS ======
-        
-        function initAudio() {
-            if (!audioContext) {
-                try {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                } catch (error) {
-                    console.error("Error inicializando audio:", error);
-                }
-            }
-        }
         
         function playStrongBeep(freq, duration) {
             if (!document.getElementById('soundEnabled')?.checked) return;
             
-            initAudio();
-            if (!audioContext) return;
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
             
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
@@ -5819,8 +5477,9 @@ SISTEMA: RADCOM v4.7.1 MAESTRA`;
         function playMessageNotification() {
             if (!document.getElementById('soundEnabled')?.checked) return;
             
-            initAudio();
-            if (!audioContext) return;
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
             
             let currentTime = audioContext.currentTime;
             
@@ -5952,208 +5611,350 @@ SISTEMA: RADCOM v4.7.1 MAESTRA`;
         }
 
         function realTimePreview() {
-            // Implementación existente
+            clearTimeout(window.previewTimeout);
+            window.previewTimeout = setTimeout(() => {
+                const input = document.getElementById('inputMsg');
+                const message = input.value;
+                
+                if (!message) {
+                    updateMonitor("ESCUCHA ACTIVA...");
+                    return;
+                }
+                
+                const key = document.getElementById('key').value || 'ATOM80';
+                let hex = '';
+                for (let i = 0; i < Math.min(message.length, 3); i++) {
+                    const charCode = message.charCodeAt(i);
+                    const keyCode = key.charCodeAt(i % key.length);
+                    hex += (charCode ^ keyCode).toString(16).padStart(2, '0');
+                }
+                
+                updateMonitor(`PREVIEW: ${hex}...`);
+            }, 300);
         }
 
         function realTimeTableHighlight() {
-            // Implementación existente
+            const input = document.getElementById('inputMsg');
+            const text = input.value;
+            
+            document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
+                td.classList.remove('highlighted');
+            });
+            
+            if (text.length === 0) {
+                return;
+            }
+            
+            const lastChar = text[text.length - 1];
+            const asciiCode = lastChar.charCodeAt(0);
+            
+            if (asciiCode >= 32 && asciiCode <= 126) {
+                const row = asciiCode & 0x0F;
+                const col = (asciiCode >> 4) & 0x07;
+                
+                const cell = document.querySelector(`#ansiTable td[data-ascii="${asciiCode}"]`);
+                if (cell) {
+                    cell.classList.add('highlighted');
+                    
+                    const displayChar = cell.getAttribute('data-char');
+                    const hex = cell.getAttribute('data-hex');
+                    updateCharPreview(row, col, asciiCode, hex, displayChar);
+                    
+                    cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                }
+            } else if (lastChar === ' ') {
+                const cell = document.querySelector('#ansiTable td[data-char="SPC"]');
+                if (cell) {
+                    cell.classList.add('highlighted');
+                    const row = parseInt(cell.getAttribute('data-row'));
+                    const col = parseInt(cell.getAttribute('data-col'));
+                    const ascii = parseInt(cell.getAttribute('data-ascii'));
+                    const hex = cell.getAttribute('data-hex');
+                    updateCharPreview(row, col, ascii, hex, 'SPC');
+                }
+            } else if (lastChar === '\x7F') {
+                const cell = document.querySelector('#ansiTable td[data-char="DEL"]');
+                if (cell) {
+                    cell.classList.add('highlighted');
+                    const row = parseInt(cell.getAttribute('data-row'));
+                    const col = parseInt(cell.getAttribute('data-col'));
+                    const ascii = parseInt(cell.getAttribute('data-ascii'));
+                    const hex = cell.getAttribute('data-hex');
+                    updateCharPreview(row, col, ascii, hex, 'DEL');
+                }
+            }
         }
 
         function clearChat() {
-            document.getElementById('monitor-decoded').innerHTML = 
-                '<div class="message-bubble message-system">' +
-                '<i class="fas fa-satellite"></i> SISTEMA RADCOM MASTER v4.7 INICIADO' +
-                '</div>';
-            updateMonitor("🗑️ CHAT LIMPIADO");
-            playStrongBeep(300, 100);
+            if (confirm("¿Borrar todo el historial del chat?")) {
+                document.getElementById('monitor-decoded').innerHTML = 
+                    '<div class="message-bubble message-system"><i class="fas fa-satellite"></i> HISTORIAL LIMPIADO</div>';
+                updateMonitor("✅ CHAT LIMPIADO");
+                playStrongBeep(400, 200);
+            }
         }
 
-        // ====== FUNCIONES DE RECONOCIMIENTO DE VOZ ======
+        // ====== CONFIGURACIÓN MEJORADA ======
         
-        function initVoiceRecognition() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                updateMonitor("Reconocimiento de voz no soportado en este navegador.", "warning");
+        function showSettings() {
+            document.getElementById('settingsModal').style.display = 'flex';
+            updateConnectionUI();
+            loadIdSettings();
+        }
+
+        function hideSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function updateConnectionUI() {
+            document.querySelectorAll('.connection-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`btn-${currentConnectionType}`).classList.add('active');
+            
+            const typeName = currentConnectionType === 'wifi' ? 'WiFi' : 'Datos Móviles';
+            document.getElementById('current-connection-type').textContent = typeName;
+        }
+
+        function selectConnectionType(type) {
+            if (type === currentConnectionType) return;
+            
+            document.querySelectorAll('.connection-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`btn-${type}`).classList.add('active');
+            
+            currentConnectionType = type;
+            const typeName = type === 'wifi' ? 'WiFi' : 'Datos Móviles';
+            document.getElementById('current-connection-type').textContent = typeName;
+            
+            updateMonitor(`⚡ Modo conexión cambiado a: ${typeName}`);
+            playStrongBeep(800, 100);
+            
+            saveConnectionType();
+        }
+
+        function saveConnectionType() {
+            const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
+            config.connectionType = currentConnectionType;
+            localStorage.setItem('radcom_config_v4.6', JSON.stringify(config));
+        }
+
+        // ====== FUNCIONES DE CONFIGURACIÓN DE ID ======
+        
+        function loadIdSettings() {
+            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
+            
+            document.getElementById('useFixedId').checked = config.useFixedId !== false;
+            document.getElementById('customIdInput').value = config.fixedId || getOrCreateFixedId();
+            document.getElementById('currentIdDisplay').textContent = ID_SYSTEM.currentId || 'No asignado';
+            
+            toggleIdMode();
+        }
+
+        function toggleIdMode() {
+            const useFixed = document.getElementById('useFixedId').checked;
+            const container = document.getElementById('customIdContainer');
+            
+            if (useFixed) {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        function generateCustomId() {
+            const prefixes = ['RADCOM', 'SATCOM', 'NETCOM', 'SECURE', 'MASTER'];
+            const adjectives = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'];
+            const nouns = ['STATION', 'NODE', 'HUB', 'RELAY', 'TERMINAL'];
+            
+            const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const noun = nouns[Math.floor(Math.random() * nouns.length)];
+            const number = Math.floor(Math.random() * 999).toString().padStart(3, '0');
+            
+            const generatedId = `${prefix}-${adj}-${noun}-${number}`;
+            document.getElementById('customIdInput').value = generatedId;
+        }
+
+        function applyIdSettings() {
+            const useFixed = document.getElementById('useFixedId').checked;
+            const customId = document.getElementById('customIdInput').value.trim();
+            
+            if (useFixed && (!customId || customId.length < 3)) {
+                updateMonitor("⚠️ ID PERSONALIZADO INVÁLIDO", "error");
+                playStrongBeep(300, 200);
                 return;
             }
             
-            recognition = new SpeechRecognition();
-            recognition.lang = "es-ES";
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
-            recognition.onstart = () => {
-                recognizing = true;
-                const micBtn = document.getElementById("micBtn");
-                const status = document.getElementById("mic-status");
-                if (micBtn) micBtn.classList.add("listening");
-                if (status) {
-                    status.textContent = "ESCUCHANDO...";
-                    status.classList.add("active");
-                }
-                updateMonitor("🎤 MODO VOZ ACTIVADO - HABLA AHORA", "info");
-                playStrongBeep(800, 100);
-            };
-
-            recognition.onresult = (event) => {
-                const input = document.getElementById("inputMsg");
-                if (!input) return;
-                
-                const transcript = event.results[0][0].transcript.trim();
-                
-                if (transcript) {
-                    input.value = transcript;
-                    validateInput();
-                    realTimePreview();
-                    realTimeTableHighlight();
-                    
-                    updateMonitor(`🎤 Reconocido: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`, "info");
-                    playStrongBeep(600, 50);
-                    
-                    setTimeout(() => {
-                        if (input.value.trim() && !recognizing) {
-                            updateMonitor("⚡ ENVIANDO MENSAJE DE VOZ...", "info");
-                            
-                            setTimeout(() => {
-                                const mode = document.getElementById('inputMode').value;
-                                
-                                const onlineCount = Object.keys(connections).filter(id => 
-                                    connections[id]?.status === 'online').length;
-                                
-                                if (onlineCount === 0) {
-                                    updateMonitor("⚠️ No hay conexiones activas para enviar", "warning");
-                                    playStrongBeep(300, 200);
-                                    return;
-                                }
-                                
-                                if (mode === 'phonetic') {
-                                    sendRadioMessage();
-                                } else {
-                                    sendMessage();
-                                }
-                                
-                                input.value = "";
-                                
-                            }, 300);
-                        }
-                    }, 1500);
-                }
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Error de reconocimiento de voz:", event.error);
-                
-                if (event.error === 'no-speech') {
-                    updateMonitor("🎤 No se detectó voz. Intenta de nuevo.", "warning");
-                } else if (event.error === 'audio-capture') {
-                    updateMonitor("🎤 No se pudo acceder al micrófono.", "error");
-                } else if (event.error === 'not-allowed') {
-                    updateMonitor("🎤 Permiso de micrófono denegado.", "error");
-                } else {
-                    updateMonitor(`🎤 Error de voz: ${event.error}`, "error");
-                }
-                
-                resetVoiceUI();
-            };
-
-            recognition.onend = () => {
-                resetVoiceUI();
-            };
-        }
-
-        function resetVoiceUI() {
-            recognizing = false;
-            const micBtn = document.getElementById("micBtn");
-            const status = document.getElementById("mic-status");
-            if (micBtn) micBtn.classList.remove("listening");
-            if (status) {
-                status.textContent = "Voz OFF";
-                status.classList.remove("active");
-            }
-        }
-
-        function toggleVoiceInput() {
-            if (recognizing) {
-                try {
-                    recognition.stop();
-                    updateMonitor("🎤 Modo voz desactivado", "info");
-                } catch(e) {
-                    console.log("Reconocimiento ya detenido");
-                }
-                return;
+            const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
+            config.useFixedId = useFixed;
+            
+            if (useFixed) {
+                config.fixedId = customId;
+            } else {
+                config.fixedId = null;
             }
             
-            if (!recognition) {
-                initVoiceRecognition();
-                if (!recognition) {
-                    updateMonitor("❌ No se pudo inicializar reconocimiento de voz", "error");
-                    return;
-                }
-            }
+            localStorage.setItem('radcom_config_v4', JSON.stringify(config));
             
-            const input = document.getElementById("inputMsg");
-            if (input) {
-                input.value = "";
-            }
+            ID_SYSTEM.useFixedId = useFixed;
+            ID_SYSTEM.fixedId = useFixed ? customId : null;
             
-            try {
-                recognition.start();
-            } catch(e) {
-                console.error("Error al iniciar reconocimiento:", e);
-                updateMonitor("❌ Error al acceder al micrófono. Verifica permisos.", "error");
-                resetVoiceUI();
-            }
-        }
-
-        // ====== INICIALIZACIÓN DEL SISTEMA ======
-
-        window.onload = function() {
-            console.log("🚀 RADCOM MASTER v4.7.1 INICIANDO...");
+            updateMonitor(`🔄 APLICANDO NUEVA CONFIGURACIÓN DE ID...`);
             
-            // 1. Inicializar tablas
-            buildAsciiTable();
-            buildMorseTable();
-            buildSatelliteTable();
-            
-            // 2. Cargar configuración
-            loadSettings();
-            
-            // 3. Detectar tipo de red real
-            realNetworkType = getNetworkType();
-            
-            // 4. Configurar listener de cambios de red
-            setupNetworkListener();
-            
-            // 5. Actualizar UI con información de red
-            updateNetworkStatusDisplay();
-            
-            // 6. Si auto-detección está activada, actualizar configuración
-            if (networkAutoDetect && realNetworkType !== 'unknown') {
-                updateNetworkTypeAutomatically(realNetworkType);
-            }
-            
-            // 7. Inicializar PeerJS con detección de red
             setTimeout(() => {
-                initPeerJSEnhanced();
+                if (peer) {
+                    peer.destroy();
+                }
+                setTimeout(() => initPeerJSEnhanced(), 1000);
             }, 500);
             
-            // 8. Iniciar sistema de health checks
-            setTimeout(() => {
-                startHealthCheckSystem();
-            }, 2000);
-            
-            // 9. Mostrar información de red en monitor
-            const typeNames = {
-                'wifi': 'WiFi',
-                'cellular': 'Datos Móviles',
-                'ethernet': 'Ethernet',
-                'unknown': 'Tipo Desconocido'
+            hideSettings();
+        }
+
+        function resetIdSettings() {
+            const defaultId = generateHardwareBasedId();
+            document.getElementById('customIdInput').value = defaultId;
+            document.getElementById('useFixedId').checked = true;
+            toggleIdMode();
+            updateMonitor("🔄 ID RESTABLECIDO A VALOR PREDETERMINADO");
+        }
+
+        function saveSettings() {
+            const config = {
+                systemName: document.getElementById('systemName').value,
+                connectionType: currentConnectionType,
+                autoReconnect: document.getElementById('autoReconnect').checked,
+                soundEnabled: document.getElementById('soundEnabled').checked,
+                saveHistory: document.getElementById('saveHistory').checked,
+                fastRecovery: document.getElementById('fastRecovery').checked,
+                aggressiveRevive: document.getElementById('aggressiveRevive').checked,
+                useFixedId: document.getElementById('useFixedId').checked,
+                fixedId: document.getElementById('customIdInput').value.trim()
             };
             
-            updateMonitor(`📡 DETECCIÓN DE RED: ${typeNames[realNetworkType] || realNetworkType} | AUTO-DETECCIÓN: ${networkAutoDetect ? 'ACTIVADA' : 'DESACTIVADA'}`);
+            localStorage.setItem('radcom_config_v4', JSON.stringify(config));
             
-            console.log("✅ Sistema inicializado con detección real de red");
+            fastRecovery = config.fastRecovery;
+            aggressiveRevive = config.aggressiveRevive;
+            ID_SYSTEM.useFixedId = config.useFixedId;
+            
+            if (config.fixedId && config.useFixedId) {
+                ID_SYSTEM.fixedId = config.fixedId;
+                localStorage.setItem('radcom_fixed_id_v4', config.fixedId);
+            }
+            
+            updateMonitor("✅ CONFIGURACIÓN GUARDADA");
+            hideSettings();
+            playStrongBeep(600, 100);
+        }
+
+        function loadSettings() {
+            const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
+            
+            if (config.systemName) {
+                document.getElementById('systemName').value = config.systemName;
+            }
+            if (config.connectionType) {
+                currentConnectionType = config.connectionType;
+            }
+            if (config.autoReconnect !== undefined) {
+                document.getElementById('autoReconnect').checked = config.autoReconnect;
+            }
+            if (config.soundEnabled !== undefined) {
+                document.getElementById('soundEnabled').checked = config.soundEnabled;
+            }
+            if (config.saveHistory !== undefined) {
+                document.getElementById('saveHistory').checked = config.saveHistory;
+            }
+            if (config.fastRecovery !== undefined) {
+                document.getElementById('fastRecovery').checked = config.fastRecovery;
+                fastRecovery = config.fastRecovery;
+            }
+            if (config.aggressiveRevive !== undefined) {
+                document.getElementById('aggressiveRevive').checked = config.aggressiveRevive;
+                aggressiveRevive = config.aggressiveRevive;
+            }
+            if (config.useFixedId !== undefined) {
+                ID_SYSTEM.useFixedId = config.useFixedId;
+            }
+            if (config.fixedId) {
+                ID_SYSTEM.fixedId = config.fixedId;
+            }
+        }
+
+        function initResizableSeparator() {
+            const separator = document.getElementById('resizableSeparator');
+            const monitorContainer = document.getElementById('monitorContainer');
+            const tableContainer = document.getElementById('tableContainer');
+            
+            let isResizing = false;
+            let startY, startHeight, startTableHeight;
+            
+            separator.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startY = e.clientY;
+                startHeight = parseInt(getComputedStyle(monitorContainer).height);
+                startTableHeight = parseInt(getComputedStyle(tableContainer).height);
+                
+                document.addEventListener('mousemove', resize);
+                document.addEventListener('mouseup', stopResize);
+            });
+            
+            function resize(e) {
+                if (!isResizing) return;
+                
+                const delta = e.clientY - startY;
+                let newHeight = startHeight + delta;
+                
+                if (newHeight < 150) newHeight = 150;
+                if (newHeight > 400) newHeight = 400;
+                
+                monitorContainer.style.height = newHeight + 'px';
+                
+                const tableNewHeight = newHeight - 80;
+                if (tableNewHeight > 80) {
+                    tableContainer.style.height = tableNewHeight + 'px';
+                }
+            }
+            
+            function stopResize() {
+                isResizing = false;
+                document.removeEventListener('mousemove', resize);
+                document.removeEventListener('mouseup', stopResize);
+                
+                const currentHeight = parseInt(getComputedStyle(monitorContainer).height);
+                localStorage.setItem('radcom_separator_height', currentHeight);
+            }
+            
+            const savedHeight = localStorage.getItem('radcom_separator_height');
+            if (savedHeight) {
+                monitorContainer.style.height = savedHeight + 'px';
+            }
+        }
+
+        // ====== INICIALIZACIÓN ======
+        
+        window.onload = function() {
+            console.log(`🚀 Iniciando ${SYSTEM_NAME} v${VERSION}`);
+            
+            buildAsciiTable();
+            buildMorseTable();
+            initRadioSystem();
+            buildSatelliteTable();
+            loadSettings();
+            updatePeerList();
+            initResizableSeparator();
+            initMorseAudio();
+            initVoiceRecognition();
+            
+            initPeerJSEnhanced();
+            startHealthCheckSystem();
+            
+            document.getElementById('inputMsg').addEventListener('keydown', handleSendMessage);
+            
+            updateMonitor(`🛰️ ${SYSTEM_NAME} v${VERSION} INICIADO - SATÉLITE ACTIVO`);
         };
     </script>
 </body>
