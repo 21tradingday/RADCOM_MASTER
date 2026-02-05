@@ -3,10 +3,11 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v4.7 - SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v4.7.1 - SISTEMA DE COMUNICACIÓN SEGURA</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
+    <script src="https://api.open-meteo.com/v1/forecast?latitude=40.4599&longitude=-3.4859&hourly=temperature_2m,visibility,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_80m,wind_gusts_10m"></script>
     <style>
         /* === ESTILOS ORIGINALES - SIN CAMBIOS === */
         * { 
@@ -1820,7 +1821,7 @@
         <div class="header-pro">
             <div class="status-indicator">
                 <span class="status-dot-live"></span>
-                <span>RADCOM MASTER <span class="version-badge">v4.7</span></span>
+                <span>RADCOM MASTER <span class="version-badge">v4.7.1</span></span>
                 <span style="color:#888; margin-left:8px;">|</span>
                 <span id="data-session" style="color:#00ffea">0</span>b
                 <span class="security-badge">
@@ -4469,61 +4470,82 @@
 
         // ====== FUNCIÓN DE EMERGENCIA SATELITAL ARREGLADA ======
 
-        function sendSatelliteEmergency() {
+        
             // Verificar que haya conexiones antes de enviar
             const onlineCount = Object.keys(connections).filter(id => 
                 connections[id]?.status === 'online').length;
-            
-            if (onlineCount === 0) {
-                updateMonitor("⚠️ NO HAY CONEXIONES ACTIVAS PARA ENVIAR EMERGENCIA", "error");
-                playStrongBeep(300, 200);
-                return;
+            async function sendSatelliteEmergency() {
+    // 1. RECUENTO REAL DE CONEXIONES (Actualizado al momento de pulsar)
+    const onlineCount = Object.keys(connections).filter(id => 
+        connections[id] && connections[id].conn && connections[id].conn.open
+    ).length;
+
+    if (onlineCount === 0) {
+        updateMonitor("❌ ERROR: SIN CONEXIONES ACTIVAS", "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    if (!confirm("🚨 ¿ENVIAR EMERGENCIA REAL?\nSe obtendrá GPS y Meteo del lugar del incidente.")) return;
+    
+    updateMonitor("📡 OBTENIENDO SENSORES REALES...");
+    playEmergencySatelliteTone();
+
+    // 2. OBTENER GPS REAL DEL DISPOSITIVO
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const alt = pos.coords.altitude ? Math.round(pos.coords.altitude) : "---";
+
+        // 3. OBTENER METEO REAL DE TU UBICACIÓN EXACTA
+        updateMonitor("🌡️ CONSULTANDO CLIMA SATELITAL...");
+        let infoMeteo = "Sin datos de clima";
+        try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_gusts_10m&timezone=auto`);
+            const data = await res.json();
+            const c = data.current;
+            infoMeteo = `T:${c.temperature_2m}°C | VNT:${c.wind_speed_10m}km/h | RCH:${c.wind_gusts_10m}km/h`;
+        } catch(e) { console.error("Error meteo"); }
+
+        // 4. CONSTRUIR MENSAJE REAL
+        const emergencyMessage = `🚨 EMERGENCIA REAL ATOM-80 🚨
+UBICACIÓN: ${lat.toFixed(5)}, ${lon.toFixed(5)}
+ALTITUD: ${alt}m
+METEO: ${infoMeteo}
+HORA: ${new Date().toLocaleTimeString()}
+SISTEMA: RADCOM v4.7.1 MAESTRA`;
+
+        // 5. ENVÍO DIRECTO (Sin bloqueos de Input)
+        updateMonitor("🚀 TRANSMITIENDO PAQUETE DE RESCATE...");
+        
+        Object.keys(connections).forEach(id => {
+            const peerConn = connections[id].conn;
+            if (peerConn && peerConn.open) {
+                peerConn.send({
+                    type: 'satellite',
+                    content: emergencyMessage,
+                    sender: myPeerId,
+                    timestamp: new Date().toLocaleTimeString()
+                });
             }
-            
-            if (!confirm("🚨 ¿ENVIAR SEÑAL DE EMERGENCIA SATELITAL?\n\nSe enviará tu posición GPS actual a todos los contactos.")) {
-                return;
-            }
-            
-            updateMonitor("🚨 ENVIANDO SEÑAL DE EMERGENCIA SATELITAL...");
-            playEmergencySatelliteTone();
-            
-            // Obtener datos actuales
-            const emergencyPosition = satellitePositions.paragliding;
-            const currentTime = new Date().toLocaleTimeString();
-            
-            // Crear mensaje de emergencia
-            const emergencyMessage = `🚨 EMERGENCIA SATELITAL 🚨
-Posición: ${emergencyPosition.lat.toFixed(4)}° N, ${emergencyPosition.lon.toFixed(4)}° E
-Altitud: ${Math.round(emergencyPosition.alt)} m
-Hora: ${currentTime}
-Tipo: EMERGENCIA GPS AUTOMÁTICA
-Mensaje automático del Sistema RADCOM v4.7`;
-            
-            // Guardar en el campo de entrada
-            const input = document.getElementById('inputMsg');
-            const originalValue = input.value;
-            input.value = emergencyMessage;
-            
-            // Cambiar automáticamente a modo satélite
-            document.getElementById('inputMode').value = 'satellite';
-            validateInputMode();
-            switchTab('satellite');
-            
-            // Enviar automáticamente después de 1 segundo
-            setTimeout(() => {
-                sendMessage();
-                
-                // Restaurar valor original del campo de entrada
-                input.value = originalValue;
-                
-                updateMonitor("✅ SEÑAL DE EMERGENCIA ENVIADA VÍA SATÉLITE");
-                
-                // Mostrar confirmación
-                setTimeout(() => {
-                    alert(`✅ SEÑAL DE EMERGENCIA ENVIADA\n\nTu posición GPS ha sido transmitida a ${onlineCount} contacto(s).\n\nCoordenadas: ${emergencyPosition.lat.toFixed(4)}° N, ${emergencyPosition.lon.toFixed(4)}° E\nAltitud: ${Math.round(emergencyPosition.alt)} m\nHora: ${currentTime}`);
-                }, 500);
-            }, 1000);
-        }
+        });
+
+        // Reflejar en el log local
+        const logContainer = document.getElementById('logContainer');
+        const div = document.createElement('div');
+        div.className = 'msg-satellite';
+        div.style.background = "rgba(255,0,0,0.2)";
+        div.innerHTML = `<b>YO (EMERGENCIA):</b> ${emergencyMessage.replace(/\n/g, '<br>')}`;
+        logContainer.appendChild(div);
+        
+        updateMonitor("✅ SEÑAL DE SOCORRO ENVIADA");
+        alert("✅ EMERGENCIA TRANSMITIDA\n\nCoordenadas enviadas: " + lat.toFixed(5) + ", " + lon.toFixed(5));
+
+    }, (err) => {
+        updateMonitor("❌ ERROR CRÍTICO: GPS BLOQUEADO", "error");
+        alert("No se puede enviar emergencia sin GPS.");
+    }, { enableHighAccuracy: true });
+}
 
         function playEmergencySatelliteTone() {
             if (!document.getElementById('soundEnabled')?.checked) return;
