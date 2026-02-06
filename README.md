@@ -1712,12 +1712,12 @@
         }
 
         .satellite-tab-content::-webkit-scrollbar-thumb {
-            background: rgba(0, 136, 255, 0.5);
+            background: rgba(0, 255, 136, 0.5);
             border-radius: 2px;
         }
 
         .satellite-tab-content::-webkit-scrollbar-thumb:hover {
-            background: rgba(0, 136, 255, 0.7);
+            background: rgba(0, 255, 136, 0.7);
         }
 
         .sat-section {
@@ -1975,7 +1975,32 @@
         }
 
         /* === NUEVOS ESTILOS PARA SATÉLITE MEJORADO === */
-    
+    /* Fuerza verde fino en TODOS los scrollbars de la página */
+::-webkit-scrollbar {
+    width: 3px !important;
+    height: 3px !important;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(10, 10, 10, 0.6) !important;
+    border-radius: 10px !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #00ff88 !important;           /* Verde puro del tema */
+    border-radius: 10px !important;
+    border: 1px solid rgba(0, 255, 136, 0.2) !important;  /* borde sutil opcional */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #33ff99 !important;
+}
+
+/* Firefox global */
+* {
+    scrollbar-width: thin !important;
+    scrollbar-color: #00ff88 rgba(10, 10, 10, 0.6) !important;
+}
 
     </style>
 </head>
@@ -6680,6 +6705,39 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
             
             updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | SATÉLITE ACTIVO`);
         };
+
+        // ====== MÓDULO DE MEMORIA RADCOM v4.7 ======
+
+function saveToLocalStorage(sender, msg) {
+    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
+    history.push({
+        time: new Date().toLocaleTimeString(),
+        sender: sender,
+        text: msg
+    });
+    if(history.length > 30) history.shift(); // Guardar últimos 30 mensajes
+    localStorage.setItem('radcom_history_v47', JSON.stringify(history));
+}
+
+function loadHistoryFromLocal() {
+    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
+    if(history.length > 0) {
+        updateMonitor("📂 RECUPERANDO MENSAJES GUARDADOS...");
+        history.forEach(item => {
+            // Se muestran en el log pero con un estilo más apagado (dimmed)
+            const logContainer = document.getElementById('logContainer');
+            if(logContainer) {
+                const div = document.createElement('div');
+                div.style.borderLeft = "2px solid #333";
+                div.style.paddingLeft = "5px";
+                div.style.marginBottom = "2px";
+                div.style.color = "#00aa66"; 
+                div.innerHTML = `<small>[Historial ${item.time}]</small> <b>${item.sender}:</b> ${item.text}`;
+                logContainer.appendChild(div);
+            }
+        });
+    }
+}
 
         // Exportar nuevas funciones
         window.forceUpdateSatelliteData = forceUpdateSatelliteData;
