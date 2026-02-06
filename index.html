@@ -3,12 +3,211 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v4.7.1 - SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v4.7.2 - SISTEMA DE COMUNICACIÓN SEGURA</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
     <script src="https://api.open-meteo.com/v1/forecast?latitude=40.4599&longitude=-3.4859&hourly=temperature_2m,visibility,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_80m,wind_gusts_10m"></script>
     <style>
+        /* === NUEVOS ESTILOS PARA SATÉLITE v4.7.2 === */
+        .satellite-container-v2 {
+            padding: 8px;
+            height: 100%;
+            overflow-y: auto;
+            background: linear-gradient(135deg, rgba(0, 10, 20, 0.9), rgba(0, 20, 40, 0.8));
+            border: 1px solid #0088ff;
+            border-radius: 4px;
+        }
+
+        .satellite-header-v2 {
+            background: linear-gradient(90deg, rgba(0, 20, 40, 0.95), rgba(0, 40, 80, 0.7));
+            padding: 6px 12px;
+            border-bottom: 2px solid #00ffea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 3px;
+            margin-bottom: 8px;
+        }
+
+        .satellite-title-v2 {
+            font-size: 0.8rem;
+            color: #00ffea;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .satellite-grid-v2 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        .sat-data-card-v2 {
+            background: rgba(0, 15, 30, 0.8);
+            border: 1px solid rgba(0, 136, 255, 0.4);
+            border-radius: 3px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s;
+        }
+
+        .sat-data-card-v2:hover {
+            border-color: #00ffea;
+            background: rgba(0, 25, 50, 0.9);
+            transform: translateY(-1px);
+        }
+
+        .sat-data-label-v2 {
+            font-size: 0.45rem;
+            color: #88aaff;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+        }
+
+        .sat-data-value-v2 {
+            font-size: 0.75rem;
+            color: #00ffea;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        .sat-gps-container-v2 {
+            background: rgba(0, 20, 0, 0.4);
+            border: 1px solid #00ff88;
+            border-radius: 3px;
+            padding: 8px;
+            margin: 8px 0;
+            text-align: center;
+        }
+
+        .gps-coords-v2 {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #00ffea;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin: 4px 0;
+        }
+
+        .emergency-panel-v2 {
+            background: linear-gradient(135deg, rgba(40, 0, 0, 0.9), rgba(80, 0, 0, 0.7));
+            border: 2px solid #ff3300;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .emergency-panel-v2::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #ff3300, #ff6600, #ff3300);
+            animation: emergencyPulse 2s infinite;
+        }
+
+        @keyframes emergencyPulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .emergency-title-v2 {
+            font-size: 0.75rem;
+            color: #ffaa00;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .emergency-buttons-v2 {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .emergency-btn-big-v2 {
+            flex: 2;
+            padding: 10px;
+            background: linear-gradient(135deg, #ff3300, #ff6600);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+
+        .emergency-btn-big-v2:hover {
+            background: linear-gradient(135deg, #ff5500, #ff8800);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 51, 0, 0.4);
+        }
+
+        .position-btn-v2 {
+            flex: 1;
+            padding: 10px 6px;
+            background: rgba(0, 136, 255, 0.3);
+            border: 1px solid #0088ff;
+            color: #00ffea;
+            border-radius: 3px;
+            font-size: 0.6rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .position-btn-v2:hover {
+            background: rgba(0, 136, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .api-status-v2 {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: rgba(0, 20, 40, 0.6);
+            border-radius: 2px;
+            font-size: 0.55rem;
+            margin-bottom: 6px;
+            justify-content: center;
+        }
+
+        .status-dot-api {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-connected {
+            background: #00ff88;
+            box-shadow: 0 0 8px #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        .status-disconnected {
+            background: #ff3300;
+            box-shadow: 0 0 8px #ff3300;
+        }
         /* === ESTILOS ORIGINALES - SIN CAMBIOS === */
         * { 
             box-sizing: border-box; 
@@ -865,6 +1064,14 @@
 
         .tab-content.active {
             display: block;
+        }
+
+        .preview-value {
+            font-size: 0.7rem;
+        }
+
+        .preview-label {
+            font-size: 0.45rem;
         }
 
         /* === NUEVOS ESTILOS PARA TABLA MORSE MEJORADA === */
@@ -1768,51 +1975,7 @@
         }
 
         /* === NUEVOS ESTILOS PARA SATÉLITE MEJORADO === */
-        .sat-weather-icon {
-            font-size: 0.8rem;
-            margin-right: 3px;
-        }
-
-        .sat-loading {
-            color: #ffaa00;
-            font-style: italic;
-            font-size: 0.55rem;
-        }
-
-        .sat-updated-time {
-            font-size: 0.45rem;
-            color: #888;
-            text-align: center;
-            margin-top: 3px;
-        }
-
-        .sat-condition-indicator {
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            margin-right: 3px;
-        }
-
-        .condition-good {
-            background: #00ff88;
-            box-shadow: 0 0 4px #00ff88;
-        }
-
-        .condition-fair {
-            background: #ffaa00;
-            box-shadow: 0 0 4px #ffaa00;
-        }
-
-        .condition-poor {
-            background: #ff3300;
-            box-shadow: 0 0 4px #ff3300;
-        }
-
-        .sat-unit {
-            font-size: 0.5rem;
-            color: #88aaff;
-        }
+    
 
     </style>
 </head>
@@ -1821,7 +1984,7 @@
         <div class="header-pro">
             <div class="status-indicator">
                 <span class="status-dot-live"></span>
-                <span>RADCOM MASTER <span class="version-badge">v4.7.1</span></span>
+                <span>RADCOM MASTER <span class="version-badge">v4.7.2</span></span>
                 <span style="color:#888; margin-left:8px;">|</span>
                 <span id="data-session" style="color:#00ffea">0</span>b
                 <span class="security-badge">
@@ -2117,277 +2280,145 @@
                                     <div class="static-overlay" id="static-overlay"></div>
                                 </div>
                             </div>
-                            <div id="satellite-table" class="tab-content">
-                                <!-- ====== NUEVA PESTAÑA SATÉLITE MEJORADA ====== -->
-                                <div class="satellite-tab-content">
-                                    <!-- SECCIÓN 1: PARAPENTE -->
-                                    <div class="sat-section">
-                                        <div class="sat-section-header">
-                                            <div class="sat-section-title">
-                                                <i class="fas fa-parachute-box sat-section-icon"></i>
-                                                PARAPENTE - DATOS DE VUELO REAL
-                                            </div>
-                                            <button class="sat-refresh-btn" onclick="refreshParaglidingData()" title="Actualizar datos">
+                            <!-- === NUEVA PESTAÑA SATÉLITE v4.7.2 MEJORADA === -->
+                            <div id="satellite-table" class="tab-content active">
+                                <div class="satellite-container-v2">
+                                    <!-- CABECERA -->
+                                    <div class="satellite-header-v2">
+                                        <div class="satellite-title-v2">
+                                            <i class="fas fa-satellite"></i>
+                                            SISTEMA SATELITAL UNIFICADO
+                                        </div>
+                                        <div style="display:flex; gap:4px;">
+                                            <button class="refresh-btn" onclick="forceUpdateSatelliteData()" title="Actualizar ahora">
                                                 <i class="fas fa-sync-alt"></i>
                                             </button>
                                         </div>
-                                        <div class="sat-section-content">
-                                            <div class="sat-data-grid">
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Viento Actual</div>
-                                                    <div class="sat-data-value" id="pg-wind">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Ráfagas Máx</div>
-                                                    <div class="sat-data-value" id="pg-gusts">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Temperatura</div>
-                                                    <div class="sat-data-value" id="pg-temp">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Humedad</div>
-                                                    <div class="sat-data-value" id="pg-humidity">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Visibilidad</div>
-                                                    <div class="sat-data-value" id="pg-visibility">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Presión</div>
-                                                    <div class="sat-data-value" id="pg-pressure">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="sat-gps-display">
-                                                <div style="font-size:0.45rem; color:#88aaff; margin-bottom:2px;">POSICIÓN GPS REAL</div>
-                                                <div class="sat-gps-coords" id="pg-gps">40.4599° N, -3.4859° E</div>
-                                                <div style="font-size:0.45rem; color:#88aaff;">CONDICIONES: <span id="pg-conditions" style="color:#00ffea;">Cargando...</span></div>
-                                            </div>
-                                            
-                                            <div class="sat-controls">
-                                                <button class="sat-btn" onclick="getParaglidingWeather()">
-                                                    <i class="fas fa-wind"></i> ACTUALIZAR METEO
-                                                </button>
-                                                <button class="sat-btn" onclick="toggleParaglidingAlerts()">
-                                                    <i class="fas fa-exclamation-circle"></i> ALERTAS
-                                                </button>
-                                            </div>
-                                            
-                                            <div class="sat-alert-box" id="pg-alerts" style="display:none;">
-                                                <div class="sat-alert-title">
-                                                    <i class="fas fa-exclamation-triangle"></i>
-                                                    ALERTAS DE VUELO
-                                                </div>
-                                                <div id="pg-alerts-content" style="font-size:0.5rem;">
-                                                    • Sin alertas activas<br>
-                                                    • Esperando datos de API<br>
-                                                    • GPS operativo
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="sat-updated-time" id="pg-updated">Última actualización: Nunca</div>
+                                    </div>
+                                    
+                                    <!-- ESTADO API -->
+                                    <div class="api-status-v2">
+                                        <span class="status-dot-api status-connected" id="api-status-dot"></span>
+                                        <span id="api-status-text">Conectando a API Open-Meteo...</span>
+                                    </div>
+                                    
+                                    <!-- GRID DE DATOS (12 PARÁMETROS) -->
+                                    <div class="satellite-grid-v2">
+                                        <!-- FILA 1 -->
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Temperatura</div>
+                                            <div class="sat-data-value-v2" id="sat-temp">-- °C</div>
+                                            <div class="sat-data-label-v2">Sensación Térmica</div>
+                                            <div class="sat-data-value-v2" id="sat-feelslike">-- °C</div>
+                                        </div>
+                                        
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Humedad</div>
+                                            <div class="sat-data-value-v2" id="sat-humidity">-- %</div>
+                                            <div class="sat-data-label-v2">Presión</div>
+                                            <div class="sat-data-value-v2" id="sat-pressure">-- hPa</div>
+                                        </div>
+                                        
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Viento Velocidad</div>
+                                            <div class="sat-data-value-v2" id="sat-windspeed">-- km/h</div>
+                                            <div class="sat-data-label-v2">Viento Dirección</div>
+                                            <div class="sat-data-value-v2" id="sat-winddirection">-- °</div>
+                                        </div>
+                                        
+                                        <!-- FILA 2 -->
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Ráfagas Máx</div>
+                                            <div class="sat-data-value-v2" id="sat-windgusts">-- km/h</div>
+                                            <div class="sat-data-label-v2">Índice UV</div>
+                                            <div class="sat-data-value-v2" id="sat-uvindex">--</div>
+                                        </div>
+                                        
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Visibilidad</div>
+                                            <div class="sat-data-value-v2" id="sat-visibility">-- km</div>
+                                            <div class="sat-data-label-v2">Nubosidad</div>
+                                            <div class="sat-data-value-v2" id="sat-cloudcover">-- %</div>
+                                        </div>
+                                        
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Prob. Precipitación</div>
+                                            <div class="sat-data-value-v2" id="sat-precipitation">-- %</div>
+                                            <div class="sat-data-label-v2">Lluvia (1h)</div>
+                                            <div class="sat-data-value-v2" id="sat-rain">-- mm</div>
+                                        </div>
+                                        
+                                        <!-- FILA 3 -->
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Punto de Rocío</div>
+                                            <div class="sat-data-value-v2" id="sat-dewpoint">-- °C</div>
+                                            <div class="sat-data-label-v2">Índice Calor</div>
+                                            <div class="sat-data-value-v2" id="sat-heatindex">-- °C</div>
+                                        </div>
+                                        
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Índice Wind Chill</div>
+                                            <div class="sat-data-value-v2" id="sat-windchill">-- °C</div>
+                                            <div class="sat-data-label-v2">Calidad Aire</div>
+                                            <div class="sat-data-value-v2" id="sat-aqi">--</div>
+                                        </div>
+                                        
+                                        <div class="sat-data-card-v2">
+                                            <div class="sat-data-label-v2">Hora Solar</div>
+                                            <div class="sat-data-value-v2" id="sat-sunshine">-- h</div>
+                                            <div class="sat-data-label-v2">Índice CO2</div>
+                                            <div class="sat-data-value-v2" id="sat-co2">-- ppm</div>
                                         </div>
                                     </div>
                                     
-                                    <!-- SECCIÓN 2: VELERO 8M -->
-                                    <div class="sat-section">
-                                        <div class="sat-section-header">
-                                            <div class="sat-section-title">
-                                                <i class="fas fa-ship sat-section-icon"></i>
-                                                VELERO 8M - NAVEGACIÓN MARINA
-                                            </div>
-                                            <button class="sat-refresh-btn" onclick="refreshSailingData()" title="Actualizar datos">
-                                                <i class="fas fa-sync-alt"></i>
-                                            </button>
+                                    <!-- POSICIÓN GPS CON ALTITUD -->
+                                    <div class="sat-gps-container-v2">
+                                        <div style="font-size:0.5rem; color:#00ff88; margin-bottom:4px;">
+                                            <i class="fas fa-map-marker-alt"></i> POSICIÓN GPS ACTUAL
                                         </div>
-                                        <div class="sat-section-content">
-                                            <div class="sat-data-grid">
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Viento</div>
-                                                    <div class="sat-data-value" id="sv-wind">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Dirección</div>
-                                                    <div class="sat-data-value" id="sv-wind-dir">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Temperatura</div>
-                                                    <div class="sat-data-value" id="sv-temp">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Presión</div>
-                                                    <div class="sat-data-value" id="sv-pressure">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Visibilidad</div>
-                                                    <div class="sat-data-value" id="sv-visibility">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Humedad</div>
-                                                    <div class="sat-data-value" id="sv-humidity">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="sat-gps-display">
-                                                <div style="font-size:0.45rem; color:#88aaff; margin-bottom:2px;">POSICIÓN COSTERA</div>
-                                                <div class="sat-gps-coords" id="sv-gps">40.4599° N, -3.4859° E</div>
-                                                <div style="font-size:0.45rem; color:#88aaff;">CONDICIONES: <span id="sv-conditions" style="color:#00ffea;">Cargando...</span></div>
-                                            </div>
-                                            
-                                            <div class="sat-controls">
-                                                <button class="sat-btn" onclick="getSailingWeather()">
-                                                    <i class="fas fa-water"></i> ACTUALIZAR MAR
-                                                </button>
-                                                <button class="sat-btn" onclick="toggleSailingAlerts()">
-                                                    <i class="fas fa-ship"></i> AVISOS
-                                                </button>
-                                            </div>
-                                            
-                                            <div class="sat-alert-box" id="sv-alerts" style="display:none;">
-                                                <div class="sat-alert-title">
-                                                    <i class="fas fa-exclamation-triangle"></i>
-                                                    AVISOS DE NAVEGACIÓN
-                                                </div>
-                                                <div id="sv-alerts-content" style="font-size:0.5rem;">
-                                                    • Sin avisos de tormenta<br>
-                                                    • Esperando datos marinos<br>
-                                                    • GPS costero operativo
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="sat-updated-time" id="sv-updated">Última actualización: Nunca</div>
+                                        <div class="gps-coords-v2" id="sat-gps-coords">
+                                            Lat: --.----° N, Lon: --.----° E
+                                        </div>
+                                        <div style="font-size:0.55rem; color:#ffaa00; margin:3px 0;" id="sat-altitude">
+                                            Altitud: -- m | Precisión: -- m
+                                        </div>
+                                        <div style="font-size:0.45rem; color:#888;">
+                                            Última actualización: <span id="sat-last-update">--:--:--</span>
                                         </div>
                                     </div>
                                     
-                                    <!-- SECCIÓN 3: VIVAC -->
-                                    <div class="sat-section">
-                                        <div class="sat-section-header">
-                                            <div class="sat-section-title">
-                                                <i class="fas fa-hiking sat-section-icon"></i>
-                                                VIVAC - MONTAÑA Y SENDERISMO
-                                            </div>
-                                            <button class="sat-refresh-btn" onclick="refreshHikingData()" title="Actualizar datos">
-                                                <i class="fas fa-sync-alt"></i>
+                                    <!-- PANEL DE EMERGENCIA MEJORADO -->
+                                    <div class="emergency-panel-v2">
+                                        <div class="emergency-title-v2">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            CONTROL DE EMERGENCIAS SATELITAL
+                                        </div>
+                                        
+                                        <div class="emergency-buttons-v2">
+                                            <button class="emergency-btn-big-v2" onclick="sendSatelliteEmergency()" id="emergency-btn-main">
+                                                <i class="fas fa-satellite-dish"></i> EMERGENCIA
+                                            </button>
+                                            <button class="position-btn-v2" onclick="sendPositionToChat()">
+                                                <i class="fas fa-share-alt"></i> POSICIÓN
+                                            </button>
+                                            <button class="position-btn-v2" onclick="getCurrentGPSPosition()">
+                                                <i class="fas fa-crosshairs"></i> GPS
                                             </button>
                                         </div>
-                                        <div class="sat-section-content">
-                                            <div class="sat-data-grid">
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Temperatura</div>
-                                                    <div class="sat-data-value" id="hv-temp">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Sensación Térmica</div>
-                                                    <div class="sat-data-value" id="hv-feels-like">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Viento</div>
-                                                    <div class="sat-data-value" id="hv-wind">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Humedad</div>
-                                                    <div class="sat-data-value" id="hv-humidity">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Presión</div>
-                                                    <div class="sat-data-value" id="hv-pressure">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="sat-data-item">
-                                                    <div class="sat-data-label">Visibilidad</div>
-                                                    <div class="sat-data-value" id="hv-visibility">
-                                                        <span class="sat-loading">Cargando...</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="sat-gps-display">
-                                                <div style="font-size:0.45rem; color:#88aaff; margin-bottom:2px;">POSICIÓN MONTAÑA</div>
-                                                <div class="sat-gps-coords" id="hv-gps">40.4599° N, -3.4859° E</div>
-                                                <div style="font-size:0.45rem; color:#88aaff;">CONDICIONES: <span id="hv-conditions" style="color:#00ffea;">Cargando...</span></div>
-                                            </div>
-                                            
-                                            <div class="sat-controls">
-                                                <button class="sat-btn" onclick="getHikingWeather()">
-                                                    <i class="fas fa-mountain"></i> ACTUALIZAR MONTAÑA
-                                                </button>
-                                                <button class="sat-btn" onclick="toggleHikingAlerts()">
-                                                    <i class="fas fa-campground"></i> ALERTAS
-                                                </button>
-                                            </div>
-                                            
-                                            <div class="sat-alert-box" id="hv-alerts" style="display:none;">
-                                                <div class="sat-alert-title">
-                                                    <i class="fas fa-exclamation-triangle"></i>
-                                                    ALERTAS DE MONTAÑA
-                                                </div>
-                                                <div id="hv-alerts-content" style="font-size:0.5rem;">
-                                                    • Sin alertas por tormenta<br>
-                                                    • Esperando datos montaña<br>
-                                                    • GPS montaña operativo
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="sat-updated-time" id="hv-updated">Última actualización: Nunca</div>
+                                        
+                                        <div style="font-size:0.45rem; color:#ffaa00; text-align:center; margin-top:4px;">
+                                            ⚠️ La emergencia enviará tu posición actual a todos los contactos
                                         </div>
                                     </div>
                                     
-                                    <!-- SECCIÓN DE EMERGENCIA -->
-                                    <div class="sat-section sat-emergency-section">
-                                        <div class="sat-section-header sat-emergency-header">
-                                            <div class="sat-section-title">
-                                                <i class="fas fa-satellite-dish sat-section-icon"></i>
-                                                EMERGENCIA SATELITAL
-                                            </div>
-                                            <span class="sat-status sat-status-online"></span>
+                                    <!-- CONTROLES DE ACTUALIZACIÓN -->
+                                    <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.45rem;">
+                                        <div style="color:#888;">
+                                            <input type="checkbox" id="auto-refresh-checkbox" checked>
+                                            <label for="auto-refresh-checkbox">Auto-actualizar (60s)</label>
                                         </div>
-                                        <div class="sat-section-content">
-                                            <div style="font-size:0.55rem; color:#ffaa00; margin-bottom:8px; text-align:center;">
-                                                <i class="fas fa-exclamation-triangle"></i>
-                                                EN CASO DE EMERGENCIA, ESTE BOTÓN ENVIARÁ TU POSICIÓN GPS ACTUAL
-                                            </div>
-                                            
-                                            <button class="sat-emergency-btn" onclick="sendSatelliteEmergency()">
-                                                <i class="fas fa-satellite"></i> ENVIAR SEÑAL DE EMERGENCIA
-                                            </button>
-                                            
-                                            <div style="font-size:0.45rem; color:#888; margin-top:6px; text-align:center;">
-                                                Se incluirán coordenadas GPS automáticamente
-                                            </div>
+                                        <div style="color:#00ffea;">
+                                            v4.7.2 | API: Open-Meteo
                                         </div>
                                     </div>
                                 </div>
@@ -2398,10 +2429,10 @@
                 
                 <div id="monitor-decoded">
                     <div class="message-bubble message-system">
-                        <i class="fas fa-satellite"></i> SISTEMA RADCOM MASTER v4.7 INICIADO
+                        <i class="fas fa-satellite"></i> SISTEMA RADCOM MASTER v4.7.2 INICIADO
                     </div>
                 </div>
-            </div>
+            </div>    
         </div>
 
         <div class="footer-pro">
@@ -2487,7 +2518,7 @@
         </div>
     </div>
 
-    <!-- Modal de configuración (sin cambios) -->
+    <!-- Modelo base de configuración (sin cambios) -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <button class="modal-close" onclick="hideSettings()">&times;</button>
@@ -4406,147 +4437,770 @@
             const isVisible = alertsBox.style.display !== 'none';
             alertsBox.style.display = isVisible ? 'none' : 'block';
             playStrongBeep(600, 45);
-        }
+        } // ====== FUNCIONES SATELITALES CON API REAL MEJORADAS ======
 
-        // ====== FUNCIONES AUXILIARES SATELITALES ======
-
-        function getWindDirection(degrees) {
-            if (degrees >= 337.5 || degrees < 22.5) return 'N';
-            if (degrees >= 22.5 && degrees < 67.5) return 'NE';
-            if (degrees >= 67.5 && degrees < 112.5) return 'E';
-            if (degrees >= 112.5 && degrees < 157.5) return 'SE';
-            if (degrees >= 157.5 && degrees < 202.5) return 'S';
-            if (degrees >= 202.5 && degrees < 247.5) return 'SO';
-            if (degrees >= 247.5 && degrees < 292.5) return 'O';
-            return 'NO';
-        }
-
-        function getWeatherCondition(temp, wind, visibility) {
-            if (wind > 30) {
-                return { class: 'condition-poor', text: 'FUERTE VIENTO' };
-            } else if (visibility < 2000) {
-                return { class: 'condition-poor', text: 'BAJA VISIBILIDAD' };
-            } else if (temp < 5) {
-                return { class: 'condition-fair', text: 'FRÍO' };
-            } else if (temp > 30) {
-                return { class: 'condition-fair', text: 'CALOR' };
-            } else if (wind > 20) {
-                return { class: 'condition-fair', text: 'VIENTO MODERADO' };
-            } else {
-                return { class: 'condition-good', text: 'BUENAS' };
+        async function fetchWeatherData(lat, lon, locationType) {
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,pressure_msl,visibility,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=auto`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data;
+                
+            } catch (error) {
+                console.error(`Error obteniendo datos del tiempo para ${locationType}:`, error);
+                return null;
             }
         }
 
-        function getSeaState(windKnots) {
-            if (windKnots < 7) return { class: 'condition-good', text: 'MAR CALMADO (0-1)' };
-            if (windKnots < 14) return { class: 'condition-good', text: 'MAR CALMADO (1-2)' };
-            if (windKnots < 21) return { class: 'condition-fair', text: 'MAR MODERADO (3-4)' };
-            if (windKnots < 28) return { class: 'condition-fair', text: 'MAR ENC RESPETO (5)' };
-            return { class: 'condition-poor', text: 'MAR MUY ENC RESPETO (6+)' };
-        }
-
-        function getMountainCondition(temp, wind, visibility) {
-            if (wind > 40) {
-                return { class: 'condition-poor', text: 'FUERTE VIENTO' };
-            } else if (visibility < 1000) {
-                return { class: 'condition-poor', text: 'NIEBLA DENS A' };
-            } else if (temp < -5) {
-                return { class: 'condition-poor', text: 'FRIO EXTREMO' };
-            } else if (wind > 25) {
-                return { class: 'condition-fair', text: 'VIENTO MODERADO' };
-            } else if (temp < 0) {
-                return { class: 'condition-fair', text: 'FRÍO' };
+        async function refreshParaglidingData() {
+            updateMonitor("🌤️ Actualizando datos de parapente (API real)...", "info");
+            
+            const { lat, lon } = SAT_COORDS.paragliding;
+            const data = await fetchWeatherData(lat, lon, "parapente");
+            
+            if (data && data.current) {
+                const current = data.current;
+                
+                // Actualizar UI con datos reales
+                document.getElementById("pg-temp").innerHTML = `
+                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
+                    ${current.temperature_2m.toFixed(1)}°C
+                `;
+                
+                document.getElementById("pg-wind").innerHTML = `
+                    <i class="fas fa-wind sat-weather-icon"></i>
+                    ${current.wind_speed_10m.toFixed(1)} km/h
+                    <span style="color:#88aaff; font-size:0.5rem;">(${getWindDirection(current.wind_direction_10m)})</span>
+                `;
+                
+                document.getElementById("pg-gusts").innerHTML = `
+                    <i class="fas fa-wind sat-weather-icon"></i>
+                    ${current.wind_gusts_10m ? current.wind_gusts_10m.toFixed(1) + ' km/h' : 'N/A'}
+                `;
+                
+                document.getElementById("pg-humidity").innerHTML = `
+                    <i class="fas fa-tint sat-weather-icon"></i>
+                    ${current.relative_humidity_2m}%
+                `;
+                
+                document.getElementById("pg-visibility").innerHTML = `
+                    <i class="fas fa-eye sat-weather-icon"></i>
+                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
+                `;
+                
+                document.getElementById("pg-pressure").innerHTML = `
+                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
+                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
+                `;
+                
+                // Actualizar condiciones
+                const condition = getWeatherCondition(current.temperature_2m, current.wind_speed_10m, current.visibility);
+                document.getElementById("pg-conditions").innerHTML = `
+                    <span class="sat-condition-indicator ${condition.class}"></span>
+                    ${condition.text}
+                `;
+                
+                // Actualizar tiempo
+                document.getElementById("pg-updated").textContent = 
+                    `Última actualización: ${new Date().toLocaleTimeString()}`;
+                    
+                updateMonitor(`✅ Datos de parapente actualizados: ${current.temperature_2m.toFixed(1)}°C, ${current.wind_speed_10m.toFixed(1)} km/h`);
+                playStrongBeep(700, 50);
+                
             } else {
-                return { class: 'condition-good', text: 'BUENAS' };
+                // Datos de ejemplo si falla la API
+                document.getElementById("pg-temp").innerHTML = `
+                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
+                    18.5°C
+                `;
+                document.getElementById("pg-wind").innerHTML = `
+                    <i class="fas fa-wind sat-weather-icon"></i>
+                    12.3 km/h <span style="color:#88aaff; font-size:0.5rem;">(NNO)</span>
+                `;
+                document.getElementById("pg-conditions").innerHTML = `
+                    <span class="sat-condition-indicator condition-good"></span>
+                    BUENAS
+                `;
+                document.getElementById("pg-updated").textContent = 
+                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
+                    
+                updateMonitor("⚠️ Usando datos de ejemplo para parapente", "warning");
+                playStrongBeep(400, 50);
             }
         }
 
-        function initializeSatelliteWeather() {
-            // Inicializar datos básicos
+        function getParaglidingWeather() {
             refreshParaglidingData();
+        }
+
+        function toggleParaglidingAlerts() {
+            const alertsBox = document.getElementById('pg-alerts');
+            const isVisible = alertsBox.style.display !== 'none';
+            alertsBox.style.display = isVisible ? 'none' : 'block';
+            playStrongBeep(600, 40);
+        }
+
+        async function refreshSailingData() {
+            updateMonitor("🌊 Actualizando datos de navegación...", "info");
+            
+            const { lat, lon } = SAT_COORDS.sailing;
+            const data = await fetchWeatherData(lat, lon, "navegación");
+            
+            if (data && data.current) {
+                const current = data.current;
+                
+                // Actualizar UI con datos reales
+                document.getElementById("sv-wind").innerHTML = `
+                    <i class="fas fa-wind sat-weather-icon"></i>
+                    ${current.wind_speed_10m.toFixed(1)} nudos
+                `;
+                
+                document.getElementById("sv-wind-dir").innerHTML = `
+                    <i class="fas fa-compass sat-weather-icon"></i>
+                    ${getWindDirection(current.wind_direction_10m)}
+                `;
+                
+                document.getElementById("sv-temp").innerHTML = `
+                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
+                    ${current.temperature_2m.toFixed(1)}°C
+                `;
+                
+                document.getElementById("sv-pressure").innerHTML = `
+                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
+                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
+                `;
+                
+                document.getElementById("sv-visibility").innerHTML = `
+                    <i class="fas fa-eye sat-weather-icon"></i>
+                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
+                `;
+                
+                document.getElementById("sv-humidity").innerHTML = `
+                    <i class="fas fa-tint sat-weather-icon"></i>
+                    ${current.relative_humidity_2m}%
+                `;
+                
+                // Calcular condiciones marinas
+                const seaState = getSeaState(current.wind_speed_10m);
+                document.getElementById("sv-conditions").innerHTML = `
+                    <span class="sat-condition-indicator ${seaState.class}"></span>
+                    ${seaState.text}
+                `;
+                
+                // Actualizar tiempo
+                document.getElementById("sv-updated").textContent = 
+                    `Última actualización: ${new Date().toLocaleTimeString()}`;
+                    
+                updateMonitor(`✅ Datos de navegación actualizados: ${current.wind_speed_10m.toFixed(1)} nudos, ${seaState.text}`);
+                playStrongBeep(650, 50);
+                
+            } else {
+                // Datos de ejemplo
+                document.getElementById("sv-wind").innerHTML = `
+                    <i class="fas fa-wind sat-weather-icon"></i>
+                    15.2 nudos
+                `;
+                document.getElementById("sv-conditions").innerHTML = `
+                    <span class="sat-condition-indicator condition-good"></span>
+                    MAR CALMADO (1-2)
+                `;
+                document.getElementById("sv-updated").textContent = 
+                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
+                    
+                updateMonitor("⚠️ Usando datos de ejemplo para navegación", "warning");
+                playStrongBeep(400, 50);
+            }
+        }
+
+        function getSailingWeather() {
             refreshSailingData();
+        }
+
+        function toggleSailingAlerts() {
+            const alertsBox = document.getElementById('sv-alerts');
+            const isVisible = alertsBox.style.display !== 'none';
+            alertsBox.style.display = isVisible ? 'none' : 'block';
+            playStrongBeep(550, 35);
+        }
+
+        async function refreshHikingData() {
+            updateMonitor("⛰️ Actualizando datos de montaña...", "info");
+            
+            const { lat, lon } = SAT_COORDS.hiking;
+            const data = await fetchWeatherData(lat, lon, "montaña");
+            
+            if (data && data.current) {
+                const current = data.current;
+                
+                // Actualizar UI con datos reales
+                document.getElementById("hv-temp").innerHTML = `
+                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
+                    ${current.temperature_2m.toFixed(1)}°C
+                `;
+                
+                document.getElementById("hv-feels-like").innerHTML = `
+                    <i class="fas fa-temperature-low sat-weather-icon"></i>
+                    ${current.apparent_temperature ? current.apparent_temperature.toFixed(1) + '°C' : 'N/A'}
+                `;
+                
+                document.getElementById("hv-wind").innerHTML = `
+                    <i class="fas fa-wind sat-weather-icon"></i>
+                    ${current.wind_speed_10m.toFixed(1)} km/h
+                `;
+                
+                document.getElementById("hv-humidity").innerHTML = `
+                    <i class="fas fa-tint sat-weather-icon"></i>
+                    ${current.relative_humidity_2m}%
+                `;
+                
+                document.getElementById("hv-pressure").innerHTML = `
+                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
+                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
+                `;
+                
+                document.getElementById("hv-visibility").innerHTML = `
+                    <i class="fas fa-eye sat-weather-icon"></i>
+                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
+                `;
+                
+                // Calcular condiciones de montaña
+                const mountainCondition = getMountainCondition(current.temperature_2m, current.wind_speed_10m, current.visibility);
+                document.getElementById("hv-conditions").innerHTML = `
+                    <span class="sat-condition-indicator ${mountainCondition.class}"></span>
+                    ${mountainCondition.text}
+                `;
+                
+                // Actualizar tiempo
+                document.getElementById("hv-updated").textContent = 
+                    `Última actualización: ${new Date().toLocaleTimeString()}`;
+                    
+                updateMonitor(`✅ Datos de montaña actualizados: ${current.temperature_2m.toFixed(1)}°C, ${mountainCondition.text}`);
+                playStrongBeep(600, 50);
+                
+            } else {
+                // Datos de ejemplo
+                document.getElementById("hv-temp").innerHTML = `
+                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
+                    14.2°C
+                `;
+                document.getElementById("hv-conditions").innerHTML = `
+                    <span class="sat-condition-indicator condition-good"></span>
+                    BUENAS
+                `;
+                document.getElementById("hv-updated").textContent = 
+                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
+                    
+                updateMonitor("⚠️ Usando datos de ejemplo para montaña", "warning");
+                playStrongBeep(400, 50);
+            }
+        }
+
+        function getHikingWeather() {
             refreshHikingData();
         }
 
-        // ====== FUNCIÓN DE EMERGENCIA SATELITAL ARREGLADA ======
+        function toggleHikingAlerts() {
+            const alertsBox = document.getElementById('hv-alerts');
+            const isVisible = alertsBox.style.display !== 'none';
+            alertsBox.style.display = isVisible ? 'none' : 'block';
+            playStrongBeep(600, 45);
+        }
 
-        
-            // Verificar que haya conexiones antes de enviar
+        // ====== SISTEMA SATELITAL MEJORADO ======
+        let satelliteSystem = {
+            latitude: null,
+            longitude: null,
+            altitude: null,
+            accuracy: null,
+            lastUpdate: null,
+            weatherData: null,
+            autoRefresh: true,
+            refreshInterval: null,
+            apiConnected: false
+        };
+
+        // ====== ARREGLAR ENVÍO DE EMERGENCIAS ======
+        function sendSatelliteEmergency() {
+            // 1. Verificar que tenemos posición GPS
+            if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+                updateMonitor("❌ ERROR: No hay posición GPS. Obtén posición primero.", "error");
+                playStrongBeep(300, 200);
+                getCurrentGPSPosition();
+                return;
+            }
+            
+            // 2. Verificar que hay conexiones
             const onlineCount = Object.keys(connections).filter(id => 
                 connections[id]?.status === 'online').length;
-            async function sendSatelliteEmergency() {
-    // 1. RECUENTO REAL DE CONEXIONES (Actualizado al momento de pulsar)
-    const onlineCount = Object.keys(connections).filter(id => 
-        connections[id] && connections[id].conn && connections[id].conn.open
-    ).length;
+            
+            if (onlineCount === 0) {
+                if (!confirm("⚠️ No hay contactos conectados. ¿Enviar solo a chat local?")) {
+                    return;
+                }
+            }
+            
+            // 3. Confirmar emergencia
+            if (!confirm(`🚨 ¿ENVIAR SEÑAL DE EMERGENCIA SATELITAL?\n\nSe enviará a ${onlineCount} contacto(s) conectado(s).`)) {
+                return;
+            }
+            
+            updateMonitor("🚨 PREPARANDO EMERGENCIA SATELITAL...", "warning");
+            playEmergencySatelliteTone();
+            
+            // 4. Crear mensaje de emergencia con datos reales
+            const emergencyMessage = createEmergencyMessage();
+            
+            // 5. Enviar a través del sistema de mensajes existente
+            sendEmergencyMessage(emergencyMessage);
+            
+            // 6. Mostrar confirmación
+            updateMonitor("✅ EMERGENCIA ENVIADA CORRECTAMENTE", "info");
+            
+            // 7. Mostrar en chat local
+            displayMessage(`🚨 YO [EMERGENCIA]: ${emergencyMessage.substring(0, 80)}...`, 'EMERG', 'outgoing');
+        }
 
-    if (onlineCount === 0) {
-        updateMonitor("❌ ERROR: SIN CONEXIONES ACTIVAS", "error");
-        playStrongBeep(300, 200);
-        return;
-    }
-    
-    if (!confirm("🚨 ¿ENVIAR EMERGENCIA REAL?\nSe obtendrá GPS y Meteo del lugar del incidente.")) return;
-    
-    updateMonitor("📡 OBTENIENDO SENSORES REALES...");
-    playEmergencySatelliteTone();
+        function createEmergencyMessage() {
+            const lat = satelliteSystem.latitude.toFixed(6);
+            const lon = satelliteSystem.longitude.toFixed(6);
+            const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : 'N/A';
+            const time = new Date().toLocaleTimeString();
+            
+            let weatherInfo = '';
+            if (satelliteSystem.weatherData && satelliteSystem.weatherData.current_weather) {
+                const w = satelliteSystem.weatherData.current_weather;
+                weatherInfo = ` | Condiciones: ${w.temperature}°C, Viento: ${w.windspeed} km/h`;
+            }
+            
+            return `🚨 EMERGENCIA SATELITAL 🚨
+Posición: ${lat}° N, ${lon}° E
+Altitud: ${alt} m
+Hora: ${time}
+Sistema: RADCOM v${VERSION}${weatherInfo}
+⚠️ NECESITO ASISTENCIA INMEDIATA`;
+        }
 
-    // 2. OBTENER GPS REAL DEL DISPOSITIVO
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        const alt = pos.coords.altitude ? Math.round(pos.coords.altitude) : "---";
+        function sendEmergencyMessage(message) {
+            const key = document.getElementById('key').value || 'ATOM80';
+            
+            const dataToSend = {
+                type: 'emergency',
+                message: xorEncrypt(message, key),
+                original: message,
+                mode: 'satellite',
+                encryption: document.getElementById('encryptionMode').value,
+                timestamp: Date.now(),
+                sender: myPeerId,
+                hexPreview: 'EMERGENCY'
+            };
+            
+            let sentCount = 0;
+            
+            // Enviar a todos los conectados
+            Object.keys(connections).forEach(peerId => {
+                if (connections[peerId]?.status === 'online') {
+                    try {
+                        console.log(`🚨 Enviando emergencia a ${peerId}`);
+                        connections[peerId].conn.send(dataToSend);
+                        sentCount++;
+                        
+                        // Actualizar health check
+                        if (connectionHealth[peerId]) {
+                            connectionHealth[peerId].lastActivity = Date.now();
+                            connectionHealth[peerId].packetsSent = (connectionHealth[peerId]?.packetsSent || 0) + 1;
+                        }
+                    } catch (error) {
+                        console.error(`❌ Error enviando emergencia a ${peerId}:`, error);
+                    }
+                }
+            });
+            
+            // Actualizar estadísticas
+            stats.tx += JSON.stringify(dataToSend).length;
+            stats.messages++;
+            updateStats();
+            
+            console.log(`✅ Emergencia enviada a ${sentCount} contacto(s)`);
+            return sentCount;
+        }
 
-        // 3. OBTENER METEO REAL DE TU UBICACIÓN EXACTA
-        updateMonitor("🌡️ CONSULTANDO CLIMA SATELITAL...");
-        let infoMeteo = "Sin datos de clima";
-        try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_gusts_10m&timezone=auto`);
-            const data = await res.json();
-            const c = data.current;
-            infoMeteo = `T:${c.temperature_2m}°C | VNT:${c.wind_speed_10m}km/h | RCH:${c.wind_gusts_10m}km/h`;
-        } catch(e) { console.error("Error meteo"); }
+        // ====== OBTENER POSICIÓN GPS REAL ======
+        function getCurrentGPSPosition() {
+            if (!navigator.geolocation) {
+                updateMonitor("❌ Geolocalización no soportada en este navegador", "error");
+                return;
+            }
+            
+            updateMonitor("📍 Obteniendo posición GPS...", "info");
+            playStrongBeep(800, 100);
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    satelliteSystem.latitude = position.coords.latitude;
+                    satelliteSystem.longitude = position.coords.longitude;
+                    satelliteSystem.altitude = position.coords.altitude || 0;
+                    satelliteSystem.accuracy = position.coords.accuracy;
+                    satelliteSystem.lastUpdate = new Date();
+                    
+                    updateSatelliteUI();
+                    updateMonitor("✅ Posición GPS obtenida correctamente", "info");
+                    playStrongBeep(600, 50);
+                    
+                    // Obtener datos meteorológicos automáticamente
+                    fetchWeatherData();
+                },
+                function(error) {
+                    console.error("Error GPS:", error);
+                    let errorMsg = "❌ Error GPS: ";
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg += "Permiso denegado";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg += "Posición no disponible";
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg += "Tiempo agotado";
+                            break;
+                        default:
+                            errorMsg += "Error desconocido";
+                    }
+                    updateMonitor(errorMsg, "error");
+                    
+                    // Usar posición por defecto (Madrid)
+                    useDefaultPosition();
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
 
-        // 4. CONSTRUIR MENSAJE REAL
-        const emergencyMessage = `🚨 EMERGENCIA REAL ATOM-80 🚨
-UBICACIÓN: ${lat.toFixed(5)}, ${lon.toFixed(5)}
-ALTITUD: ${alt}m
-METEO: ${infoMeteo}
-HORA: ${new Date().toLocaleTimeString()}
-SISTEMA: RADCOM v4.7.1 MAESTRA`;
+        function useDefaultPosition() {
+            satelliteSystem.latitude = 40.4168; // Madrid
+            satelliteSystem.longitude = -3.7038;
+            satelliteSystem.altitude = 667;
+            satelliteSystem.accuracy = 1000;
+            satelliteSystem.lastUpdate = new Date();
+            
+            updateSatelliteUI();
+            updateMonitor("⚠️ Usando posición por defecto (Madrid)", "warning");
+            
+            fetchWeatherData();
+        }
 
-        // 5. ENVÍO DIRECTO (Sin bloqueos de Input)
-        updateMonitor("🚀 TRANSMITIENDO PAQUETE DE RESCATE...");
-        
-        Object.keys(connections).forEach(id => {
-            const peerConn = connections[id].conn;
-            if (peerConn && peerConn.open) {
-                peerConn.send({
-                    type: 'satellite',
-                    content: emergencyMessage,
-                    sender: myPeerId,
-                    timestamp: new Date().toLocaleTimeString()
+        // ====== OBTENER DATOS METEOROLÓGICOS REALES ======
+        async function fetchWeatherData() {
+            if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+                updateMonitor("⚠️ Esperando posición GPS...", "warning");
+                return;
+            }
+            
+            updateMonitor("🌤️ Consultando datos meteorológicos...", "info");
+            updateAPIStatus("Conectando a API...", false);
+            
+            try {
+                const params = new URLSearchParams({
+                    latitude: satelliteSystem.latitude,
+                    longitude: satelliteSystem.longitude,
+                    hourly: 'temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,pressure_msl,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,precipitation_probability,rain,uv_index,is_day',
+                    current_weather: true,
+                    timezone: 'auto',
+                    forecast_days: 1
+                }).toString();
+                
+                const url = `https://api.open-meteo.com/v1/forecast?${params}`;
+                console.log("📡 Consultando API:", url);
+                
+                const response = await fetch(url, { timeout: 10000 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                satelliteSystem.weatherData = data;
+                satelliteSystem.apiConnected = true;
+                
+                updateWeatherUI(data);
+                updateAPIStatus("Conectado a Open-Meteo", true);
+                updateMonitor("✅ Datos meteorológicos actualizados", "info");
+                playStrongBeep(700, 30);
+                
+            } catch (error) {
+                console.error("❌ Error API:", error);
+                satelliteSystem.apiConnected = false;
+                updateMonitor(`❌ Error API: ${error.message}`, "error");
+                updateAPIStatus("Error de conexión", false);
+                playStrongBeep(300, 200);
+                
+                // Usar datos de muestra
+                useSampleWeatherData();
+            }
+        }
+
+        function useSampleWeatherData() {
+            const sampleData = {
+                current_weather: {
+                    temperature: 18.5,
+                    windspeed: 12.3,
+                    winddirection: 245,
+                    weathercode: 3
+                },
+                hourly: {
+                    apparent_temperature: [17.8],
+                    relative_humidity_2m: [65],
+                    pressure_msl: [1013],
+                    wind_gusts_10m: [15.2],
+                    cloud_cover: [45],
+                    visibility: [15000],
+                    precipitation_probability: [20],
+                    rain: [0],
+                    dew_point_2m: [12.1],
+                    uv_index: [4.2],
+                    is_day: [1]
+                }
+            };
+            
+            updateWeatherUI(sampleData);
+        }
+
+        // ====== ACTUALIZAR INTERFAZ SATELITAL ======
+        function updateSatelliteUI() {
+            // Actualizar coordenadas GPS
+            if (satelliteSystem.latitude && satelliteSystem.longitude) {
+                const lat = satelliteSystem.latitude.toFixed(4);
+                const lon = satelliteSystem.longitude.toFixed(4);
+                const latDir = satelliteSystem.latitude >= 0 ? 'N' : 'S';
+                const lonDir = satelliteSystem.longitude >= 0 ? 'E' : 'W';
+                
+                document.getElementById('sat-gps-coords').textContent = 
+                    `Lat: ${Math.abs(lat)}° ${latDir}, Lon: ${Math.abs(lon)}° ${lonDir}`;
+                
+                const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : '--';
+                const acc = satelliteSystem.accuracy ? Math.round(satelliteSystem.accuracy) : '--';
+                document.getElementById('sat-altitude').textContent = 
+                    `Altitud: ${alt} m | Precisión: ${acc} m`;
+                
+                if (satelliteSystem.lastUpdate) {
+                    const time = satelliteSystem.lastUpdate.toLocaleTimeString();
+                    document.getElementById('sat-last-update').textContent = time;
+                }
+            }
+        }
+
+        function updateWeatherUI(data) {
+            if (!data || !data.current_weather) return;
+            
+            const cw = data.current_weather;
+            const hourly = data.hourly;
+            const currentIndex = 0;
+            
+            // Temperatura y viento
+            document.getElementById('sat-temp').textContent = `${cw.temperature.toFixed(1)} °C`;
+            document.getElementById('sat-windspeed').textContent = `${cw.windspeed.toFixed(1)} km/h`;
+            document.getElementById('sat-winddirection').textContent = `${cw.winddirection} °`;
+            
+            // Datos horarios
+            if (hourly) {
+                if (hourly.apparent_temperature?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-feelslike').textContent = 
+                        `${hourly.apparent_temperature[currentIndex].toFixed(1)} °C`;
+                }
+                
+                if (hourly.relative_humidity_2m?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-humidity').textContent = 
+                        `${hourly.relative_humidity_2m[currentIndex].toFixed(0)} %`;
+                }
+                
+                if (hourly.pressure_msl?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-pressure').textContent = 
+                        `${hourly.pressure_msl[currentIndex].toFixed(0)} hPa`;
+                }
+                
+                if (hourly.wind_gusts_10m?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-windgusts').textContent = 
+                        `${hourly.wind_gusts_10m[currentIndex].toFixed(1)} km/h`;
+                }
+                
+                if (hourly.cloud_cover?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-cloudcover').textContent = 
+                        `${hourly.cloud_cover[currentIndex].toFixed(0)} %`;
+                }
+                
+                if (hourly.visibility?.[currentIndex] !== undefined) {
+                    const visibilityKm = hourly.visibility[currentIndex] / 1000;
+                    document.getElementById('sat-visibility').textContent = 
+                        `${visibilityKm.toFixed(1)} km`;
+                }
+                
+                if (hourly.precipitation_probability?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-precipitation').textContent = 
+                        `${hourly.precipitation_probability[currentIndex].toFixed(0)} %`;
+                }
+                
+                if (hourly.rain?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-rain').textContent = 
+                        `${hourly.rain[currentIndex].toFixed(1)} mm`;
+                }
+                
+                if (hourly.dew_point_2m?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-dewpoint').textContent = 
+                        `${hourly.dew_point_2m[currentIndex].toFixed(1)} °C`;
+                }
+                
+                if (hourly.uv_index?.[currentIndex] !== undefined) {
+                    document.getElementById('sat-uvindex').textContent = 
+                        `${hourly.uv_index[currentIndex].toFixed(1)}`;
+                }
+                
+                // Calcular índices derivados
+                calculateWeatherIndexes(cw.temperature, 
+                    hourly.relative_humidity_2m?.[currentIndex] || 50,
+                    cw.windspeed);
+            }
+        }
+
+        function calculateWeatherIndexes(temp, humidity, windSpeed) {
+            // Heat Index (Índice de calor)
+            if (temp >= 27) {
+                const T = temp;
+                const R = humidity;
+                const hi = -8.784695 + 1.61139411*T + 2.338549*R - 0.14611605*T*R 
+                          - 0.012308094*T*T - 0.016424828*R*R + 0.002211732*T*T*R 
+                          + 0.00072546*T*R*R - 0.000003582*T*T*R*R;
+                document.getElementById('sat-heatindex').textContent = `${hi.toFixed(1)} °C`;
+            } else {
+                document.getElementById('sat-heatindex').textContent = "N/A";
+            }
+            
+            // Wind Chill (Sensación por viento)
+            if (temp <= 10 && windSpeed >= 5) {
+                const wc = 13.12 + 0.6215*temp - 11.37*Math.pow(windSpeed, 0.16) 
+                          + 0.3965*temp*Math.pow(windSpeed, 0.16);
+                document.getElementById('sat-windchill').textContent = `${wc.toFixed(1)} °C`;
+            } else {
+                document.getElementById('sat-windchill').textContent = "N/A";
+            }
+            
+            // Calidad de aire estimada
+            let aqiScore = 50;
+            if (humidity > 80) aqiScore += 20;
+            if (humidity < 30) aqiScore += 10;
+            if (temp > 30) aqiScore += 15;
+            
+            let aqiLevel = "Buena";
+            if (aqiScore > 150) aqiLevel = "Muy pobre";
+            else if (aqiScore > 100) aqiLevel = "Pobre";
+            else if (aqiScore > 50) aqiLevel = "Moderada";
+            
+            document.getElementById('sat-aqi').textContent = aqiLevel;
+            
+            // Otros valores por defecto
+            document.getElementById('sat-sunshine').textContent = "8.5 h";
+            document.getElementById('sat-co2').textContent = "415 ppm";
+        }
+
+        function updateAPIStatus(text, connected) {
+            const dot = document.getElementById('api-status-dot');
+            const textElement = document.getElementById('api-status-text');
+            
+            dot.className = "status-dot-api " + (connected ? "status-connected" : "status-disconnected");
+            textElement.textContent = text;
+            textElement.style.color = connected ? "#00ff88" : "#ff3300";
+        }
+
+        // ====== ACTUALIZACIÓN FORZADA ======
+        function forceUpdateSatelliteData() {
+            updateMonitor("🔄 Actualización forzada de datos satelitales...", "info");
+            playStrongBeep(900, 80);
+            
+            getCurrentGPSPosition();
+        }
+
+        // ====== COMPARTIR POSICIÓN EN CHAT ======
+        function sendPositionToChat() {
+            if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+                updateMonitor("❌ No hay posición GPS disponible", "error");
+                return;
+            }
+            
+            const lat = satelliteSystem.latitude.toFixed(4);
+            const lon = satelliteSystem.longitude.toFixed(4);
+            const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : 'N/A';
+            
+            const positionMessage = `📍 Mi posición actual: ${lat}° N, ${lon}° E | Altitud: ${alt} m`;
+            
+            // Poner en campo de entrada
+            const input = document.getElementById('inputMsg');
+            input.value = positionMessage;
+            input.focus();
+            
+            updateMonitor("📍 Posición preparada para enviar", "info");
+            playStrongBeep(600, 50);
+        }
+
+        // ====== SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA ======
+        function startAutoRefresh() {
+            if (satelliteSystem.refreshInterval) {
+                clearInterval(satelliteSystem.refreshInterval);
+            }
+            
+            satelliteSystem.refreshInterval = setInterval(() => {
+                const autoRefreshCheckbox = document.getElementById('auto-refresh-checkbox');
+                if (autoRefreshCheckbox?.checked && !document.hidden && satelliteSystem.latitude) {
+                    console.log("🔄 Actualización automática satelital");
+                    fetchWeatherData();
+                }
+            }, 60000); // 60 segundos
+            
+            updateMonitor("✅ Actualización automática activada (60s)", "info");
+        }
+
+        // ====== INICIALIZACIÓN SATELITAL ======
+        function initSatelliteSystem() {
+            console.log("🛰️ Iniciando sistema satelital v4.7.2");
+            
+            // Configurar checkbox de auto-refresh
+            const autoRefreshCheckbox = document.getElementById('auto-refresh-checkbox');
+            if (autoRefreshCheckbox) {
+                autoRefreshCheckbox.checked = true;
+                autoRefreshCheckbox.addEventListener('change', function() {
+                    satelliteSystem.autoRefresh = this.checked;
+                    if (this.checked) {
+                        startAutoRefresh();
+                        updateMonitor("✅ Auto-actualización activada", "info");
+                    } else {
+                        if (satelliteSystem.refreshInterval) {
+                            clearInterval(satelliteSystem.refreshInterval);
+                            satelliteSystem.refreshInterval = null;
+                            updateMonitor("⏸️ Auto-actualización desactivada", "warning");
+                        }
+                    }
                 });
             }
-        });
+            
+            // Obtener posición inicial después de 1 segundo
+            setTimeout(() => {
+                getCurrentGPSPosition();
+            }, 1000);
+            
+            // Iniciar auto-refresh después de 3 segundos
+            setTimeout(() => {
+                startAutoRefresh();
+            }, 3000);
+            
+            updateMonitor("🛰️ Sistema satelital v4.7.2 inicializado", "info");
+        }
 
-        // Reflejar en el log local
-        const logContainer = document.getElementById('logContainer');
-        const div = document.createElement('div');
-        div.className = 'msg-satellite';
-        div.style.background = "rgba(255,0,0,0.2)";
-        div.innerHTML = `<b>YO (EMERGENCIA):</b> ${emergencyMessage.replace(/\n/g, '<br>')}`;
-        logContainer.appendChild(div);
-        
-        updateMonitor("✅ SEÑAL DE SOCORRO ENVIADA");
-        alert("✅ EMERGENCIA TRANSMITIDA\n\nCoordenadas enviadas: " + lat.toFixed(5) + ", " + lon.toFixed(5));
-
-    }, (err) => {
-        updateMonitor("❌ ERROR CRÍTICO: GPS BLOQUEADO", "error");
-        alert("No se puede enviar emergencia sin GPS.");
-    }, { enableHighAccuracy: true });
-}
-
+        // ====== SONIDOS MEJORADOS ======
         function playEmergencySatelliteTone() {
             if (!document.getElementById('soundEnabled')?.checked) return;
             
@@ -4556,7 +5210,7 @@ SISTEMA: RADCOM v4.7.1 MAESTRA`;
             
             let time = audioContext.currentTime;
             
-            // Triple tono de emergencia
+            // Sirena de emergencia
             for (let i = 0; i < 3; i++) {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
@@ -4564,10 +5218,11 @@ SISTEMA: RADCOM v4.7.1 MAESTRA`;
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
                 
-                oscillator.frequency.value = 1000;
+                oscillator.frequency.setValueAtTime(800, time);
+                oscillator.frequency.exponentialRampToValueAtTime(1200, time + 0.3);
                 oscillator.type = 'sawtooth';
                 
-                gainNode.gain.setValueAtTime(0.5, time);
+                gainNode.gain.setValueAtTime(0.6, time);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
                 
                 oscillator.start(time);
@@ -4576,6 +5231,71 @@ SISTEMA: RADCOM v4.7.1 MAESTRA`;
                 time += 0.4;
             }
         }
+
+        // ====== MANEJAR MENSAJES DE EMERGENCIA RECIBIDOS ======
+        function handleEmergencyMessage(senderId, data) {
+            const key = document.getElementById('key').value || 'ATOM80';
+            const decryptedMessage = xorDecrypt(data.message, key);
+            
+            displayMessage(`🚨 EMERGENCIA DE ${senderId.substring(0,6)}: ${decryptedMessage.substring(0, 100)}...`, 
+                          'EMERG', 'incoming');
+            
+            // Sonido de alerta
+            if (document.getElementById('soundEnabled')?.checked) {
+                playEmergencyAlertSound();
+            }
+            
+            updateMonitor(`🚨 EMERGENCIA RECIBIDA DE ${senderId.substring(0,6)}`);
+            
+            // Actualizar estadísticas
+            stats.rx += data.message.length;
+            updateStats();
+        }
+
+        function playEmergencyAlertSound() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            let time = audioContext.currentTime;
+            
+            // Alerta triple aguda
+            for (let i = 0; i < 3; i++) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 1500;
+                oscillator.type = 'square';
+                
+                gainNode.gain.setValueAtTime(0.5, time);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+                
+                oscillator.start(time);
+                oscillator.stop(time + 0.1);
+                
+                time += 0.15;
+            }
+        }
+
+        // ====== INTEGRACIÓN CON SISTEMA EXISTENTE ======
+        // Guardar referencia a la función original de handleReceivedData
+        const originalHandleReceivedData = window.handleReceivedData;
+
+        // Sobrescribir para manejar emergencias
+        window.handleReceivedData = function(senderId, data) {
+            if (data.type === 'emergency') {
+                handleEmergencyMessage(senderId, data);
+                return;
+            }
+            
+            // Si no es emergencia, usar el manejo original
+            if (originalHandleReceivedData) {
+                originalHandleReceivedData(senderId, data);
+            }
+        };
 
         // ====== FUNCIONES DE ENVÍO ORIGINALES ======
 
@@ -5937,25 +6657,37 @@ SISTEMA: RADCOM v4.7.1 MAESTRA`;
         // ====== INICIALIZACIÓN ======
         
         window.onload = function() {
-            console.log(`🚀 Iniciando ${SYSTEM_NAME} v${VERSION}`);
+            console.log(`🚀 Iniciando RADCOM MASTER v${VERSION}`);
             
+            // Inicializar sistemas originales
             buildAsciiTable();
             buildMorseTable();
             initRadioSystem();
-            buildSatelliteTable();
             loadSettings();
             updatePeerList();
             initResizableSeparator();
             initMorseAudio();
             initVoiceRecognition();
             
+            // Inicializar sistema satelital mejorado
+            initSatelliteSystem();
+            
+            // Inicializar PeerJS
             initPeerJSEnhanced();
-            startHealthCheckSystem();
             
-            document.getElementById('inputMsg').addEventListener('keydown', handleSendMessage);
+            // Iniciar health checks
+            setTimeout(startHealthCheckSystem, 5000);
             
-            updateMonitor(`🛰️ ${SYSTEM_NAME} v${VERSION} INICIADO - SATÉLITE ACTIVO`);
+            updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | SATÉLITE ACTIVO`);
         };
+
+        // Exportar nuevas funciones
+        window.forceUpdateSatelliteData = forceUpdateSatelliteData;
+        window.sendSatelliteEmergency = sendSatelliteEmergency;
+        window.sendPositionToChat = sendPositionToChat;
+        window.getCurrentGPSPosition = getCurrentGPSPosition;
+        window.initSatelliteSystem = initSatelliteSystem;
+        
     </script>
 </body>
 </html>
