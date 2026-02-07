@@ -3,7 +3,7 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v4.7.3- SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v4.7.4- SISTEMA DE COMUNICACIÓN SEGURA</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
@@ -2011,7 +2011,7 @@
         <div class="header-pro">
             <div class="status-indicator">
                 <span class="status-dot-live"></span>
-                <span>RADCOM MASTER <span class="version-badge">v4.7.3</span></span>
+                <span>RADCOM MASTER <span class="version-badge">v4.7.4</span></span>
                 <span style="color:#888; margin-left:8px;">|</span>
                 <span id="data-session" style="color:#00ffea">0</span>b
                 <span class="security-badge">
@@ -2516,7 +2516,7 @@
                     style="height:100%; flex:1;">
 
                 <!-- Botón ENVIAR -->
-                <button id="sendBtn" onclick="handleSendButtonClick()" style="height:100%">
+                <button id="sendBtn" onclick="sendWithQueue()">
                     <i class="fas fa-paper-plane"></i> ENVIAR
                 </button>
 
@@ -2731,6 +2731,11 @@
         let isBackground = false;
         let revivingInProgress = false;
         let currentTab = 'ascii';
+
+        // ====== SISTEMA DE MENSAJES EN COLA ======
+let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || "[]");
+let queueRetryInterval = null;
+const MAX_QUEUE_SIZE = 100;
 
         // ====== VARIABLES PARA MORSE ======
         let morseSpeed = 'normal';
@@ -5083,6 +5088,7 @@ function forceUpdateSatelliteData() {
         function xorDecrypt(text, key) {
             return xorEncrypt(text, key);
         }
+    
 
         function sendToConnections(data) {
             let sentCount = 0;
@@ -5182,6 +5188,9 @@ function forceUpdateSatelliteData() {
                 updateConnectedCount();
                 updateMonitor(`✅ CONECTADO A ${peerId.substring(0, 8)}`);
                 playStrongBeep(800, 100);
+                setTimeout(() => {
+        deliverOnConnect(peerId);
+    }, 1500);
                 
                 saveId(peerId);
                 
@@ -5290,6 +5299,273 @@ function forceUpdateSatelliteData() {
             console.log("🔄 Procesando conexión entrante:", conn.peer);
             setupConnection(conn, 'incoming');
         }
+
+        // ====== FUNCIÓN NUEVA: sendWithQueue() ======
+// Usar esta en lugar de sendMessage() normal
+function sendWithQueue() {
+    const input = document.getElementById('inputMsg');
+    let message = input.value.trim();
+    
+    if (!message) {
+        updateMonitor("⚠️ MENSAJE VACÍO", "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    const originalMessage = message;
+    const key = document.getElementById('key').value || 'ATOM80';
+    const mode = document.getElementById('inputMode').value;
+    const encryption = document.getElementById('encryptionMode').value;
+    
+    if (!validateInput()) {
+        updateMonitor(`⚠️ FORMATO ${mode.toUpperCase()} INVÁLIDO`, "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    // Preparar mensaje (igual que función original)
+    let processedMessage = message;
+    
+    if (mode === 'morse') {
+        if (!isMorseCode(message)) {
+            processedMessage = textToMorse(message);
+        }
+    } else if (mode === 'phonetic') {
+        processedMessage = textToPhonetic(message);
+    }
+    
+    const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key);
+    
+    // 1. Intentar enviar normalmente
+    let sentCount = 0;
+    
+    if (activeTarget === 'GLOBAL') {
+        Object.keys(connections).forEach(peerId => {
+            if (connections[peerId]?.status === 'online') {
+                try {
+                    connections[peerId].conn.send(dataToSend);
+                    sentCount++;
+                } catch (error) {
+                    console.error(`❌ Error:`, error);
+                }
+            }
+        });
+    } else if (connections[activeTarget]?.status === 'online') {
+        try {
+            connections[activeTarget].conn.send(dataToSend);
+            sentCount = 1;
+        } catch (error) {
+            console.error(`❌ Error:`, error);
+        }
+    }
+    
+    // 2. Resultado
+    if (sentCount > 0) {
+        // Éxito: mostrar normal
+        displayMessage(`YO: ${originalMessage}`, dataToSend.hexPreview, 'outgoing');
+        stats.tx += JSON.stringify(dataToSend).length;
+        stats.messages++;
+        input.value = '';
+        updateMonitor(`📤 ENVIADO A ${sentCount} DESTINO${sentCount !== 1 ? 'S' : ''}`);
+        updateStats();
+        playStrongBeep(700, 100);
+    } else {
+        // Guardar en cola
+        addToQueue(dataToSend, originalMessage);
+        displayMessage(`⏳ YO (EN COLA): ${originalMessage}`, dataToSend.hexPreview, 'outgoing');
+        input.value = '';
+        updateMonitor(`💾 GUARDADO EN COLA (${messageQueue.length} mensajes)`);
+        playStrongBeep(500, 100);
+    }
+    
+    // Limpiar tabla
+    document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
+        td.classList.remove('highlighted');
+    });
+}
+
+// ====== FUNCIÓN NUEVA: addToQueue() ======
+function addToQueue(dataToSend, originalMessage) {
+    // Limpiar si está llena
+    if (messageQueue.length >= MAX_QUEUE_SIZE) {
+        messageQueue.shift();
+    }
+    
+    const queueItem = {
+        id: Date.now() + Math.random().toString(36).substr(2, 5),
+        data: dataToSend,
+        original: originalMessage,
+        target: activeTarget,
+        timestamp: Date.now(),
+        attempts: 0
+    };
+    
+    messageQueue.push(queueItem);
+    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
+    
+    // Mostrar en UI
+    updateQueueCounter();
+    
+    // Iniciar sistema si no está activo
+    if (!queueRetryInterval) {
+        startQueueSystem();
+    }
+}
+
+// ====== FUNCIÓN NUEVA: startQueueSystem() ======
+function startQueueSystem() {
+    if (queueRetryInterval) clearInterval(queueRetryInterval);
+    
+    queueRetryInterval = setInterval(() => {
+        processQueue();
+    }, 10000); // Cada 10 segundos
+    
+    updateMonitor("🔄 Sistema de cola ACTIVADO", "info");
+}
+
+// ====== FUNCIÓN NUEVA: processQueue() ======
+function processQueue() {
+    if (messageQueue.length === 0) {
+        if (queueRetryInterval) {
+            clearInterval(queueRetryInterval);
+            queueRetryInterval = null;
+        }
+        return;
+    }
+    
+    const now = Date.now();
+    const remaining = [];
+    
+    messageQueue.forEach(item => {
+        // Saltar si es muy reciente
+        if (now - item.timestamp < 5000) {
+            remaining.push(item);
+            return;
+        }
+        
+        item.attempts++;
+        
+        let delivered = false;
+        
+        // Intentar entregar
+        if (item.target === 'GLOBAL') {
+            Object.keys(connections).forEach(peerId => {
+                if (connections[peerId]?.status === 'online') {
+                    try {
+                        connections[peerId].conn.send(item.data);
+                        delivered = true;
+                        
+                        // Mostrar entrega
+                        displayMessage(`✅ ENTREGADO A ${peerId.substring(0,6)}: ${item.original.substring(0, 40)}...`, '', 'system');
+                    } catch (error) {
+                        console.error(`Error:`, error);
+                    }
+                }
+            });
+        } else if (connections[item.target]?.status === 'online') {
+            try {
+                connections[item.target].conn.send(item.data);
+                delivered = true;
+                
+                displayMessage(`✅ ENTREGADO A ${item.target.substring(0,6)}: ${item.original.substring(0, 40)}...`, '', 'system');
+            } catch (error) {
+                console.error(`Error:`, error);
+            }
+        }
+        
+        if (delivered) {
+            // Estadísticas
+            stats.tx += JSON.stringify(item.data).length;
+            stats.messages++;
+            updateStats();
+            
+            playStrongBeep(600, 50);
+        } else if (item.attempts < 10) {
+            // Mantener para otro intento
+            remaining.push(item);
+        } else {
+            // Demasiados intentos
+            displayMessage(`❌ NO ENTREGADO: ${item.original.substring(0, 30)}...`, '', 'system');
+        }
+    });
+    
+    // Actualizar cola
+    messageQueue = remaining;
+    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
+    updateQueueCounter();
+}
+
+// ====== FUNCIÓN NUEVA: updateQueueCounter() ======
+function updateQueueCounter() {
+    // Buscar o crear elemento
+    let counter = document.getElementById('queue-counter');
+    
+    if (!counter) {
+        // Crear en el footer
+        const statsPanel = document.querySelector('.stats-panel');
+        if (statsPanel) {
+            const queueItem = document.createElement('div');
+            queueItem.className = 'stat-item';
+            queueItem.id = 'queue-item';
+            queueItem.innerHTML = `
+                <div class="stat-value" id="queue-counter">0</div>
+                <div class="stat-label">EN COLA</div>
+            `;
+            statsPanel.appendChild(queueItem);
+            counter = document.getElementById('queue-counter');
+        }
+    }
+    
+    if (counter) {
+        counter.textContent = messageQueue.length;
+        
+        // Color según cantidad
+        if (messageQueue.length === 0) {
+            counter.style.color = '#00ff88';
+        } else if (messageQueue.length < 5) {
+            counter.style.color = '#ffaa00';
+        } else {
+            counter.style.color = '#ff3300';
+            counter.style.animation = 'pulse 1s infinite';
+        }
+    }
+}
+
+// ====== FUNCIÓN NUEVA: deliverOnConnect() ======
+function deliverOnConnect(peerId) {
+    if (messageQueue.length === 0) return;
+    
+    const remaining = [];
+    
+    messageQueue.forEach(item => {
+        // Si es para este peer o para todos
+        if (item.target === peerId || item.target === 'GLOBAL') {
+            try {
+                if (connections[peerId]?.status === 'online') {
+                    connections[peerId].conn.send(item.data);
+                    
+                    // Mostrar
+                    displayMessage(`🎯 ENTREGADO A NUEVA CONEXIÓN ${peerId.substring(0,6)}`, '', 'system');
+                    
+                    // Estadísticas
+                    stats.tx += JSON.stringify(item.data).length;
+                    stats.messages++;
+                }
+            } catch (error) {
+                console.error(`Error:`, error);
+                remaining.push(item);
+            }
+        } else {
+            remaining.push(item);
+        }
+    });
+    
+    // Actualizar
+    messageQueue = remaining;
+    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
+    updateQueueCounter();
+}
+
 
         // ====== SISTEMA DE HEALTH CHECKS MEJORADO ======
         
@@ -6379,6 +6655,21 @@ window.addEventListener('load', force720);
         window.sendPositionToChat = sendPositionToChat;
         window.getCurrentGPSPosition = getCurrentGPSPosition;
         window.initSatelliteSystem = initSatelliteSystem;
+// ====== INICIALIZAR SISTEMA DE COLAS ======
+function initQueue() {
+    updateQueueCounter();
+    
+    if (messageQueue.length > 0) {
+        updateMonitor(`📨 ${messageQueue.length} mensaje(s) en cola`);
+        
+        if (!queueRetryInterval) {
+            startQueueSystem();
+        }
+    }
+}
+
+// Ejecutar después de cargar
+setTimeout(initQueue, 2000);        
         
     </script>
 </body>
