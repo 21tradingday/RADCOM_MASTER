@@ -3,7 +3,7 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v4.7.4- SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v4.7.3- SISTEMA DE COMUNICACIÓN SEGURA</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
@@ -2011,7 +2011,7 @@
         <div class="header-pro">
             <div class="status-indicator">
                 <span class="status-dot-live"></span>
-                <span>RADCOM MASTER <span class="version-badge">v4.7.4</span></span>
+                <span>RADCOM MASTER <span class="version-badge">v4.7.3</span></span>
                 <span style="color:#888; margin-left:8px;">|</span>
                 <span id="data-session" style="color:#00ffea">0</span>b
                 <span class="security-badge">
