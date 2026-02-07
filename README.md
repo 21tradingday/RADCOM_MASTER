@@ -3,7 +3,7 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v4.7.4- SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v4.7.5- SISTEMA DE COMUNICACIÓN SEGURA</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
@@ -1976,6 +1976,29 @@
             }
         }
 
+        /* === VISUALIZACIÓN DE TRADUCCIÓN MORSE === */
+.morse-translation {
+    background: rgba(0, 20, 0, 0.3);
+    border: 1px solid #ffaa00;
+    border-radius: 2px;
+    padding: 4px 6px;
+    margin: 4px 8px 0 8px;
+    font-size: 0.6rem;
+    color: #ffaa00;
+    font-family: 'Courier New', monospace;
+    display: none;
+}
+
+.morse-translation.active {
+    display: block;
+}
+
+.translation-label {
+    color: #00ff88;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
         /* === NUEVOS ESTILOS PARA SATÉLITE MEJORADO === */
     /* Fuerza verde fino en TODOS los scrollbars de la página */
 ::-webkit-scrollbar {
@@ -2011,7 +2034,7 @@
         <div class="header-pro">
             <div class="status-indicator">
                 <span class="status-dot-live"></span>
-                <span>RADCOM MASTER <span class="version-badge">v4.7.4</span></span>
+                <span>RADCOM MASTER <span class="version-badge">v4.7.5</span></span>
                 <span style="color:#888; margin-left:8px;">|</span>
                 <span id="data-session" style="color:#00ffea">0</span>b
                 <span class="security-badge">
@@ -2115,6 +2138,11 @@
             <div class="content-area">
                 <div class="monitor-container" id="monitorContainer">
                     <div id="monitor-raw">SISTEMA INICIADO | ESCUCHANDO CONEXIONES...</div>
+                        <div class="morse-translation" id="morse-translation">
+    <span class="translation-label">TRADUCCIÓN:</span>
+    <span id="morse-text-display"></span> → 
+    <span id="morse-code-display"></span>
+</div>
                     
                     <div class="resizable-separator" id="resizableSeparator"></div>
                     
@@ -4969,13 +4997,7 @@ function forceUpdateSatelliteData() {
             
             let processedMessage = message;
             
-            if (mode === 'morse') {
-                if (!isMorseCode(message)) {
-                    processedMessage = textToMorse(message);
-                }
-            } else if (mode === 'phonetic') {
-                processedMessage = textToPhonetic(message);
-            }
+            sendMessage
             
             const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key);
             const sentCount = sendToConnections(dataToSend);
@@ -5025,55 +5047,96 @@ function forceUpdateSatelliteData() {
             return text.toUpperCase().split('').map(char => morseCodes[char] || char).join(' ');
         }
 
+        // ====== FUNCIÓN PARA MOSTRAR TRADUCCIÓN MORSE ======
+function updateMorseTranslation(text) {
+    const translationBox = document.getElementById('morse-translation');
+    const textDisplay = document.getElementById('morse-text-display');
+    const codeDisplay = document.getElementById('morse-code-display');
+    
+    if (!text.trim()) {
+        translationBox.classList.remove('active');
+        return;
+    }
+    
+    // Mostrar siempre
+    translationBox.classList.add('active');
+    
+    // Si es código Morse, intentar decodificar
+    if (/^[\.\-\s\/]+$/.test(text.trim())) {
+        textDisplay.textContent = decodeMorse(text) || "[Código Morse]";
+        codeDisplay.textContent = text;
+    } 
+    // Si es texto normal, codificar a Morse
+    else {
+        textDisplay.textContent = text;
+        codeDisplay.textContent = textToMorse(text);
+    }
+}
+
+// ====== FUNCIÓN PARA DECODIFICAR MORSE ======
+function decodeMorse(morseCode) {
+    const morseMap = {};
+    for (const [char, code] of Object.entries(morseCodes)) {
+        morseMap[code] = char;
+    }
+    
+    return morseCode.split(' ').map(code => morseMap[code] || '?').join('');
+}
+
         function textToPhonetic(text) {
             return text.toUpperCase().split('').map(char => phoneticAlphabetFull[char]?.word || char).join(' ');
         }
 
-        function prepareMessageToSend(message, mode, encryption, key) {
-            let processedMessage = message;
-            let hexPreview = '';
-            
-            if (mode === 'hex') {
-                const hex = message.replace(/\s/g, '');
-                if (hex.length % 2 !== 0) {
-                    throw new Error('HEX debe tener longitud par');
-                }
-                processedMessage = '';
-                for (let i = 0; i < hex.length; i += 2) {
-                    processedMessage += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-                }
-            } else if (mode === 'binary') {
-                const binary = message.replace(/\s/g, '');
-                if (binary.length % 8 !== 0) {
-                    throw new Error('Binario debe ser múltiplo de 8');
-                }
-                processedMessage = '';
-                for (let i = 0; i < binary.length; i += 8) {
-                    processedMessage += String.fromCharCode(parseInt(binary.substr(i, 8), 2));
-                }
-            }
-            
-            let encryptedMessage = processedMessage;
-            if (encryption === 'xor' || encryption === 'aes') {
-                encryptedMessage = xorEncrypt(processedMessage, key);
-                
-                for (let i = 0; i < Math.min(encryptedMessage.length, 3); i++) {
-                    hexPreview += encryptedMessage.charCodeAt(i).toString(16).padStart(2, '0');
-                }
-                if (encryptedMessage.length > 3) hexPreview += '...';
-            }
-            
-            return {
-                type: 'message',
-                message: encryptedMessage,
-                original: message,
-                mode: mode,
-                encryption: encryption,
-                timestamp: Date.now(),
-                sender: myPeerId,
-                hexPreview: hexPreview
-            };
+        function prepareMessageToSend(message, mode, encryption, key, extraData = {}) {
+    let processedMessage = message;
+    let hexPreview = '';
+    
+    if (mode === 'hex') {
+        const hex = message.replace(/\s/g, '');
+        if (hex.length % 2 !== 0) {
+            throw new Error('HEX debe tener longitud par');
         }
+        processedMessage = '';
+        for (let i = 0; i < hex.length; i += 2) {
+            processedMessage += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+        }
+    } else if (mode === 'binary') {
+        const binary = message.replace(/\s/g, '');
+        if (binary.length % 8 !== 0) {
+            throw new Error('Binario debe ser múltiplo de 8');
+        }
+        processedMessage = '';
+        for (let i = 0; i < binary.length; i += 8) {
+            processedMessage += String.fromCharCode(parseInt(binary.substr(i, 8), 2));
+        }
+    }
+    
+    let encryptedMessage = processedMessage;
+    if (encryption === 'xor' || encryption === 'aes') {
+        encryptedMessage = xorEncrypt(processedMessage, key);
+        
+        for (let i = 0; i < Math.min(encryptedMessage.length, 3); i++) {
+            hexPreview += encryptedMessage.charCodeAt(i).toString(16).padStart(2, '0');
+        }
+        if (encryptedMessage.length > 3) hexPreview += '...';
+    }
+    
+    // ====== AÑADIR DATOS DUAL ======
+    return {
+        type: 'message',
+        message: encryptedMessage,
+        original: message,
+        mode: mode,
+        encryption: encryption,
+        timestamp: Date.now(),
+        sender: myPeerId,
+        hexPreview: hexPreview,
+        // Datos para sistema dual Morse
+        textVersion: extraData.textVersion || message,
+        morseVersion: extraData.morseVersion || '',
+        isDualMorse: extraData.isDualMorse || false
+    };
+}
 
         function xorEncrypt(text, key) {
             let result = '';
@@ -5477,17 +5540,42 @@ function sendWithQueue() {
     }
     
     // Preparar mensaje (igual que función original)
+        // Preparar mensaje con sistema DUAL bidireccional
     let processedMessage = message;
+    let extraData = {}; // Datos extra para el modo dual
     
     if (mode === 'morse') {
-        if (!isMorseCode(message)) {
-            processedMessage = textToMorse(message);
+        // ====== SISTEMA DUAL MORSE ======
+        const isMorse = /^[\.\-\s\/]+$/.test(message.trim());
+        
+        if (isMorse) {
+            // Escribieron Morse → enviamos Morse, guardamos texto traducido
+            processedMessage = message;  // Enviamos el Morse original
+            extraData = {
+                textVersion: decodeMorse(message) || message,
+                morseVersion: message,
+                isDualMorse: true
+            };
+            updateMonitor(`📡 Enviando Morse (${decodeMorse(message)?.substring(0, 20) || "Código"})`);
+        } else {
+            // Escribieron Texto → enviamos Morse traducido, guardamos texto original
+            processedMessage = textToMorse(message);  // Enviamos Morse traducido
+            extraData = {
+                textVersion: message,
+                morseVersion: processedMessage,
+                isDualMorse: true
+            };
+            updateMonitor(`📡 Enviando "${message.substring(0, 20)}" como Morse`);
         }
+        
+        // Mostrar traducción para aprendizaje
+        updateMorseTranslation(message);
+        
     } else if (mode === 'phonetic') {
         processedMessage = textToPhonetic(message);
     }
     
-    const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key);
+    const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key, extraData);
     
     // 1. Intentar enviar normalmente
     let sentCount = 0;
@@ -5993,40 +6081,52 @@ function deliverOnConnect(peerId) {
         // ====== FUNCIONES DE MENSAJERÍA ======
 
         function handleReceivedData(senderId, data) {
-            console.log("🔄 Procesando datos de", senderId, ":", data);
-            
-            connectionHealth[senderId] = {
-                ...connectionHealth[senderId],
-                lastActivity: Date.now(),
-                lastReceived: Date.now()
-            };
-            
-            if (!data || !data.message) {
-                console.log("❌ Datos inválidos");
-                return;
-            }
-            
-            const key = document.getElementById('key').value || 'ATOM80';
-            const encryption = document.getElementById('encryptionMode').value;
-            
-            let decryptedMessage = data.message;
-            
-            if (encryption === 'xor' || encryption === 'aes') {
-                decryptedMessage = xorDecrypt(data.message, key);
-            }
-            
-            const displayName = senderId.substring(0, 6);
-            displayMessage(`${displayName}: ${decryptedMessage}`, 
-                          data.hexPreview || '', 'incoming');
-            
-            stats.rx += data.message.length;
-            stats.messages++;
-            updateStats();
-            
-            updateMonitor(`📥 ${displayName}: "${decryptedMessage.substring(0, 20)}${decryptedMessage.length > 20 ? '...' : ''}"`);
-            
-            playMessageNotification();
-        }
+    console.log("🔄 Procesando datos de", senderId, ":", data);
+    
+    connectionHealth[senderId] = {
+        ...connectionHealth[senderId],
+        lastActivity: Date.now(),
+        lastReceived: Date.now()
+    };
+    
+    if (!data || !data.message) {
+        console.log("❌ Datos inválidos");
+        return;
+    }
+    
+    const key = document.getElementById('key').value || 'ATOM80';
+    const encryption = document.getElementById('encryptionMode').value;
+    
+    let decryptedMessage = data.message;
+    
+    if (encryption === 'xor' || encryption === 'aes') {
+        decryptedMessage = xorDecrypt(data.message, key);
+    }
+    
+    const displayName = senderId.substring(0, 6);
+    
+    // ====== SISTEMA DUAL MORSE ======
+    if (data.isDualMorse && data.textVersion && data.morseVersion) {
+        // Mostrar AMBAS versiones: Texto (Morse)
+        displayMessage(
+            `${displayName}: ${data.textVersion} (${data.morseVersion})`,
+            data.hexPreview || '',
+            'incoming'
+        );
+    } else {
+        // Mostrar normal
+        displayMessage(`${displayName}: ${decryptedMessage}`, 
+                     data.hexPreview || '', 'incoming');
+    }
+    
+    stats.rx += data.message.length;
+    stats.messages++;
+    updateStats();
+    
+    updateMonitor(`📥 ${displayName}: "${decryptedMessage.substring(0, 20)}${decryptedMessage.length > 20 ? '...' : ''}"`);
+    
+    playMessageNotification();
+}
 
         // ====== FUNCIONES DE UI MEJORADAS ======
         
@@ -6375,6 +6475,12 @@ function deliverOnConnect(peerId) {
             }
             
             return true;
+
+            function clearMorseTranslation() {
+    document.getElementById('morse-translation').classList.remove('active');
+    document.getElementById('morse-text-display').textContent = '';
+    document.getElementById('morse-code-display').textContent = '';
+}
         }
 
         function validateInputMode() {
@@ -6420,6 +6526,15 @@ function deliverOnConnect(peerId) {
                 
                 updateMonitor(`PREVIEW: ${hex}...`);
             }, 300);
+
+                // Mostrar traducción Morse si está en modo morse
+    const mode = document.getElementById('inputMode').value;
+    if (mode === 'morse') {
+        updateMorseTranslation(text);
+    } else {
+        document.getElementById('morse-translation').classList.remove('active');
+    }
+
         }
 
         function realTimeTableHighlight() {
@@ -6690,6 +6805,7 @@ function deliverOnConnect(peerId) {
                 document.addEventListener('mousemove', resize);
                 document.addEventListener('mouseup', stopResize);
             });
+
             
             function resize(e) {
                 if (!isResizing) return;
