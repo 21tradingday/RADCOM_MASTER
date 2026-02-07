@@ -2516,7 +2516,7 @@
                     style="height:100%; flex:1;">
 
                 <!-- Botón ENVIAR -->
-                <button id="sendBtn" onclick="sendWithQueue()">
+                <button id="sendBtn" onclick="sendWithQueue()" style="height:100%">
                     <i class="fas fa-paper-plane"></i> ENVIAR
                 </button>
 
@@ -5299,6 +5299,159 @@ function forceUpdateSatelliteData() {
             console.log("🔄 Procesando conexión entrante:", conn.peer);
             setupConnection(conn, 'incoming');
         }
+
+        // ====== VERIFICAR CONEXIONES REALES ======
+function verificarConexiones() {
+    console.log("🔍 Verificando conexiones...");
+    
+    let problemas = 0;
+    const ahora = Date.now();
+    
+    // Verificar cada conexión
+    for (const peerId in connections) {
+        const conn = connections[peerId];
+        
+        if (!conn) continue;
+        
+        // Si dice estar online, verificar que sea real
+        if (conn.status === 'online') {
+            let estaViva = true;
+            
+            // Verificación 1: Objeto conexión existe
+            if (!conn.conn) {
+                estaViva = false;
+                console.log(`❌ ${peerId.substring(0,6)}: No tiene objeto conexión`);
+            }
+            // Verificación 2: Conexión abierta
+            else if (!conn.conn.open) {
+                estaViva = false;
+                console.log(`❌ ${peerId.substring(0,6)}: Conexión no abierta`);
+            }
+            // Verificación 3: Última actividad
+            else if (connectionHealth[peerId]?.lastActivity) {
+                const inactivo = ahora - connectionHealth[peerId].lastActivity;
+                if (inactivo > 60000) { // 1 minuto sin actividad
+                    console.log(`⚠️ ${peerId.substring(0,6)}: Inactivo ${Math.round(inactivo/1000)}s`);
+                    conn.health = 'inactive';
+                    problemas++;
+                }
+            }
+            
+            if (!estaViva) {
+                conn.status = 'offline';
+                conn.health = 'dead';
+                problemas++;
+                console.log(`🔴 ${peerId.substring(0,6)}: Marcado como offline`);
+            }
+        }
+        // Si está offline pero debería estar online (en savedIds)
+        else if (conn.status === 'offline' || conn.status === 'error') {
+            const estaGuardado = savedIds.includes(peerId);
+            if (estaGuardado && conn.health !== 'reconnecting') {
+                problemas++;
+                console.log(`🔄 ${peerId.substring(0,6)}: Offline pero guardado`);
+            }
+        }
+    }
+    
+    // Actualizar UI
+    updatePeerList();
+    updateConnectedCount();
+    
+    if (problemas > 0) {
+        console.log(`📊 ${problemas} problema(s) encontrado(s)`);
+        return false;
+    }
+    
+    return true;
+}
+
+// ====== REPARAR CONEXIONES PROBLEMÁTICAS ======
+function repararConexiones() {
+    console.log("🛠️ Reparando conexiones...");
+    updateMonitor("🔧 REPARANDO...", "info");
+    
+    let reparadas = 0;
+    
+    for (const peerId in connections) {
+        const conn = connections[peerId];
+        
+        if (!conn) continue;
+        
+        // Condiciones para reparar:
+        // 1. Está offline/error
+        // 2. O está online pero con salud mala
+        const necesitaReparar = (
+            (conn.status === 'offline' || conn.status === 'error') ||
+            (conn.status === 'online' && conn.health === 'inactive')
+        );
+        
+        if (necesitaReparar && conn.health !== 'reconnecting') {
+            console.log(`🔄 Reparando ${peerId.substring(0,6)}...`);
+            
+            // Marcar como reconectando
+            conn.health = 'reconnecting';
+            updatePeerList();
+            
+            // Usar función existente para reconectar
+            if (peer && !peer.disconnected) {
+                // Cerrar conexión vieja si existe
+                if (conn.conn) {
+                    try {
+                        conn.conn.close();
+                    } catch(e) {}
+                }
+                
+                // Eliminar registro temporal
+                delete connections[peerId];
+                delete connectionHealth[peerId];
+                
+                // Esperar y reconectar usando función existente
+                setTimeout(() => {
+                    if (connectToPeerId) {
+                        connectToPeerId(peerId);
+                        reparadas++;
+                    }
+                }, 500);
+            }
+        }
+    }
+    
+    // Actualizar
+    updatePeerList();
+    
+    if (reparadas > 0) {
+        console.log(`✅ ${reparadas} conexión(es) en reparación`);
+        updateMonitor(`✅ ${reparadas} conexión(es) reparándose`);
+        playStrongBeep(700, 100);
+    } else {
+        console.log("✅ Todas las conexiones OK");
+        updateMonitor("✅ Conexiones verificadas");
+    }
+    
+    return reparadas;
+}
+
+// ====== VERIFICAR Y REPARAR ======
+function verificarYReparar() {
+    console.log("⚡ Verificando y reparando...");
+    
+    // 1. Verificar
+    const ok = verificarConexiones();
+    
+    // 2. Si hay problemas, reparar
+    if (!ok) {
+        console.log("⚠️ Problemas detectados, reparando...");
+        setTimeout(() => {
+            repararConexiones();
+        }, 1000);
+    } else {
+        console.log("✅ Todas las conexiones OK");
+        updateMonitor("✅ Conexiones verificadas");
+    }
+    
+    return ok;
+}
 
         // ====== FUNCIÓN NUEVA: sendWithQueue() ======
 // Usar esta en lugar de sendMessage() normal
