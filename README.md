@@ -3,12 +3,14 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v4.7.2 - SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v4.7.3- SISTEMA DE COMUNICACIÓN SEGURA</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
+    <script src="weather-logic.js"></script> 
     <script src="https://api.open-meteo.com/v1/forecast?latitude=40.4599&longitude=-3.4859&hourly=temperature_2m,visibility,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_80m,wind_gusts_10m"></script>
     <style>
+        
         /* === NUEVOS ESTILOS PARA SATÉLITE v4.7.2 === */
         .satellite-container-v2 {
             padding: 8px;
@@ -2009,7 +2011,7 @@
         <div class="header-pro">
             <div class="status-indicator">
                 <span class="status-dot-live"></span>
-                <span>RADCOM MASTER <span class="version-badge">v4.7.2</span></span>
+                <span>RADCOM MASTER <span class="version-badge">v4.7.3</span></span>
                 <span style="color:#888; margin-left:8px;">|</span>
                 <span id="data-session" style="color:#00ffea">0</span>b
                 <span class="security-badge">
@@ -2404,7 +2406,7 @@
                                         <div class="gps-coords-v2" id="sat-gps-coords">
                                             Lat: --.----° N, Lon: --.----° E
                                         </div>
-                                        <div style="font-size:0.55rem; color:#ffaa00; margin:3px 0;" id="sat-altitude">
+                                        <div style="font-size:0.55rem; color:#ffaa00; margin:3px 0;" id="updateSatelliteUI">
                                             Altitud: -- m | Precisión: -- m
                                         </div>
                                         <div style="font-size:0.45rem; color:#888;">
@@ -2719,6 +2721,7 @@
         };
         let audioContext = null;
         let currentConnectionType = 'wifi';
+        let watchId = null;  // Para guardar el ID del watch y poder pararlo después
         
         // ====== VARIABLES MEJORADAS ======
         let connectionHealth = {};
@@ -2737,19 +2740,6 @@
         // ====== VARIABLES PARA RECONOCIMIENTO DE VOZ v4.7 MEJORADO ======
         let recognition = null;
         let recognizing = false;
-
-        // ====== COORDENADAS SATELITALES (API REAL) ======
-        const SAT_COORDS = {
-            paragliding: { lat: 40.4599, lon: -3.4859 },
-            sailing: { lat: 40.4599, lon: -3.4859 },
-            hiking: { lat: 40.4599, lon: -3.4859 }
-        };
-
-        let satellitePositions = {
-            paragliding: { lat: 40.4599, lon: -3.4859, alt: 850 },
-            sailing: { lat: 40.4599, lon: -3.4859, heading: 245 },
-            hiking: { lat: 40.4599, lon: -3.4859, alt: 1450 }
-        };
 
         // ====== SISTEMA DE ID FIJOS MEJORADO ======
         const ID_SYSTEM = {
@@ -4188,608 +4178,72 @@
                 updateMonitor("⚠️ SIN DESTINOS CONECTADOS", "warning");
                 playStrongBeep(300, 200);
             }
-        }
-
-        // ====== FUNCIONES SATELITALES CON API REAL MEJORADAS ======
-
-        async function fetchWeatherData(lat, lon, locationType) {
-            try {
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,pressure_msl,visibility,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=auto`;
-                
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                return data;
-                
-            } catch (error) {
-                console.error(`Error obteniendo datos del tiempo para ${locationType}:`, error);
-                return null;
-            }
-        }
-
-        async function refreshParaglidingData() {
-            updateMonitor("🌤️ Actualizando datos de parapente (API real)...", "info");
-            
-            const { lat, lon } = SAT_COORDS.paragliding;
-            const data = await fetchWeatherData(lat, lon, "parapente");
-            
-            if (data && data.current) {
-                const current = data.current;
-                
-                // Actualizar UI con datos reales
-                document.getElementById("pg-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    ${current.temperature_2m.toFixed(1)}°C
-                `;
-                
-                document.getElementById("pg-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    ${current.wind_speed_10m.toFixed(1)} km/h
-                    <span style="color:#88aaff; font-size:0.5rem;">(${getWindDirection(current.wind_direction_10m)})</span>
-                `;
-                
-                document.getElementById("pg-gusts").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    ${current.wind_gusts_10m ? current.wind_gusts_10m.toFixed(1) + ' km/h' : 'N/A'}
-                `;
-                
-                document.getElementById("pg-humidity").innerHTML = `
-                    <i class="fas fa-tint sat-weather-icon"></i>
-                    ${current.relative_humidity_2m}%
-                `;
-                
-                document.getElementById("pg-visibility").innerHTML = `
-                    <i class="fas fa-eye sat-weather-icon"></i>
-                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
-                `;
-                
-                document.getElementById("pg-pressure").innerHTML = `
-                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
-                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
-                `;
-                
-                // Actualizar condiciones
-                const condition = getWeatherCondition(current.temperature_2m, current.wind_speed_10m, current.visibility);
-                document.getElementById("pg-conditions").innerHTML = `
-                    <span class="sat-condition-indicator ${condition.class}"></span>
-                    ${condition.text}
-                `;
-                
-                // Actualizar tiempo
-                document.getElementById("pg-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()}`;
-                    
-                updateMonitor(`✅ Datos de parapente actualizados: ${current.temperature_2m.toFixed(1)}°C, ${current.wind_speed_10m.toFixed(1)} km/h`);
-                playStrongBeep(700, 50);
-                
-            } else {
-                // Datos de ejemplo si falla la API
-                document.getElementById("pg-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    18.5°C
-                `;
-                document.getElementById("pg-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    12.3 km/h <span style="color:#88aaff; font-size:0.5rem;">(NNO)</span>
-                `;
-                document.getElementById("pg-conditions").innerHTML = `
-                    <span class="sat-condition-indicator condition-good"></span>
-                    BUENAS
-                `;
-                document.getElementById("pg-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
-                    
-                updateMonitor("⚠️ Usando datos de ejemplo para parapente", "warning");
-                playStrongBeep(400, 50);
-            }
-        }
-
-        function getParaglidingWeather() {
-            refreshParaglidingData();
-        }
-
-        function toggleParaglidingAlerts() {
-            const alertsBox = document.getElementById('pg-alerts');
-            const isVisible = alertsBox.style.display !== 'none';
-            alertsBox.style.display = isVisible ? 'none' : 'block';
-            playStrongBeep(600, 40);
-        }
-
-        async function refreshSailingData() {
-            updateMonitor("🌊 Actualizando datos de navegación...", "info");
-            
-            const { lat, lon } = SAT_COORDS.sailing;
-            const data = await fetchWeatherData(lat, lon, "navegación");
-            
-            if (data && data.current) {
-                const current = data.current;
-                
-                // Actualizar UI con datos reales
-                document.getElementById("sv-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    ${current.wind_speed_10m.toFixed(1)} nudos
-                `;
-                
-                document.getElementById("sv-wind-dir").innerHTML = `
-                    <i class="fas fa-compass sat-weather-icon"></i>
-                    ${getWindDirection(current.wind_direction_10m)}
-                `;
-                
-                document.getElementById("sv-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    ${current.temperature_2m.toFixed(1)}°C
-                `;
-                
-                document.getElementById("sv-pressure").innerHTML = `
-                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
-                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
-                `;
-                
-                document.getElementById("sv-visibility").innerHTML = `
-                    <i class="fas fa-eye sat-weather-icon"></i>
-                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
-                `;
-                
-                document.getElementById("sv-humidity").innerHTML = `
-                    <i class="fas fa-tint sat-weather-icon"></i>
-                    ${current.relative_humidity_2m}%
-                `;
-                
-                // Calcular condiciones marinas
-                const seaState = getSeaState(current.wind_speed_10m);
-                document.getElementById("sv-conditions").innerHTML = `
-                    <span class="sat-condition-indicator ${seaState.class}"></span>
-                    ${seaState.text}
-                `;
-                
-                // Actualizar tiempo
-                document.getElementById("sv-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()}`;
-                    
-                updateMonitor(`✅ Datos de navegación actualizados: ${current.wind_speed_10m.toFixed(1)} nudos, ${seaState.text}`);
-                playStrongBeep(650, 50);
-                
-            } else {
-                // Datos de ejemplo
-                document.getElementById("sv-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    15.2 nudos
-                `;
-                document.getElementById("sv-conditions").innerHTML = `
-                    <span class="sat-condition-indicator condition-good"></span>
-                    MAR CALMADO (1-2)
-                `;
-                document.getElementById("sv-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
-                    
-                updateMonitor("⚠️ Usando datos de ejemplo para navegación", "warning");
-                playStrongBeep(400, 50);
-            }
-        }
-
-        function getSailingWeather() {
-            refreshSailingData();
-        }
-
-        function toggleSailingAlerts() {
-            const alertsBox = document.getElementById('sv-alerts');
-            const isVisible = alertsBox.style.display !== 'none';
-            alertsBox.style.display = isVisible ? 'none' : 'block';
-            playStrongBeep(550, 35);
-        }
-
-        async function refreshHikingData() {
-            updateMonitor("⛰️ Actualizando datos de montaña...", "info");
-            
-            const { lat, lon } = SAT_COORDS.hiking;
-            const data = await fetchWeatherData(lat, lon, "montaña");
-            
-            if (data && data.current) {
-                const current = data.current;
-                
-                // Actualizar UI con datos reales
-                document.getElementById("hv-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    ${current.temperature_2m.toFixed(1)}°C
-                `;
-                
-                document.getElementById("hv-feels-like").innerHTML = `
-                    <i class="fas fa-temperature-low sat-weather-icon"></i>
-                    ${current.apparent_temperature ? current.apparent_temperature.toFixed(1) + '°C' : 'N/A'}
-                `;
-                
-                document.getElementById("hv-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    ${current.wind_speed_10m.toFixed(1)} km/h
-                `;
-                
-                document.getElementById("hv-humidity").innerHTML = `
-                    <i class="fas fa-tint sat-weather-icon"></i>
-                    ${current.relative_humidity_2m}%
-                `;
-                
-                document.getElementById("hv-pressure").innerHTML = `
-                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
-                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
-                `;
-                
-                document.getElementById("hv-visibility").innerHTML = `
-                    <i class="fas fa-eye sat-weather-icon"></i>
-                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
-                `;
-                
-                // Calcular condiciones de montaña
-                const mountainCondition = getMountainCondition(current.temperature_2m, current.wind_speed_10m, current.visibility);
-                document.getElementById("hv-conditions").innerHTML = `
-                    <span class="sat-condition-indicator ${mountainCondition.class}"></span>
-                    ${mountainCondition.text}
-                `;
-                
-                // Actualizar tiempo
-                document.getElementById("hv-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()}`;
-                    
-                updateMonitor(`✅ Datos de montaña actualizados: ${current.temperature_2m.toFixed(1)}°C, ${mountainCondition.text}`);
-                playStrongBeep(600, 50);
-                
-            } else {
-                // Datos de ejemplo
-                document.getElementById("hv-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    14.2°C
-                `;
-                document.getElementById("hv-conditions").innerHTML = `
-                    <span class="sat-condition-indicator condition-good"></span>
-                    BUENAS
-                `;
-                document.getElementById("hv-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
-                    
-                updateMonitor("⚠️ Usando datos de ejemplo para montaña", "warning");
-                playStrongBeep(400, 50);
-            }
-        }
-
-        function getHikingWeather() {
-            refreshHikingData();
-        }
-
-        function toggleHikingAlerts() {
-            const alertsBox = document.getElementById('hv-alerts');
-            const isVisible = alertsBox.style.display !== 'none';
-            alertsBox.style.display = isVisible ? 'none' : 'block';
-            playStrongBeep(600, 45);
-        } // ====== FUNCIONES SATELITALES CON API REAL MEJORADAS ======
-
-        async function fetchWeatherData(lat, lon, locationType) {
-            try {
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,pressure_msl,visibility,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=auto`;
-                
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                return data;
-                
-            } catch (error) {
-                console.error(`Error obteniendo datos del tiempo para ${locationType}:`, error);
-                return null;
-            }
-        }
-
-        async function refreshParaglidingData() {
-            updateMonitor("🌤️ Actualizando datos de parapente (API real)...", "info");
-            
-            const { lat, lon } = SAT_COORDS.paragliding;
-            const data = await fetchWeatherData(lat, lon, "parapente");
-            
-            if (data && data.current) {
-                const current = data.current;
-                
-                // Actualizar UI con datos reales
-                document.getElementById("pg-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    ${current.temperature_2m.toFixed(1)}°C
-                `;
-                
-                document.getElementById("pg-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    ${current.wind_speed_10m.toFixed(1)} km/h
-                    <span style="color:#88aaff; font-size:0.5rem;">(${getWindDirection(current.wind_direction_10m)})</span>
-                `;
-                
-                document.getElementById("pg-gusts").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    ${current.wind_gusts_10m ? current.wind_gusts_10m.toFixed(1) + ' km/h' : 'N/A'}
-                `;
-                
-                document.getElementById("pg-humidity").innerHTML = `
-                    <i class="fas fa-tint sat-weather-icon"></i>
-                    ${current.relative_humidity_2m}%
-                `;
-                
-                document.getElementById("pg-visibility").innerHTML = `
-                    <i class="fas fa-eye sat-weather-icon"></i>
-                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
-                `;
-                
-                document.getElementById("pg-pressure").innerHTML = `
-                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
-                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
-                `;
-                
-                // Actualizar condiciones
-                const condition = getWeatherCondition(current.temperature_2m, current.wind_speed_10m, current.visibility);
-                document.getElementById("pg-conditions").innerHTML = `
-                    <span class="sat-condition-indicator ${condition.class}"></span>
-                    ${condition.text}
-                `;
-                
-                // Actualizar tiempo
-                document.getElementById("pg-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()}`;
-                    
-                updateMonitor(`✅ Datos de parapente actualizados: ${current.temperature_2m.toFixed(1)}°C, ${current.wind_speed_10m.toFixed(1)} km/h`);
-                playStrongBeep(700, 50);
-                
-            } else {
-                // Datos de ejemplo si falla la API
-                document.getElementById("pg-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    18.5°C
-                `;
-                document.getElementById("pg-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    12.3 km/h <span style="color:#88aaff; font-size:0.5rem;">(NNO)</span>
-                `;
-                document.getElementById("pg-conditions").innerHTML = `
-                    <span class="sat-condition-indicator condition-good"></span>
-                    BUENAS
-                `;
-                document.getElementById("pg-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
-                    
-                updateMonitor("⚠️ Usando datos de ejemplo para parapente", "warning");
-                playStrongBeep(400, 50);
-            }
-        }
-
-        function getParaglidingWeather() {
-            refreshParaglidingData();
-        }
-
-        function toggleParaglidingAlerts() {
-            const alertsBox = document.getElementById('pg-alerts');
-            const isVisible = alertsBox.style.display !== 'none';
-            alertsBox.style.display = isVisible ? 'none' : 'block';
-            playStrongBeep(600, 40);
-        }
-
-        async function refreshSailingData() {
-            updateMonitor("🌊 Actualizando datos de navegación...", "info");
-            
-            const { lat, lon } = SAT_COORDS.sailing;
-            const data = await fetchWeatherData(lat, lon, "navegación");
-            
-            if (data && data.current) {
-                const current = data.current;
-                
-                // Actualizar UI con datos reales
-                document.getElementById("sv-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    ${current.wind_speed_10m.toFixed(1)} nudos
-                `;
-                
-                document.getElementById("sv-wind-dir").innerHTML = `
-                    <i class="fas fa-compass sat-weather-icon"></i>
-                    ${getWindDirection(current.wind_direction_10m)}
-                `;
-                
-                document.getElementById("sv-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    ${current.temperature_2m.toFixed(1)}°C
-                `;
-                
-                document.getElementById("sv-pressure").innerHTML = `
-                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
-                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
-                `;
-                
-                document.getElementById("sv-visibility").innerHTML = `
-                    <i class="fas fa-eye sat-weather-icon"></i>
-                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
-                `;
-                
-                document.getElementById("sv-humidity").innerHTML = `
-                    <i class="fas fa-tint sat-weather-icon"></i>
-                    ${current.relative_humidity_2m}%
-                `;
-                
-                // Calcular condiciones marinas
-                const seaState = getSeaState(current.wind_speed_10m);
-                document.getElementById("sv-conditions").innerHTML = `
-                    <span class="sat-condition-indicator ${seaState.class}"></span>
-                    ${seaState.text}
-                `;
-                
-                // Actualizar tiempo
-                document.getElementById("sv-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()}`;
-                    
-                updateMonitor(`✅ Datos de navegación actualizados: ${current.wind_speed_10m.toFixed(1)} nudos, ${seaState.text}`);
-                playStrongBeep(650, 50);
-                
-            } else {
-                // Datos de ejemplo
-                document.getElementById("sv-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    15.2 nudos
-                `;
-                document.getElementById("sv-conditions").innerHTML = `
-                    <span class="sat-condition-indicator condition-good"></span>
-                    MAR CALMADO (1-2)
-                `;
-                document.getElementById("sv-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
-                    
-                updateMonitor("⚠️ Usando datos de ejemplo para navegación", "warning");
-                playStrongBeep(400, 50);
-            }
-        }
-
-        function getSailingWeather() {
-            refreshSailingData();
-        }
-
-        function toggleSailingAlerts() {
-            const alertsBox = document.getElementById('sv-alerts');
-            const isVisible = alertsBox.style.display !== 'none';
-            alertsBox.style.display = isVisible ? 'none' : 'block';
-            playStrongBeep(550, 35);
-        }
-
-        async function refreshHikingData() {
-            updateMonitor("⛰️ Actualizando datos de montaña...", "info");
-            
-            const { lat, lon } = SAT_COORDS.hiking;
-            const data = await fetchWeatherData(lat, lon, "montaña");
-            
-            if (data && data.current) {
-                const current = data.current;
-                
-                // Actualizar UI con datos reales
-                document.getElementById("hv-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    ${current.temperature_2m.toFixed(1)}°C
-                `;
-                
-                document.getElementById("hv-feels-like").innerHTML = `
-                    <i class="fas fa-temperature-low sat-weather-icon"></i>
-                    ${current.apparent_temperature ? current.apparent_temperature.toFixed(1) + '°C' : 'N/A'}
-                `;
-                
-                document.getElementById("hv-wind").innerHTML = `
-                    <i class="fas fa-wind sat-weather-icon"></i>
-                    ${current.wind_speed_10m.toFixed(1)} km/h
-                `;
-                
-                document.getElementById("hv-humidity").innerHTML = `
-                    <i class="fas fa-tint sat-weather-icon"></i>
-                    ${current.relative_humidity_2m}%
-                `;
-                
-                document.getElementById("hv-pressure").innerHTML = `
-                    <i class="fas fa-tachometer-alt sat-weather-icon"></i>
-                    ${current.pressure_msl ? current.pressure_msl.toFixed(0) + ' hPa' : 'N/A'}
-                `;
-                
-                document.getElementById("hv-visibility").innerHTML = `
-                    <i class="fas fa-eye sat-weather-icon"></i>
-                    ${current.visibility ? (current.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
-                `;
-                
-                // Calcular condiciones de montaña
-                const mountainCondition = getMountainCondition(current.temperature_2m, current.wind_speed_10m, current.visibility);
-                document.getElementById("hv-conditions").innerHTML = `
-                    <span class="sat-condition-indicator ${mountainCondition.class}"></span>
-                    ${mountainCondition.text}
-                `;
-                
-                // Actualizar tiempo
-                document.getElementById("hv-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()}`;
-                    
-                updateMonitor(`✅ Datos de montaña actualizados: ${current.temperature_2m.toFixed(1)}°C, ${mountainCondition.text}`);
-                playStrongBeep(600, 50);
-                
-            } else {
-                // Datos de ejemplo
-                document.getElementById("hv-temp").innerHTML = `
-                    <i class="fas fa-thermometer-half sat-weather-icon"></i>
-                    14.2°C
-                `;
-                document.getElementById("hv-conditions").innerHTML = `
-                    <span class="sat-condition-indicator condition-good"></span>
-                    BUENAS
-                `;
-                document.getElementById("hv-updated").textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString()} (datos de ejemplo)`;
-                    
-                updateMonitor("⚠️ Usando datos de ejemplo para montaña", "warning");
-                playStrongBeep(400, 50);
-            }
-        }
-
-        function getHikingWeather() {
-            refreshHikingData();
-        }
-
-        function toggleHikingAlerts() {
-            const alertsBox = document.getElementById('hv-alerts');
-            const isVisible = alertsBox.style.display !== 'none';
-            alertsBox.style.display = isVisible ? 'none' : 'block';
-            playStrongBeep(600, 45);
-        }
+        }        
 
         // ====== SISTEMA SATELITAL MEJORADO ======
-        let satelliteSystem = {
-            latitude: null,
-            longitude: null,
-            altitude: null,
-            accuracy: null,
-            lastUpdate: null,
-            weatherData: null,
-            autoRefresh: true,
-            refreshInterval: null,
-            apiConnected: false
-        };
+        const satelliteSystem = {
+    latitude: null,
+    longitude: null,
+    altitude: null,
+    accuracy: null,
+    weatherData: null,
+    lastUpdate: null,
+    lastKnownPosition: null  // ← nuevo: para fallback robusto
+};
 
         // ====== ARREGLAR ENVÍO DE EMERGENCIAS ======
-        function sendSatelliteEmergency() {
-            // 1. Verificar que tenemos posición GPS
-            if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
-                updateMonitor("❌ ERROR: No hay posición GPS. Obtén posición primero.", "error");
-                playStrongBeep(300, 200);
-                getCurrentGPSPosition();
-                return;
-            }
-            
-            // 2. Verificar que hay conexiones
-            const onlineCount = Object.keys(connections).filter(id => 
-                connections[id]?.status === 'online').length;
-            
-            if (onlineCount === 0) {
-                if (!confirm("⚠️ No hay contactos conectados. ¿Enviar solo a chat local?")) {
-                    return;
-                }
-            }
-            
-            // 3. Confirmar emergencia
-            if (!confirm(`🚨 ¿ENVIAR SEÑAL DE EMERGENCIA SATELITAL?\n\nSe enviará a ${onlineCount} contacto(s) conectado(s).`)) {
-                return;
-            }
-            
-            updateMonitor("🚨 PREPARANDO EMERGENCIA SATELITAL...", "warning");
-            playEmergencySatelliteTone();
-            
-            // 4. Crear mensaje de emergencia con datos reales
-            const emergencyMessage = createEmergencyMessage();
-            
-            // 5. Enviar a través del sistema de mensajes existente
-            sendEmergencyMessage(emergencyMessage);
-            
-            // 6. Mostrar confirmación
-            updateMonitor("✅ EMERGENCIA ENVIADA CORRECTAMENTE", "info");
-            
-            // 7. Mostrar en chat local
-            displayMessage(`🚨 YO [EMERGENCIA]: ${emergencyMessage.substring(0, 80)}...`, 'EMERG', 'outgoing');
+        async function sendSatelliteEmergency() {
+    updateMonitor("🚨 INICIANDO PROTOCOLO DE EMERGENCIA...", "warning");
+    playEmergencySatelliteTone();
+    
+    try {
+        // 1. Intentar obtener posición fresca
+        await getCurrentGPSPosition();
+        
+        // 2. Verificar posición válida
+        if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+            throw new Error("No position available");
         }
-
+        
+        // 3. Verificar accuracy
+        if (satelliteSystem.accuracy > 100) {
+            if (!confirm(`⚠️ Precisión baja (${Math.round(satelliteSystem.accuracy)}m). ¿Continuar?`)) {
+                return;
+            }
+        }
+        
+        // 4. Verificar conexiones
+        const onlineCount = Object.keys(connections).filter(id => 
+            connections[id]?.status === 'online').length;
+        
+        if (onlineCount === 0) {
+            if (!confirm("⚠️ No hay contactos conectados. ¿Enviar solo a chat local?")) {
+                return;
+            }
+        }
+        
+        // 5. Confirmar envío
+        if (!confirm(`🚨 ¿ENVIAR SEÑAL DE EMERGENCIA S.O.S AYUDA?\n\nPosición: ${satelliteSystem.latitude.toFixed(4)}° N, ${satelliteSystem.longitude.toFixed(4)}° E\nSe enviará a ${onlineCount} contacto(s).`)) {
+            return;
+        }
+        
+        // 6. Crear y enviar mensaje
+        const emergencyMessage = createEmergencyMessage();
+        const sentCount = sendEmergencyMessage(emergencyMessage);
+        
+        // 7. Confirmación
+        updateMonitor(`✅ EMERGENCIA ENVIADA A ${sentCount} CONTACTO(S)`, "info");
+        
+        // 8. Mostrar en chat local
+        displayMessage(`🚨 YO [EMERGENCIA]: ${emergencyMessage.substring(0, 80)}...`, 'EMERG', 'outgoing');
+        
+    } catch (error) {
+        console.error("Emergency error:", error);
+        updateMonitor("❌ ERROR EN PROTOCOLO DE EMERGENCIA: " + error.message, "error");
+        playStrongBeep(300, 200);
+    }
+}
+            
         function createEmergencyMessage() {
             const lat = satelliteSystem.latitude.toFixed(6);
             const lon = satelliteSystem.longitude.toFixed(6);
@@ -4802,7 +4256,7 @@
                 weatherInfo = ` | Condiciones: ${w.temperature}°C, Viento: ${w.windspeed} km/h`;
             }
             
-            return `🚨 EMERGENCIA SATELITAL 🚨
+            return `🚨 EMERGENCIA S.O.S AYUDA 🚨
 Posición: ${lat}° N, ${lon}° E
 Altitud: ${alt} m
 Hora: ${time}
@@ -4855,60 +4309,149 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
         }
 
         // ====== OBTENER POSICIÓN GPS REAL ======
-        function getCurrentGPSPosition() {
-            if (!navigator.geolocation) {
-                updateMonitor("❌ Geolocalización no soportada en este navegador", "error");
-                return;
+        function getCurrentGPSPosition(forceOneTime = false) {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            updateMonitor("❌ Geolocalización no soportada en este navegador", "error");
+            reject(new Error("Geolocation no soportada"));
+            return;
+        }
+
+        // Si ya tenemos watch activo y no forzamos una sola vez, usamos el watch existente
+        if (watchId !== null && !forceOneTime) {
+            // Ya está siguiendo → solo resolvemos con la posición actual
+            if (satelliteSystem.latitude && satelliteSystem.longitude) {
+                resolve();
             }
-            
-            updateMonitor("📍 Obteniendo posición GPS...", "info");
-            playStrongBeep(800, 100);
-            
+            return;
+        }
+
+        updateMonitor("📍 Solicitando acceso a ubicación...", "info");
+        playStrongBeep(800, 100);
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 30000  // Acepta posición de hasta 30 segundos atrás para no pedir tanto
+        };
+
+        // Si forzamos "una sola vez" (por botón manual), usamos getCurrentPosition
+        if (forceOneTime) {
             navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    satelliteSystem.latitude = position.coords.latitude;
-                    satelliteSystem.longitude = position.coords.longitude;
-                    satelliteSystem.altitude = position.coords.altitude || 0;
-                    satelliteSystem.accuracy = position.coords.accuracy;
-                    satelliteSystem.lastUpdate = new Date();
-                    
-                    updateSatelliteUI();
-                    updateMonitor("✅ Posición GPS obtenida correctamente", "info");
-                    playStrongBeep(600, 50);
-                    
-                    // Obtener datos meteorológicos automáticamente
-                    fetchWeatherData();
-                },
-                function(error) {
-                    console.error("Error GPS:", error);
-                    let errorMsg = "❌ Error GPS: ";
-                    switch(error.code) {
-                        case error.PERMISSION_DENIED:
-                            errorMsg += "Permiso denegado";
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            errorMsg += "Posición no disponible";
-                            break;
-                        case error.TIMEOUT:
-                            errorMsg += "Tiempo agotado";
-                            break;
-                        default:
-                            errorMsg += "Error desconocido";
-                    }
-                    updateMonitor(errorMsg, "error");
-                    
-                    // Usar posición por defecto (Madrid)
-                    useDefaultPosition();
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
+                successCallback,
+                errorCallback,
+                options
+            );
+        } else {
+            // Modo "fijo" → watchPosition (pide permiso una vez y actualiza automático)
+            watchId = navigator.geolocation.watchPosition(
+                successCallback,
+                errorCallback,
+                options
             );
         }
 
-        function useDefaultPosition() {
+        function successCallback(position) {
+            satelliteSystem.latitude = position.coords.latitude;
+            satelliteSystem.longitude = position.coords.longitude;
+            satelliteSystem.altitude = position.coords.altitude || 0;
+            satelliteSystem.accuracy = position.coords.accuracy;
+            satelliteSystem.lastUpdate = new Date();
+
+            // Guardar última posición conocida
+            localStorage.setItem('radcom_last_position', JSON.stringify({
+                latitude: satelliteSystem.latitude,
+                longitude: satelliteSystem.longitude,
+                altitude: satelliteSystem.altitude,
+                accuracy: satelliteSystem.accuracy,
+                timestamp: Date.now()
+            }));
+
+            updateSatelliteUI();
+            updateMonitor(`📍 Posición actualizada (Precisión: ${Math.round(satelliteSystem.accuracy)} m)`, "info");
+            playStrongBeep(600, 50);
+
+            resolve();
+        }
+
+        function errorCallback(error) {
+            let msg = "❌ Error GPS: ";
+            let showInstructions = false;
+
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    msg += "Permiso denegado.\n\nPara que no vuelva a pedir cada vez:\n1. Clic en el candado junto a la URL\n2. Ubicación → Permitir (o 'Siempre permitir')\n3. Recarga la página";
+                    showInstructions = true;
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    msg += "Posición no disponible. Verifica GPS o conexión.";
+                    break;
+                case error.TIMEOUT:
+                    msg += "Tiempo agotado. Intenta de nuevo.";
+                    break;
+                default:
+                    msg += error.message;
+            }
+
+            updateMonitor(msg, "error");
+
+            if (showInstructions) {
+                alert(msg);  // O puedes crear un modal bonito si prefieres
+            }
+
+            reject(error);
+        }
+    });
+}
+
+function handleGPSFallback() {
+    // 1. Última posición conocida (si < 30 min)
+    if (satelliteSystem.lastKnownPosition) {
+        const age = (Date.now() - satelliteSystem.lastKnownPosition.timestamp) / 60000;
+        if (age < 30 && confirm(`⚠️ Usar posición anterior (${Math.round(age)} min atrás)?`)) {
+            Object.assign(satelliteSystem, satelliteSystem.lastKnownPosition);
+            updateSatelliteUI();
+            updateMonitor(`⚠️ Usando posición anterior | Prec: ${Math.round(satelliteSystem.accuracy)}m`, "warning");
+            return;
+        }
+    }
+    
+    // 2. Entrada manual
+    const manualLat = prompt("⚠️ Ingrese latitud manualmente (ej: 40.4168):");
+    const manualLon = prompt("⚠️ Ingrese longitud manualmente (ej: -3.7038):");
+    
+    if (manualLat && manualLon && !isNaN(parseFloat(manualLat)) && !isNaN(parseFloat(manualLon))) {
+        satelliteSystem.latitude = parseFloat(manualLat);
+        satelliteSystem.longitude = parseFloat(manualLon);
+        satelliteSystem.altitude = 0;
+        satelliteSystem.accuracy = 9999;
+        satelliteSystem.lastUpdate = new Date();
+        
+        updateSatelliteUI();
+        updateMonitor("⚠️ Usando posición manual", "warning");
+        return;
+    }
+    
+    // 3. Default
+    if (confirm("⚠️ Usar posición por defecto (Madrid)?")) {
+        useDefaultPosition();
+    } else {
+        updateMonitor("❌ No se obtuvo posición. Operación cancelada.", "error");
+    }
+}
+
+function useDefaultPosition() {
+    satelliteSystem.latitude = 40.4168;
+    satelliteSystem.longitude = -3.7038;
+    satelliteSystem.altitude = 667;
+    satelliteSystem.accuracy = 1000;
+    satelliteSystem.lastUpdate = new Date();
+    
+    updateSatelliteUI();
+    updateMonitor("⚠️ Usando posición por defecto (Madrid)", "warning");
+}
+
+        function useRealtPosition() {
             satelliteSystem.latitude = 40.4168; // Madrid
             satelliteSystem.longitude = -3.7038;
             satelliteSystem.altitude = 667;
@@ -4916,60 +4459,92 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
             satelliteSystem.lastUpdate = new Date();
             
             updateSatelliteUI();
-            updateMonitor("⚠️ Usando posición por defecto (Madrid)", "warning");
+            updateMonitor("⚠️ Usando posición Real", "warning");
             
             fetchWeatherData();
         }
 
         // ====== OBTENER DATOS METEOROLÓGICOS REALES ======
-        async function fetchWeatherData() {
-            if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
-                updateMonitor("⚠️ Esperando posición GPS...", "warning");
-                return;
+        // ====== OBTENER DATOS METEOROLÓGICOS + ALTITUD REAL ======
+async function fetchWeatherData() {
+    if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+        updateMonitor("⚠️ Esperando posición GPS...", "warning");
+        return;
+    }
+
+    const lat = satelliteSystem.latitude.toFixed(4);
+    const lon = satelliteSystem.longitude.toFixed(4);
+
+    updateMonitor("🌤️ Consultando meteo + elevación...", "info");
+    updateAPIStatus("Conectando a Open-Meteo...", false);
+
+    try {
+        // 1. Datos meteorológicos (tu llamada original, mantenida)
+        const meteoParams = new URLSearchParams({
+            latitude: lat,
+            longitude: lon,
+            hourly: 'temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,pressure_msl,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,precipitation_probability,rain,uv_index,is_day',
+            current_weather: true,
+            timezone: 'auto',
+            forecast_days: 1
+        }).toString();
+
+        const meteoUrl = `https://api.open-meteo.com/v1/forecast?${meteoParams}`;
+        console.log("📡 Meteo URL:", meteoUrl);
+
+        const meteoRes = await fetch(meteoUrl);
+        if (!meteoRes.ok) throw new Error(`Meteo HTTP ${meteoRes.status}`);
+        satelliteSystem.weatherData = await meteoRes.json();
+
+        // 2. ALTITUD / ELEVACIÓN (endpoint dedicado)
+        const elevUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
+        console.log("📡 Elevación URL:", elevUrl);
+
+        const elevRes = await fetch(elevUrl);
+        let elevation = null;
+        if (elevRes.ok) {
+            const elevData = await elevRes.json();
+            if (elevData.elevation && elevData.elevation.length > 0) {
+                elevation = Math.round(elevData.elevation[0]);
+                satelliteSystem.altitude = elevation;
+                console.log("✅ Altitud obtenida:", elevation, "m");
             }
-            
-            updateMonitor("🌤️ Consultando datos meteorológicos...", "info");
-            updateAPIStatus("Conectando a API...", false);
-            
-            try {
-                const params = new URLSearchParams({
-                    latitude: satelliteSystem.latitude,
-                    longitude: satelliteSystem.longitude,
-                    hourly: 'temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,pressure_msl,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,precipitation_probability,rain,uv_index,is_day',
-                    current_weather: true,
-                    timezone: 'auto',
-                    forecast_days: 1
-                }).toString();
-                
-                const url = `https://api.open-meteo.com/v1/forecast?${params}`;
-                console.log("📡 Consultando API:", url);
-                
-                const response = await fetch(url, { timeout: 10000 });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                satelliteSystem.weatherData = data;
-                satelliteSystem.apiConnected = true;
-                
-                updateWeatherUI(data);
-                updateAPIStatus("Conectado a Open-Meteo", true);
-                updateMonitor("✅ Datos meteorológicos actualizados", "info");
-                playStrongBeep(700, 30);
-                
-            } catch (error) {
-                console.error("❌ Error API:", error);
-                satelliteSystem.apiConnected = false;
-                updateMonitor(`❌ Error API: ${error.message}`, "error");
-                updateAPIStatus("Error de conexión", false);
-                playStrongBeep(300, 200);
-                
-                // Usar datos de muestra
-                useSampleWeatherData();
-            }
+        } else {
+            console.warn("Elevación falló:", elevRes.status);
         }
+
+        // Si no hay altitud de API ni de GPS, fallback a 0 o último valor
+        if (satelliteSystem.altitude === null || isNaN(satelliteSystem.altitude)) {
+            satelliteSystem.altitude = satelliteSystem.altitude || 0;
+            console.log("Altitud final (fallback):", satelliteSystem.altitude);
+        }
+
+        // Actualizar interfaces
+        updateWeatherUI(satelliteSystem.weatherData);
+        updateSatelliteUI();  // ← esto actualiza #updateSatelliteUI 
+        updateAPIStatus("Conectado", true);
+        updateMonitor("✅ Meteo y altitud actualizados", "info");
+        playStrongBeep(700, 30);
+
+    } catch (error) {
+        console.error("❌ Error total API:", error);
+        satelliteSystem.apiConnected = false;
+        updateMonitor(`❌ Error: ${error.message}`, "error");
+        updateAPIStatus("Error conexión", false);
+        playStrongBeep(300, 200);
+
+        // Fallback con altitud de ejemplo
+        useSampleWeatherData();
+    }
+    satelliteSystem.weatherData = sampleData;
+    satelliteSystem.altitude = satelliteSystem.altitude || 667; // Madrid por defecto
+
+    updateSatelliteUI(); // Asegura que altitud se muestre
+    updateMonitor("⚠️ Usando datos de muestra (Alt: 667 m)", "warning");
+}
+
+// Fallback mejorado (añadimos altitud de ejemplo)
+
 
         function useSampleWeatherData() {
             const sampleData = {
@@ -5011,7 +4586,7 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
                 
                 const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : '--';
                 const acc = satelliteSystem.accuracy ? Math.round(satelliteSystem.accuracy) : '--';
-                document.getElementById('sat-altitude').textContent = 
+                document.getElementById('updateSatelliteUI').textContent = 
                     `Altitud: ${alt} m | Precisión: ${acc} m`;
                 
                 if (satelliteSystem.lastUpdate) {
@@ -5151,26 +4726,40 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
         }
 
         // ====== COMPARTIR POSICIÓN EN CHAT ======
-        function sendPositionToChat() {
-            if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
-                updateMonitor("❌ No hay posición GPS disponible", "error");
-                return;
-            }
-            
-            const lat = satelliteSystem.latitude.toFixed(4);
-            const lon = satelliteSystem.longitude.toFixed(4);
-            const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : 'N/A';
-            
-            const positionMessage = `📍 Mi posición actual: ${lat}° N, ${lon}° E | Altitud: ${alt} m`;
-            
-            // Poner en campo de entrada
-            const input = document.getElementById('inputMsg');
-            input.value = positionMessage;
-            input.focus();
-            
-            updateMonitor("📍 Posición preparada para enviar", "info");
-            playStrongBeep(600, 50);
-        }
+       function sendPositionToChat() {
+    if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+        updateMonitor("❌ No hay posición GPS. Obtén posición primero.", "error");
+        playStrongBeep(300, 200);
+        getCurrentGPSPosition();  // ← esto ya lo tenías
+        return;
+    }
+
+    const lat = satelliteSystem.latitude.toFixed(6);
+    const lon = satelliteSystem.longitude.toFixed(6);
+    const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : 'N/A';
+    const time = new Date().toLocaleTimeString();
+
+    // Mensaje simple y limpio (como lo tenías originalmente)
+    const positionMessage = `📍 POSICIÓN ACTUAL\nLat: ${lat}\nLon: ${lon}\nAlt: ${alt} m\nHora: ${time}`;
+
+    // Enviar usando el mecanismo estándar de mensajes (sin forzar encriptación extra aquí)
+    const dataToSend = prepareMessageToSend(
+        positionMessage,
+        'text',                           // modo texto
+        document.getElementById('encryptionMode').value,  // respeta la config del usuario
+        document.getElementById('key').value || 'ATOM80'
+    );
+
+    const sent = sendToConnections(dataToSend);
+
+    if (sent > 0) {
+        displayMessage(`📍 YO: ${positionMessage.substring(0, 60)}...`, '', 'outgoing');
+        updateMonitor(`📍 Posición enviada a ${sent} destino(s)`, "info");
+        playStrongBeep(700, 100);
+    } else {
+        updateMonitor("⚠️ No se pudo enviar posición (sin conexiones)", "warning");
+    }
+}
 
         // ====== SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA ======
         function startAutoRefresh() {
@@ -5191,40 +4780,62 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
 
         // ====== INICIALIZACIÓN SATELITAL ======
         function initSatelliteSystem() {
-            console.log("🛰️ Iniciando sistema satelital v4.7.2");
-            
-            // Configurar checkbox de auto-refresh
-            const autoRefreshCheckbox = document.getElementById('auto-refresh-checkbox');
-            if (autoRefreshCheckbox) {
-                autoRefreshCheckbox.checked = true;
-                autoRefreshCheckbox.addEventListener('change', function() {
-                    satelliteSystem.autoRefresh = this.checked;
-                    if (this.checked) {
-                        startAutoRefresh();
-                        updateMonitor("✅ Auto-actualización activada", "info");
-                    } else {
-                        if (satelliteSystem.refreshInterval) {
-                            clearInterval(satelliteSystem.refreshInterval);
-                            satelliteSystem.refreshInterval = null;
-                            updateMonitor("⏸️ Auto-actualización desactivada", "warning");
-                        }
-                    }
-                });
-            }
-            
-            // Obtener posición inicial después de 1 segundo
-            setTimeout(() => {
-                getCurrentGPSPosition();
-            }, 1000);
-            
-            // Iniciar auto-refresh después de 3 segundos
-            setTimeout(() => {
-                startAutoRefresh();
-            }, 3000);
-            
-            updateMonitor("🛰️ Sistema satelital v4.7.2 inicializado", "info");
+    // Cargar última posición conocida de localStorage
+    const savedPos = localStorage.getItem('radcom_last_position');
+    if (savedPos) {
+        satelliteSystem.lastKnownPosition = JSON.parse(savedPos);
+        console.log("📍 Posición anterior cargada:", satelliteSystem.lastKnownPosition);
+    }
+    
+    // Actualizar UI inicial
+    updateSatelliteUI();
+    
+    // Auto-refresco cada 5 minutos si app activa
+    setInterval(() => {
+        if (!document.hidden) {
+            forceUpdateSatelliteData();
         }
+    }, 300000);
+}
 
+function startWatchingPosition() {
+    if (watchId !== null) return; // Ya está activo
+
+    getCurrentGPSPosition(false)  // false = modo watch (fijo)
+        .then(() => {
+            console.log("Seguimiento GPS iniciado en modo continuo");
+        })
+        .catch(() => {
+            console.warn("No se pudo iniciar seguimiento continuo");
+        });
+}
+
+function stopWatchingPosition() {
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        console.log("Seguimiento GPS detenido");
+    }
+}
+
+// Ejemplo: parar cuando la pestaña está oculta
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopWatchingPosition();
+    } else {
+        startWatchingPosition();
+    }
+});
+
+function forceUpdateSatelliteData() {
+    getCurrentGPSPosition()
+        .then(() => {
+            fetchWeatherData();
+        })
+        .catch(() => {
+            updateMonitor("⚠️ Actualización satelital fallida", "warning");
+        });
+}
         // ====== SONIDOS MEJORADOS ======
         function playEmergencySatelliteTone() {
             if (!document.getElementById('soundEnabled')?.checked) return;
@@ -5339,7 +4950,7 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
             const encryption = document.getElementById('encryptionMode').value;
             
             // Si estamos en modo satélite, añadir automáticamente la posición GPS
-            if (mode === 'satellite' && !message.includes('🚨 EMERGENCIA SATELITAL')) {
+            if (mode === 'satellite' && !message.includes('🚨 EMERGENCIA S.O.S AYUDA')) {
                 const pos = satellitePositions.paragliding;
                 const gpsInfo = `\n\n[GPS: ${pos.lat.toFixed(4)}° N, ${pos.lon.toFixed(4)}° E | Alt: ${Math.round(pos.alt)} m]`;
                 message += gpsInfo;
@@ -5533,9 +5144,13 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
             });
             
             peer.on('error', (err) => {
-                console.error("PeerJS Error:", err);
-                updateMonitor(`⚠️ ERROR: ${err.type}`, "error");
-            });
+    if (err.type === 'peer-unavailable') {
+        updateMonitor(`⚠️ Peer non-existent or offline`, "warning");
+    } else {
+        console.error("PeerJS Error:", err);
+        updateMonitor(`⚠️ ERROR: ${err.type}`, "error");
+    }
+});
         }
 
         function setupConnection(conn, type) {
@@ -6704,7 +6319,16 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
             setTimeout(startHealthCheckSystem, 5000);
             
             updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | SATÉLITE ACTIVO`);
+
+            // Iniciar seguimiento automático de posición (modo "fijo")
+            startWatchingPosition();
         };
+
+        // In the file where the function is defined
+window.initializeSatelliteWeather = function() {
+    // Your logic here
+    console.log("Satellite weather initialized");
+};
 
         // ====== MÓDULO DE MEMORIA RADCOM v4.7 ======
 
@@ -6738,6 +6362,16 @@ function loadHistoryFromLocal() {
         });
     }
 }
+
+function force720() {
+    const container = document.querySelector('.container');
+    if (container) {
+        container.style.width = '720px';
+        container.style.height = '720px';
+    }
+}
+
+window.addEventListener('load', force720);
 
         // Exportar nuevas funciones
         window.forceUpdateSatelliteData = forceUpdateSatelliteData;
