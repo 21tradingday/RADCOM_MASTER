@@ -3,7 +3,7 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5- SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v5.2- SISTEMA DE COMUNICACIÓN SEGURA</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
@@ -579,6 +579,18 @@
             border-radius: 2px;
             position: relative;
             overflow: hidden;
+        }
+
+        .ansi-container::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 5px;
+            background: #000;
+            color: #00ff88;
+            font-size: 0.5rem;
+            padding: 0 3px;
+            z-index: 1;
         }
         
         
@@ -2056,7 +2068,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.2</span></span>
     <span style="color:#888; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <!-- NUEVO: BADGE DE SEGURIDAD -->
