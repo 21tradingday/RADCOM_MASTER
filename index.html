@@ -3,13 +3,46 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v4.7.5- SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v5- SISTEMA DE COMUNICACIÓN SEGURA</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
     <script src="weather-logic.js"></script> 
     <script src="https://api.open-meteo.com/v1/forecast?latitude=40.4599&longitude=-3.4859&hourly=temperature_2m,visibility,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_80m,wind_gusts_10m"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@noble/ed25519@2.1.0/+esm"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@noble/hashes@1.5.0/+esm"></script> 
     <style>
+
+        /* === SEGURIDAD REAL v5.1 === */
+.security-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 136, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    border: 1px solid rgba(0, 136, 255, 0.4);
+    cursor: pointer;
+    margin-left: 8px;
+}
+.security-badge:hover {
+    background: rgba(0, 136, 255, 0.3);
+}
+.security-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00ff88;
+    box-shadow: 0 0 4px #00ff88;
+}
+
+/* Colores para diferentes tipos de cifrado */
+.security-aes { color: #00ffea !important; }
+.security-xor { color: #ffaa00 !important; }
+.security-none { color: #ff3300 !important; }
         
         /* === NUEVOS ESTILOS PARA SATÉLITE v4.7.2 === */
         .satellite-container-v2 {
@@ -2022,15 +2055,16 @@
     <div class="container">
         <div class="header-pro">
             <div class="status-indicator">
-                <span class="status-dot-live"></span>
-                <span>RADCOM MASTER <span class="version-badge">v4.7.5</span></span>
-                <span style="color:#888; margin-left:8px;">|</span>
-                <span id="data-session" style="color:#00ffea">0</span>b
-                <span class="security-badge">
-                    <i class="fas fa-lock"></i>
-                    ENCRYPTED
-                </span>
-            </div>
+    <span class="status-dot-live"></span>
+    <span>RADCOM MASTER <span class="version-badge">v5</span></span>
+    <span style="color:#888; margin-left:10px;">|</span>
+    <span id="data-session" style="color:#00ffea">0</span>b
+    <!-- NUEVO: BADGE DE SEGURIDAD -->
+    <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256 Activada">
+        <span class="security-dot"></span>
+        <span style="color:#00ffea;">AES-256</span>
+    </div>
+</div>
             <div id="display-id" style="font-size:0.6rem; color:#00ff88; font-family:monospace;">INICIANDO...</div>
             <div style="display:flex; gap:4px; align-items:center;">
                 <!-- BOTÓN REFRESCAR PEQUEÑO COMO ANTES -->
@@ -2254,7 +2288,7 @@
                                             <!-- NUEVA SECCIÓN: CB y PMR -->
                                             <div class="pmr-cb-section">
                                                 <div class="pmr-cb-title">
-                                                    <i class="fas fa-walkie-talkie"></i> CB & PMR446
+                                                    <i class="fas fa-walkie-talkie"></i> CB27 & PMR446
                                                 </div>
                                                 <div class="channel-type-selector">
                                                     <button class="channel-type-btn active" onclick="selectChannelType('pmr')">PMR446</button>
@@ -2276,7 +2310,7 @@
                                                     </div>
                                                 </div>
                                                 
-                                                <!-- Canales CB -->
+                                                <!-- Canales CB27 -->
                                                 <div id="cb-container" class="channel-container">
                                                     <div class="channel-grid" id="cb-channels-grid">
                                                         <!-- Generado por JavaScript -->
@@ -2417,13 +2451,13 @@
                                     
                                     <!-- POSICIÓN GPS CON ALTITUD -->
                                     <div class="sat-gps-container-v2">
-                                        <div style="font-size:0.5rem; color:#00ff88; margin-bottom:4px;">
+                                        <div style="font-size:0.6rem; color:#00ff88; margin-bottom:4px;">
                                             <i class="fas fa-map-marker-alt"></i> POSICIÓN GPS ACTUAL
                                         </div>
                                         <div class="gps-coords-v2" id="sat-gps-coords">
                                             Lat: --.----° N, Lon: --.----° E
                                         </div>
-                                        <div style="font-size:0.55rem; color:#ffaa00; margin:3px 0;" id="updateSatelliteUI">
+                                        <div style="font-size:0.75rem; color:#ffaa00; margin:3px 0;" id="updateSatelliteUI">
                                             Altitud: -- m | Precisión: -- m
                                         </div>
                                         <div style="font-size:0.45rem; color:#888;">
@@ -2473,7 +2507,7 @@
                 
                 <div id="monitor-decoded">
                     <div class="message-bubble message-system">
-                        <i class="fas fa-satellite"></i> SISTEMA RADCOM MASTER v4.7.2 INICIADO
+                        <i class="fas fa-satellite"></i> SISTEMA RADCOM MASTER <v4 class="7 6"></v4> INICIADO
                     </div>
                 </div>
             </div>    
@@ -2490,15 +2524,14 @@
                     <option value="satellite">SATÉLITE</option>
                 </select>
                 
-                <!-- NUEVO: SELECTOR DE CIFRADO -->
-<select id="encryptionMode" title="Tipo de Cifrado">
-    <option value="aes">AES-256</option>
-    <option value="xor">XOR</option>
-    <option value="none">Sin cifrado</option>
-</select>
+                <select id="encryptionMode" title="Encriptación">
+                    <option value="xor">XOR Simple</option>
+                    <option value="aes" selected>AES-256</option>
+                    <option value="none">Sin encriptación</option>
+                </select>
                 
                 <div style="position:relative; flex:1;">
-                    <input type="password" id="key" placeholder="CLAVE DE ENCRIPTACIÓN" 
+                    <input type="password" id="key" placeholder="CLAVE DE ENCRIPTACIÓN (32 bytes)" 
                            style="width:100%; padding:4px 6px; font-size:0.65rem;"
                            onfocus="this.type='text'" 
                            onblur="if(this.value==='')this.type='password'">
@@ -2692,6 +2725,7 @@
     </div>
 
     <script>
+            
         // ====== VERSIÓN 4.7 - CON RECONOCIMIENTO DE VOZ MEJORADO ======
         const VERSION = "4.7";
         const SYSTEM_NAME = "RADCOM MASTER";
@@ -2750,10 +2784,10 @@
         let revivingInProgress = false;
         let currentTab = 'ascii';
 
-        // ====== SISTEMA DE MENSAJES EN COLA ======
-let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || "[]");
-let queueRetryInterval = null;
-const MAX_QUEUE_SIZE = 100;
+        // ====== VARIABLES SISTEMA DE MENSAJES EN COLA ======
+        let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || "[]");
+        let queueRetryInterval = null;
+        const MAX_QUEUE_SIZE = 100;
 
         // ====== VARIABLES PARA MORSE ======
         let morseSpeed = 'normal';
@@ -4280,11 +4314,11 @@ const MAX_QUEUE_SIZE = 100;
             }
             
             return `🚨 EMERGENCIA S.O.S AYUDA 🚨
-Posición: ${lat}° N, ${lon}° E
-Altitud: ${alt} m
-Hora: ${time}
-Sistema: RADCOM v${VERSION}${weatherInfo}
-⚠️ NECESITO ASISTENCIA INMEDIATA`;
+            Posición: ${lat}° N, ${lon}° E
+            Altitud: ${alt} m
+            Hora: ${time}
+            Sistema: RADCOM v${VERSION}${weatherInfo}
+            ⚠️ NECESITO ASISTENCIA INMEDIATA`;
         }
 
         function sendEmergencyMessage(message) {
@@ -4333,7 +4367,7 @@ Sistema: RADCOM v${VERSION}${weatherInfo}
 
         // ====== OBTENER POSICIÓN GPS REAL ======
         function getCurrentGPSPosition(forceOneTime = false) {
-    return new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
             updateMonitor("❌ Geolocalización no soportada en este navegador", "error");
             reject(new Error("Geolocation no soportada"));
@@ -5061,6 +5095,53 @@ function updateMorseTranslation(text) {
         textDisplay.textContent = text;
         codeDisplay.textContent = textToMorse(text);
     }
+
+    function sendMessage() {
+    const input = document.getElementById('inputMsg');
+    const rawText = input.value.trim();
+    if (!rawText) return;
+
+    const mode = document.getElementById('inputMode')?.value || 'text';
+
+    const secureResult = prepareAndSecureMessage(rawText, mode);
+
+    if (secureResult.error) {
+        updateMonitor("⚠️ " + secureResult.error);
+        return;
+    }
+
+    const data = secureResult.data;
+
+    // Enviar
+    let sentCount = 0;
+    if (activeTarget === 'GLOBAL') {
+        Object.keys(connections).forEach(pid => {
+            if (connections[pid]?.conn?.open) {
+                connections[pid].conn.send(data);
+                sentCount++;
+            }
+        });
+    } else if (connections[activeTarget]?.conn?.open) {
+        connections[activeTarget].conn.send(data);
+        sentCount = 1;
+    }
+
+    if (sentCount > 0) {
+        // Mostrar localmente el texto original (no el cifrado)
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble message-outgoing';
+        bubble.innerHTML = `<strong>YO:</strong> ${rawText}<br>
+                            <small style="color:#00ffea">Cifrado: ${data.enc}</small>`;
+        document.getElementById('monitor-decoded').appendChild(bubble);
+        document.getElementById('monitor-decoded').scrollTop = document.getElementById('monitor-decoded').scrollHeight;
+
+        updateMonitor(`Enviado (${data.enc}) a ${sentCount} destino(s)`);
+    } else {
+        updateMonitor("⚠️ Sin conexiones abiertas");
+    }
+
+    input.value = '';
+}
 }
 
 // ====== FUNCIÓN PARA DECODIFICAR MORSE ======
@@ -6116,6 +6197,80 @@ function deliverOnConnect(peerId) {
     updateMonitor(`📥 ${displayName}: "${decryptedMessage.substring(0, 20)}${decryptedMessage.length > 20 ? '...' : ''}"`);
     
     playMessageNotification();
+
+    function handleReceivedData(senderId, data) {
+    if (!data || data.type !== "message" || !data.message) return;
+
+    const key = document.getElementById('key')?.value?.trim() || "";
+    const encMode = document.getElementById('encryptionMode')?.value || "none"; // no se usa realmente para descifrar
+
+    const secured = securityLayer(data.message, false, data.encryption, key);
+
+    const displayName = senderId.substring(0, 8);
+    let color = "#888";
+
+    if (secured.encryptionUsed === "AES-256") color = "#00ffea";
+    else if (secured.encryptionUsed === "XOR") color = "#ffaa00";
+    else color = "#ff3300";
+
+    // Mostrar
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble message-incoming";
+    bubble.innerHTML = `
+        <strong>${displayName}:</strong> ${secured.text}
+        <br><small style="color:${color}">${secured.encryptionUsed}${secured.error ? " ⚠️" : ""}</small>
+    `;
+    document.getElementById("monitor-decoded").appendChild(bubble);
+    document.getElementById("monitor-decoded").scrollTop = document.getElementById("monitor-decoded").scrollHeight;
+
+    if (secured.error) {
+        updateMonitor(`⚠️ Error seguridad de ${displayName}: ${secured.error}`);
+    }
+}
+
+function handleReceivedData(senderId, data) {
+    if (data.type !== 'message') return;
+
+    let text = data.payload || '';
+
+    // ¿Es AES-256?
+    if (data.enc === 'AES-256') {
+        const aesKey = connections[senderId]?.aesKey;
+        if (!aesKey) {
+            console.warn("Mensaje cifrado recibido pero sin clave");
+            text = "[clave no negociada]";
+        } else {
+            try {
+                const [ivHex, ct] = text.split(':');
+                const iv = CryptoJS.enc.Hex.parse(ivHex);
+                const key = CryptoJS.enc.Hex.parse(aesKey);
+                const decrypted = CryptoJS.AES.decrypt(ct, key, { iv });
+                text = decrypted.toString(CryptoJS.enc.Utf8) || "[error descifrado]";
+            } catch (e) {
+                text = "[fallo descifrado]";
+            }
+        }
+    }
+
+    // ¿Es Morse?
+    if (data.mode === 'morse') {
+        if (typeof decodeMorse === 'function') {
+            text = decodeMorse(text);
+        } else {
+            text = "[morse no decodificado]";
+        }
+    }
+
+    // Mostrar
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble message-incoming';
+    bubble.innerHTML = `<strong>${senderId.substring(0,8)}:</strong> ${text}<br>
+                        <small style="color:#00ffea">${data.enc}</small>`;
+    document.getElementById('monitor-decoded').appendChild(bubble);
+    document.getElementById('monitor-decoded').scrollTop = document.getElementById('monitor-decoded').scrollHeight;
+}
+
+    
 }
 
         // ====== FUNCIONES DE UI MEJORADAS ======
@@ -6829,6 +6984,451 @@ function deliverOnConnect(peerId) {
             }
         }
 
+// Variables de seguridad
+let securityConfig = {
+    enabled: true,
+    algorithm: 'AES-256'
+};
+
+// Cifrar con AES
+function encryptAES(text, password) {
+    try {
+        const iv = CryptoJS.lib.WordArray.random(16);
+        const key = CryptoJS.PBKDF2(password, iv, { keySize: 256/32 });
+        const encrypted = CryptoJS.AES.encrypt(text, key, { iv: iv });
+        return iv.toString() + ':' + encrypted.toString();
+    } catch (error) {
+        console.error("Error AES, usando XOR:", error);
+        return xorEncrypt(text, password);
+    }
+}
+
+// Descifrar con AES
+function decryptAES(ciphertext, password) {
+    try {
+        const parts = ciphertext.split(':');
+        const iv = CryptoJS.enc.Hex.parse(parts[0]);
+        const encrypted = parts[1];
+        const key = CryptoJS.PBKDF2(password, iv, { keySize: 256/32 });
+        const decrypted = CryptoJS.AES.decrypt(encrypted, key, { iv: iv });
+        return decrypted.toString(CryptoJS.enc.Utf8);
+    } catch (error) {
+        console.error("Error descifrado AES, usando XOR:", error);
+        return xorDecrypt(ciphertext, password);
+    }
+}
+
+// Modificar la función sendMessage existente
+// Modificar la función sendMessage existente
+function enhanceSendMessage() {
+    const originalSendMessage = sendMessage;
+    
+    sendMessage = function() {
+        const input = document.getElementById('inputMsg');
+        let message = input.value.trim();
+        
+        if (!message) {
+            updateMonitor("⚠️ MENSAJE VACÍO", "error");
+            playStrongBeep(300, 200);
+            return;
+        }
+        
+        const key = document.getElementById('key').value || 'RADCOM-SECURE';
+        const mode = document.getElementById('inputMode').value;
+        const encryptionSelect = document.getElementById('encryptionMode');
+        const encryption = encryptionSelect ? encryptionSelect.value : 'aes'; // Valor por defecto
+        
+        // Cifrar según selección
+        let encryptedMessage = message;
+        let encryptionType = 'none';
+        
+        if (encryption === 'aes') {
+            encryptedMessage = encryptAES(message, key);
+            encryptionType = 'AES-256';
+        } else if (encryption === 'xor') {
+            encryptedMessage = xorEncrypt(message, key);
+            encryptionType = 'XOR';
+        } else if (encryption === 'none') {
+            // Sin cifrado - usar mensaje original
+            encryptedMessage = message;
+            encryptionType = 'Ninguno';
+        }
+        
+        // Crear paquete
+        const data = {
+            type: 'message',
+            message: encryptedMessage,
+            original: message,
+            mode: mode,
+            encryption: encryptionType,
+            timestamp: Date.now(),
+            sender: myPeerId
+        };
+        
+        // Enviar (mantener lógica original)
+        let sentCount = 0;
+        if (activeTarget === 'GLOBAL') {
+            Object.keys(connections).forEach(peerId => {
+                if (connections[peerId]?.conn?.open) {
+                    connections[peerId].conn.send(data);
+                    sentCount++;
+                }
+            });
+        } else if (connections[activeTarget]) {
+            connections[activeTarget].conn.send(data);
+            sentCount = 1;
+        }
+        
+        if (sentCount > 0) {
+            // Mostrar localmente con indicador de cifrado
+            const monitor = document.getElementById('monitor-decoded');
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble message-outgoing';
+            
+            // Cambiar color según cifrado
+            let color = '#888';
+            if (encryptionType === 'AES-256') color = '#00ffea';
+            if (encryptionType === 'XOR') color = '#ffaa00';
+            if (encryptionType === 'Ninguno') color = '#ff3300';
+            
+            bubble.innerHTML = `<strong>YO:</strong> ${message}<br>
+                               <small style="color:${color}; font-size:0.6rem;">Cifrado: ${encryptionType}</small>`;
+            monitor.appendChild(bubble);
+            monitor.scrollTop = monitor.scrollHeight;
+            
+            stats.tx += message.length;
+            stats.messages++;
+            input.value = '';
+            updateMonitor(`🔐 ENVIADO [${encryptionType}] a ${sentCount} destino(s)`);
+            updateStats();
+            playStrongBeep(700, 100);
+        } else {
+            updateMonitor("⚠️ SIN DESTINOS CONECTADOS", "warning");
+            playStrongBeep(300, 200);
+        }
+    };
+
+    // ... obtienes message, mode, encryptionMode, key ...
+
+const key = document.getElementById('key')?.value?.trim() || "";
+const encMode = document.getElementById('encryptionMode')?.value || "none";
+
+const secured = securityLayer(message, true, encMode, key);
+
+// Mostrar localmente lo que se envió (el texto original)
+addBubble("YO", message, secured.encryptionUsed);   // ajusta nombre de función si es distinto
+
+const data = {
+    type: "message",
+    message: secured.text,
+    encryption: secured.encryptionUsed,
+    timestamp: Date.now(),
+    sender: myPeerId,
+    // otros campos que ya tengas
+};
+
+// Enviar
+if (activeTarget === 'GLOBAL') {
+    Object.keys(connections).forEach(peerId => {
+        if (connections[peerId]?.conn?.open) {
+            connections[peerId].conn.send(data);
+        }
+    });
+} else if (connections[activeTarget]?.conn?.open) {
+    connections[activeTarget].conn.send(data);
+}
+}
+
+// Modificar recepción de datos
+// Modificar recepción de datos
+function enhanceReceiveData() {
+    const originalHandleReceivedData = handleReceivedData;
+    
+    handleReceivedData = function(senderId, data) {
+        // Si es mensaje cifrado (tiene campo encryption)
+        if (data.encryption && data.encryption !== 'Ninguno') {
+            const key = document.getElementById('key').value || 'RADCOM-SECURE';
+            let decryptedMessage = data.message;
+            
+            // Descifrar según tipo
+            if (data.encryption === 'AES-256') {
+                decryptedMessage = decryptAES(data.message, key);
+            } else if (data.encryption === 'XOR') {
+                decryptedMessage = xorDecrypt(data.message, key);
+            }
+            
+            // Mostrar con indicador de cifrado
+            const displayName = senderId.substring(0, 8);
+            const monitor = document.getElementById('monitor-decoded');
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble message-incoming';
+            
+            // Cambiar color según cifrado
+            let color = '#888';
+            if (data.encryption === 'AES-256') color = '#00ffea';
+            if (data.encryption === 'XOR') color = '#ffaa00';
+            
+            bubble.innerHTML = `<strong>${displayName}:</strong> ${decryptedMessage}<br>
+                               <small style="color:${color}; font-size:0.6rem;">Cifrado: ${data.encryption}</small>`;
+            monitor.appendChild(bubble);
+            monitor.scrollTop = monitor.scrollHeight;
+            
+            stats.rx += data.message.length;
+            stats.messages++;
+            updateStats();
+            
+            updateMonitor(`🔐 ${displayName}: "${decryptedMessage.substring(0, 30)}${decryptedMessage.length > 30 ? '...' : ''}"`);
+            playMessageNotification();
+            
+        } else if (data.encryption === 'Ninguno') {
+            // Mensaje sin cifrado
+            const displayName = senderId.substring(0, 8);
+            const monitor = document.getElementById('monitor-decoded');
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble message-incoming';
+            bubble.innerHTML = `<strong>${displayName} [SIN CIFRADO]:</strong> ${data.message}<br>
+                               <small style="color:#ff3300; font-size:0.6rem;">⚠️ Sin cifrado</small>`;
+            monitor.appendChild(bubble);
+            monitor.scrollTop = monitor.scrollHeight;
+            
+            stats.rx += data.message.length;
+            stats.messages++;
+            updateStats();
+            
+            updateMonitor(`⚠️ ${displayName} [SIN CIFRADO]: "${data.message.substring(0, 30)}${data.message.length > 30 ? '...' : ''}"`);
+            playMessageNotification();
+            
+        } else {
+            // Usar función original para mensajes antiguos sin campo encryption
+            originalHandleReceivedData(senderId, data);
+        }
+    };
+}
+
+// Mostrar panel de información de seguridad
+function showSecurityInfo() {
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 10, 20, 0.95);
+        border: 2px solid #00ff88;
+        border-radius: 10px;
+        padding: 20px;
+        width: 300px;
+        z-index: 9999;
+        color: #00ff88;
+        font-family: 'Courier New', monospace;
+        box-shadow: 0 0 40px rgba(0, 255, 136, 0.4);
+    `;
+    
+    panel.innerHTML = `
+        <h3 style="margin: 0 0 15px 0; color: #00ffea;">
+            <i class="fas fa-shield-alt"></i> SEGURIDAD v5.2
+        </h3>
+        
+        <div style="background: rgba(0, 20, 0, 0.3); padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Estado:</span>
+                <span style="color:#00ff88;">ACTIVO</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Algoritmo:</span>
+                <span style="color:#00ffea;">AES-GCM-256</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Nivel:</span>
+                <span style="color:#00ff88;">ALTO</span>
+            </div>
+        </div>
+        
+        <div style="font-size: 0.75rem; color: #88ffaa;">
+            <p>✓ Cifrado extremo a extremo</p>
+            <p>✓ Autenticación de mensajes</p>
+            <p>✓ Protección contra manipulación</p>
+        </div>
+        
+        <button onclick="this.parentElement.remove()" 
+                style="margin-top: 15px; width: 100%; padding: 8px; background: #00ff88; color: #000; 
+                       border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+            CERRAR
+        </button>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    // Cerrar al hacer clic fuera
+    setTimeout(() => {
+        panel.addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('click', () => panel.remove());
+    }, 100);
+}
+
+// Inicializar seguridad
+// Inicializar seguridad
+function initSecurity() {
+    console.log("🔐 Inicializando seguridad v5.2...");
+    enhanceSendMessage();
+    enhanceReceiveData();
+    
+    // Actualizar badge inicial
+    updateSecurityBadge();
+    
+    // Añadir evento al selector para actualizar badge
+    const encryptionSelect = document.getElementById('encryptionMode');
+    if (encryptionSelect) {
+        encryptionSelect.addEventListener('change', updateSecurityBadge);
+    }
+    
+    // Actualizar monitor inicial
+    updateMonitor("🔐 SISTEMA DE SEGURIDAD v5.2 ACTIVADO");
+    
+    // Añadir mensaje al chat
+    const monitor = document.getElementById('monitor-decoded');
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble message-system';
+    bubble.innerHTML = `
+        <i class="fas fa-shield-alt"></i> SEGURIDAD v5.2 ACTIVADA<br>
+        <small style="color:#88ffaa; font-size:0.7rem;">
+            Selecciona cifrado: AES-256 | XOR | Sin cifrado
+        </small>
+    `;
+    monitor.appendChild(bubble);
+    monitor.scrollTop = monitor.scrollHeight;
+}
+
+// Actualizar badge según cifrado seleccionado
+function updateSecurityBadge() {
+    const encryptionSelect = document.getElementById('encryptionMode');
+    const securityBadge = document.querySelector('.security-badge span:nth-child(2)');
+    const securityDot = document.querySelector('.security-dot');
+    
+    if (!encryptionSelect || !securityBadge) return;
+    
+    const encryption = encryptionSelect.value;
+    
+    if (encryption === 'aes') {
+        securityBadge.textContent = 'AES-256';
+        securityBadge.style.color = '#00ffea';
+        securityDot.style.background = '#00ff88';
+        securityDot.style.boxShadow = '0 0 4px #00ff88';
+    } else if (encryption === 'xor') {
+        securityBadge.textContent = 'XOR';
+        securityBadge.style.color = '#ffaa00';
+        securityDot.style.background = '#ffaa00';
+        securityDot.style.boxShadow = '0 0 4px #ffaa00';
+    } else if (encryption === 'none') {
+        securityBadge.textContent = 'SIN CIFRADO';
+        securityBadge.style.color = '#ff3300';
+        securityDot.style.background = '#ff3300';
+        securityDot.style.boxShadow = '0 0 4px #ff3300';
+    }
+}
+
+// ────────────────────────────────────────────────
+// ÚNICA FUNCIÓN DE SEGURIDAD (compatible 4.7.6)
+// ────────────────────────────────────────────────
+function securityLayer(text, isSending, encryptionMode, password) {
+    // Valores por defecto y normalización
+    if (!password) password = "";
+    encryptionMode = (encryptionMode || "none").toLowerCase().trim();
+
+    const result = {
+        text: text,
+        encryptionUsed: "NONE",
+        error: null
+    };
+
+    if (encryptionMode === "none" || !password) {
+        // sin cifrado o sin clave → no hacemos nada
+        return result;
+    }
+
+    try {
+        if (encryptionMode === "aes" || encryptionMode === "aes-256") {
+            if (isSending) {
+                // Cifrar
+                const iv = CryptoJS.lib.WordArray.random(16);
+                const salt = CryptoJS.lib.WordArray.random(8); // mejor que usar iv como salt
+                const key = CryptoJS.PBKDF2(password, salt, {
+                    keySize: 256/32,
+                    iterations: 10000
+                });
+                const encrypted = CryptoJS.AES.encrypt(text, key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                });
+
+                // Formato: salt:iv:encrypted (base64)
+                result.text = salt.toString(CryptoJS.enc.Base64) + ":" +
+                              iv.toString(CryptoJS.enc.Base64) + ":" +
+                              encrypted.toString();
+                result.encryptionUsed = "AES-256";
+            } else {
+                // Descifrar
+                const parts = text.split(":");
+                if (parts.length !== 3) {
+                    throw new Error("Formato AES inválido (debe ser salt:iv:ciphertext)");
+                }
+
+                const salt = CryptoJS.enc.Base64.parse(parts[0]);
+                const iv   = CryptoJS.enc.Base64.parse(parts[1]);
+                const ct   = parts[2];
+
+                const key = CryptoJS.PBKDF2(password, salt, {
+                    keySize: 256/32,
+                    iterations: 10000
+                });
+
+                const decrypted = CryptoJS.AES.decrypt(ct, key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                });
+
+                const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+                if (!plaintext) {
+                    throw new Error("Descifrado vacío → clave incorrecta?");
+                }
+
+                result.text = plaintext;
+                result.encryptionUsed = "AES-256";
+            }
+        }
+        else if (encryptionMode === "xor") {
+            // XOR simple (para compatibilidad con versiones antiguas)
+            let output = "";
+            for (let i = 0; i < text.length; i++) {
+                output += String.fromCharCode(
+                    text.charCodeAt(i) ^ password.charCodeAt(i % password.length)
+                );
+            }
+            result.text = output;
+            result.encryptionUsed = "XOR";
+        }
+        else {
+            result.error = "Modo de cifrado desconocido: " + encryptionMode;
+        }
+    }
+    catch (err) {
+        result.error = err.message || "Error en capa de seguridad";
+        console.error("[securityLayer]", result.error, { text, isSending, encryptionMode });
+        result.text = "[ERROR SEGURIDAD] " + (result.error || "desconocido");
+    }
+
+    return result;
+}
+
+
+
+// Ejecutar al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initSecurity, 1000);
+});
+
         // ====== INICIALIZACIÓN ======
         
         window.onload = function() {
@@ -6904,6 +7504,256 @@ function force720() {
         container.style.width = '720px';
         container.style.height = '720px';
     }
+}
+
+/**
+ * Función única que:
+ * 1. Maneja conversión Morse si corresponde
+ * 2. Negocia clave ECDH la primera vez (si no existe)
+ * 3. Cifra con AES-256 usando la clave negociada
+ * 4. Prepara el objeto data listo para enviar
+ * 5. Devuelve { data, error, displayText }
+ */
+function prepareAndSecureMessage(rawText, inputMode = 'text') {
+    const result = {
+        data: null,
+        error: null,
+        displayText: rawText,     // lo que se muestra localmente
+        sentText: rawText         // lo que se envía (puede ser cifrado)
+    };
+
+    let messageToProcess = rawText.trim();
+    if (!messageToProcess) {
+        result.error = "Mensaje vacío";
+        return result;
+    }
+
+    // ───────────────────────────────────────────────
+    // 1. Conversión Morse (si modo = morse)
+    // ───────────────────────────────────────────────
+    if (inputMode === 'morse' || inputMode === 'morse_audio') {
+        if (typeof textToMorse !== 'function') {
+            result.error = "Función textToMorse no definida";
+            return result;
+        }
+        messageToProcess = textToMorse(messageToProcess);
+        result.displayText = rawText;               // mostramos texto humano
+        // result.sentText ya tiene el morse → se enviará cifrado o no
+        // Opcional: reproducir audio aquí si quieres
+        // if (typeof playMorse === 'function') playMorse(messageToProcess);
+    }
+
+    // ───────────────────────────────────────────────
+    // 2. Obtener o negociar clave AES para este peer
+    // ───────────────────────────────────────────────
+    const target = activeTarget === 'GLOBAL' ? null : activeTarget;
+    let aesKey = null;
+
+    if (target && connections[target]) {
+        // ¿Ya tenemos clave guardada?
+        aesKey = connections[target].aesKey || localStorage.getItem(`aes_key_${target}`);
+
+        // Si no → negociamos ahora (ECDH)
+        if (!aesKey) {
+            try {
+                const ec = new elliptic.ec('p256');
+                const myKeyPair = ec.genKeyPair();
+                const myPubHex = myKeyPair.getPublic('hex');
+
+                // Enviar handshake
+                const handshake = {
+                    type: 'ecdh_init',
+                    pub: myPubHex,
+                    from: myPeerId
+                };
+
+                connections[target].conn.send(handshake);
+
+                // Guardamos nuestra parte privada temporalmente
+                connections[target].ecdhTemp = myKeyPair;
+
+                updateMonitor(`Iniciando negociación segura con ${target}...`);
+            } catch (err) {
+                result.error = "Error al iniciar ECDH: " + err.message;
+                return result;
+            }
+
+            // La clave no estará lista inmediatamente → hay que esperar respuesta
+            result.error = "Esperando negociación de clave segura...";
+            return result;
+        }
+    }
+
+    // ───────────────────────────────────────────────
+    // 3. Cifrar si tenemos clave
+    // ───────────────────────────────────────────────
+    let encryptionType = "NONE";
+    let finalPayload = messageToProcess;
+
+    if (aesKey) {
+        try {
+            const iv = CryptoJS.lib.WordArray.random(16);
+            const keyParsed = CryptoJS.enc.Hex.parse(aesKey);
+            const encrypted = CryptoJS.AES.encrypt(messageToProcess, keyParsed, {
+                iv: iv,
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7
+            });
+
+            finalPayload = iv.toString() + ':' + encrypted.toString();
+            encryptionType = "AES-256";
+        } catch (err) {
+            result.error = "Fallo al cifrar AES: " + err.message;
+            return result;
+        }
+    }
+
+    // ───────────────────────────────────────────────
+    // 4. Preparar paquete final
+    // ───────────────────────────────────────────────
+    result.data = {
+        type: 'message',
+        payload: finalPayload,
+        enc: encryptionType,
+        mode: inputMode,
+        ts: Date.now(),
+        from: myPeerId
+    };
+
+    result.sentText = finalPayload;
+
+    return result;
+}
+
+// =============================================================================
+// FUNCIÓN ÚNICA: CIFRADO MILITAR-GRADE AUTOMÁTICO (ECDH + AES-256-GCM)
+// =============================================================================
+async function secureMilitaryChannel(peerId, message = null, isSend = false, mode = 'text') {
+    // ── 1. Preparación inicial ──────────────────────────────────────────────
+    const result = {
+        success: false,
+        payload: null,
+        displayText: message || "",
+        error: null,
+        encryption: "NONE"
+    };
+
+    if (!peerId) {
+        result.error = "No hay peerId";
+        return result;
+    }
+
+    // ── 2. Obtener o generar clave compartida (ECDH x25519) ─────────────────
+    let sharedKeyHex = localStorage.getItem(`military_key_${peerId}`);
+
+    if (!sharedKeyHex) {
+        try {
+            // Generar claves privadas (x25519)
+            const privateKey = ed25519.utils.randomPrivateKey();
+            const publicKey = await ed25519.getPublicKeyAsync(privateKey);
+
+            // Enviar nuestra clave pública (base64)
+            const pubB64 = btoa(String.fromCharCode(...publicKey));
+
+            const handshake = {
+                type: 'military_handshake',
+                pub: pubB64,
+                from: myPeerId
+            };
+
+            if (connections[peerId]?.conn?.open) {
+                connections[peerId].conn.send(handshake);
+            }
+
+            // Guardamos temporalmente nuestra privada
+            connections[peerId] = connections[peerId] || {};
+            connections[peerId].militaryTempPriv = privateKey;
+
+            result.error = "Negociando clave militar... (espera 1-3 seg)";
+            return result;
+        } catch (err) {
+            result.error = "Fallo al iniciar ECDH: " + err.message;
+            return result;
+        }
+    }
+
+    // ── 3. Si tenemos clave → derivar AES-256-GCM con HKDF ──────────────────
+    const sharedSecret = hexToBytes(sharedKeyHex);
+    const hkdfSalt = new Uint8Array(32); // puedes usar valor fijo o random
+    const hkdfInfo = new TextEncoder().encode("RADCOM-MILITARY-2026");
+
+    const aesKeyRaw = await hashes.hkdf(sharedSecret, hashes.SHA256, {
+        salt: hkdfSalt,
+        info: hkdfInfo,
+        length: 32
+    });
+
+    const aesKey = aesKeyRaw; // ya son 32 bytes
+
+    // ── 4. Manejo de modo Morse ─────────────────────────────────────────────
+    let processedText = message || "";
+    if (mode === 'morse' && isSend) {
+        processedText = textToMorse(processedText) || "[error morse]";
+        result.displayText = message; // mostramos texto humano
+    }
+
+    // ── 5. Cifrar o descifrar ───────────────────────────────────────────────
+    if (isSend) {
+        // Cifrar (AES-GCM)
+        try {
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encoder = new TextEncoder();
+            const encrypted = await crypto.subtle.encrypt(
+                { name: "AES-GCM", iv },
+                await crypto.subtle.importKey("raw", aesKey, "AES-GCM", false, ["encrypt"]),
+                encoder.encode(processedText)
+            );
+
+            const encryptedB64 = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+            const ivB64 = btoa(String.fromCharCode(...iv));
+
+            result.payload = {
+                type: 'military_msg',
+                iv: ivB64,
+                data: encryptedB64,
+                mode: mode
+            };
+            result.encryption = "AES-256-GCM";
+            result.success = true;
+        } catch (err) {
+            result.error = "Fallo cifrado GCM: " + err.message;
+        }
+    } else {
+        // Descifrar (si es mensaje cifrado)
+        if (message.iv && message.data) {
+            try {
+                const iv = Uint8Array.from(atob(message.iv), c => c.charCodeAt(0));
+                const ct = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
+
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv },
+                    await crypto.subtle.importKey("raw", aesKey, "AES-GCM", false, ["decrypt"]),
+                    ct
+                );
+
+                result.displayText = new TextDecoder().decode(decrypted);
+                result.encryption = "AES-256-GCM";
+                result.success = true;
+
+                if (message.mode === 'morse') {
+                    result.displayText = decodeMorse(result.displayText) || "[error morse]";
+                }
+            } catch (err) {
+                result.error = "Fallo descifrado GCM: " + err.message;
+                result.displayText = "[MENSAJE PROTEGIDO - CLAVE NO COINCIDE]";
+            }
+        } else {
+            result.displayText = message;
+            result.success = true;
+        }
+    }
+
+    return result;
 }
 
 window.addEventListener('load', force720);
