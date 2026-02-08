@@ -3,7 +3,7 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.2- SISTEMA DE COMUNICACIÓN SEGURA</title>
+    <title>RADCOM MASTER v5.2- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
@@ -14,6 +14,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@noble/ed25519@2.1.0/+esm"></script>
     <script src="https://cdn.jsdelivr.net/npm/@noble/hashes@1.5.0/+esm"></script> 
     <style>
+        // RADCOM MASTER v5.2 – © 2025-2026 21tradingday
+        // Prohibida la copia, modificación o redistribución sin permiso expreso.
+        // Uso no autorizado puede ser perseguido legalmente.
 
         /* === SEGURIDAD REAL v5.1 === */
 .security-badge {
@@ -2072,9 +2075,9 @@
     <span style="color:#888; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <!-- NUEVO: BADGE DE SEGURIDAD -->
-    <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256 Activada">
+    <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
         <span class="security-dot"></span>
-        <span style="color:#00ffea;">AES-256</span>
+        <span style="color:#00ffea;">AES-256-GCM</span>
     </div>
 </div>
             <div id="display-id" style="font-size:0.6rem; color:#00ff88; font-family:monospace;">INICIANDO...</div>
@@ -2107,7 +2110,7 @@
                     <div class="sidebar-title">
                         SISTEMA CEREBRO
                         <span class="encryption-indicator">
-                            <i class="fas fa-shield-alt"></i> AES-256
+                            <i class="fas fa-shield-alt"></i> AES-256-GCM
                         </span>
                     </div>
                     <div id="target-global" class="peer-item active" onclick="selectPeer('GLOBAL')">
@@ -2538,7 +2541,7 @@
                 
                 <select id="encryptionMode" title="Encriptación">
                     <option value="xor">XOR Simple</option>
-                    <option value="aes" selected>AES-256</option>
+                    <option value="aes" selected>AES-256-GCM</option>
                     <option value="none">Sin encriptación</option>
                 </select>
                 
@@ -6221,7 +6224,7 @@ function deliverOnConnect(peerId) {
     const displayName = senderId.substring(0, 8);
     let color = "#888";
 
-    if (secured.encryptionUsed === "AES-256") color = "#00ffea";
+    if (secured.encryptionUsed === "AES-256-GCM") color = "#00ffea";
     else if (secured.encryptionUsed === "XOR") color = "#ffaa00";
     else color = "#ff3300";
 
@@ -6245,8 +6248,8 @@ function handleReceivedData(senderId, data) {
 
     let text = data.payload || '';
 
-    // ¿Es AES-256?
-    if (data.enc === 'AES-256') {
+    // ¿Es AES-256-GCM?
+    if (data.enc === 'AES-256-GCM') {
         const aesKey = connections[senderId]?.aesKey;
         if (!aesKey) {
             console.warn("Mensaje cifrado recibido pero sin clave");
@@ -6999,7 +7002,7 @@ function handleReceivedData(senderId, data) {
 // Variables de seguridad
 let securityConfig = {
     enabled: true,
-    algorithm: 'AES-256'
+    algorithm: 'AES-256-GCM'
 };
 
 // Cifrar con AES
@@ -7056,7 +7059,7 @@ function enhanceSendMessage() {
         
         if (encryption === 'aes') {
             encryptedMessage = encryptAES(message, key);
-            encryptionType = 'AES-256';
+            encryptionType = 'AES-256-GCM';
         } else if (encryption === 'xor') {
             encryptedMessage = xorEncrypt(message, key);
             encryptionType = 'XOR';
@@ -7099,7 +7102,7 @@ function enhanceSendMessage() {
             
             // Cambiar color según cifrado
             let color = '#888';
-            if (encryptionType === 'AES-256') color = '#00ffea';
+            if (encryptionType === 'AES-256-GCM') color = '#00ffea';
             if (encryptionType === 'XOR') color = '#ffaa00';
             if (encryptionType === 'Ninguno') color = '#ff3300';
             
@@ -7163,7 +7166,7 @@ function enhanceReceiveData() {
             let decryptedMessage = data.message;
             
             // Descifrar según tipo
-            if (data.encryption === 'AES-256') {
+            if (data.encryption === 'AES-256-GCM') {
                 decryptedMessage = decryptAES(data.message, key);
             } else if (data.encryption === 'XOR') {
                 decryptedMessage = xorDecrypt(data.message, key);
@@ -7177,7 +7180,7 @@ function enhanceReceiveData() {
             
             // Cambiar color según cifrado
             let color = '#888';
-            if (data.encryption === 'AES-256') color = '#00ffea';
+            if (data.encryption === 'AES-256-GCM') color = '#00ffea';
             if (data.encryption === 'XOR') color = '#ffaa00';
             
             bubble.innerHTML = `<strong>${displayName}:</strong> ${decryptedMessage}<br>
@@ -7304,7 +7307,7 @@ function initSecurity() {
     bubble.innerHTML = `
         <i class="fas fa-shield-alt"></i> SEGURIDAD v5.2 ACTIVADA<br>
         <small style="color:#88ffaa; font-size:0.7rem;">
-            Selecciona cifrado: AES-256 | XOR | Sin cifrado
+            Selecciona cifrado: AES-256-GCM | XOR | Sin cifrado
         </small>
     `;
     monitor.appendChild(bubble);
@@ -7322,7 +7325,7 @@ function updateSecurityBadge() {
     const encryption = encryptionSelect.value;
     
     if (encryption === 'aes') {
-        securityBadge.textContent = 'AES-256';
+        securityBadge.textContent = 'AES-256-GCM';
         securityBadge.style.color = '#00ffea';
         securityDot.style.background = '#00ff88';
         securityDot.style.boxShadow = '0 0 4px #00ff88';
@@ -7359,7 +7362,7 @@ function securityLayer(text, isSending, encryptionMode, password) {
     }
 
     try {
-        if (encryptionMode === "aes" || encryptionMode === "aes-256") {
+        if (encryptionMode === "aes" || encryptionMode === "AES-256-GCM") {
             if (isSending) {
                 // Cifrar
                 const iv = CryptoJS.lib.WordArray.random(16);
@@ -7378,7 +7381,7 @@ function securityLayer(text, isSending, encryptionMode, password) {
                 result.text = salt.toString(CryptoJS.enc.Base64) + ":" +
                               iv.toString(CryptoJS.enc.Base64) + ":" +
                               encrypted.toString();
-                result.encryptionUsed = "AES-256";
+                result.encryptionUsed = "AES-256-GCM";
             } else {
                 // Descifrar
                 const parts = text.split(":");
@@ -7407,7 +7410,7 @@ function securityLayer(text, isSending, encryptionMode, password) {
                 }
 
                 result.text = plaintext;
-                result.encryptionUsed = "AES-256";
+                result.encryptionUsed = "AES-256-GCM";
             }
         }
         else if (encryptionMode === "xor") {
@@ -7522,7 +7525,7 @@ function force720() {
  * Función única que:
  * 1. Maneja conversión Morse si corresponde
  * 2. Negocia clave ECDH la primera vez (si no existe)
- * 3. Cifra con AES-256 usando la clave negociada
+ * 3. Cifra con AES-256-GCM usando la clave negociada
  * 4. Prepara el objeto data listo para enviar
  * 5. Devuelve { data, error, displayText }
  */
@@ -7613,7 +7616,7 @@ function prepareAndSecureMessage(rawText, inputMode = 'text') {
             });
 
             finalPayload = iv.toString() + ':' + encrypted.toString();
-            encryptionType = "AES-256";
+            encryptionType = "AES-256-GCM";
         } catch (err) {
             result.error = "Fallo al cifrar AES: " + err.message;
             return result;
