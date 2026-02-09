@@ -2790,7 +2790,7 @@
     <script>
 
             
-        // ====== VERSIÓN 5.6 - CON RECONOCIMIENTO DE VOZ MEJORADO ======
+        // ====== VERSIÓN  ======
         const VERSION = "5.6";
         const SYSTEM_NAME = "RADCOM MASTER";
         
@@ -5755,6 +5755,7 @@ function decodeMorse(morseCode) {
                 updatePeerList();
             });
         }
+        
 
         function connectToPeerId(peerId) {
             if (!peer || peer.disconnected) {
@@ -6645,59 +6646,77 @@ function handleReceivedData(senderId, data) {
         // ====== FUNCIONES DE UI MEJORADAS ======
         
         function updatePeerList() {
-            const container = document.getElementById('saved-peers');
-            let html = "";
-            
-            savedIds.forEach(id => {
-                const conn = connections[id];
-                let status = conn ? conn.status : 'offline';
-                let health = conn ? conn.health : 'offline';
-                
-                let statusClass = 'st-offline';
-                
-                if (status === 'online') {
-                    if (health === 'healthy') {
-                        statusClass = 'st-online';
-                    } else if (health === 'suspicious' || health === 'unresponsive') {
-                        statusClass = 'st-warning';
-                    } else if (health === 'new') {
-                        statusClass = 'st-encrypted';
-                    }
-                }
-                
-                let statusText = status.toUpperCase();
-                if (health === 'suspicious') statusText = 'INACTIVO';
-                if (health === 'unresponsive') statusText = 'SIN RESPUESTA';
-                
-                const displayStyle = (status === 'offline' && !showOffline) ? 'display: none;' : '';
-                
-                html += `
-                    <div class="peer-item ${activeTarget === id ? 'active' : ''}" 
-                         data-peer-id="${id}"
-                         data-status="${status}"
-                         data-health="${health}"
-                         onclick="selectPeer('${id}')"
-                         style="${displayStyle}">
-                        <div class="peer-info">
-                            <span class="status-dot ${statusClass}"></span>
-                            <div style="display:flex; flex-direction:column;">
-                                <span style="font-weight:bold;">${id.substring(0, 8)}</span>
-                                <span style="font-size:0.55rem; color:#888;">
-                                    ${statusText}
-                                    ${conn?.latency ? ` (${conn.latency}ms)` : ''}
-                                </span>
-                            </div>
-                        </div>
-                        <span class="del-btn" onclick="event.stopPropagation(); executeRemoveId('${id}')">×</span>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-            updateConnectionStatusIndicators();
+    const container = document.getElementById('saved-peers');
+    if (!container) return;
+    
+    let html = "";
+    // Variable para controlar si hay algún nodo visible
+    let hasVisiblePeers = false;
 
-            
+    savedIds.forEach(id => {
+        const conn = connections[id];
+        
+        // --- FILTRO DE OCULTACIÓN AUTOMÁTICA ---
+        // Si el nodo no existe en 'connections' o su estado no es 'online', 
+        // lo saltamos completamente para no generar HTML inútil.
+        if (!conn || conn.status !== 'online') {
+            return; 
         }
+
+        hasVisiblePeers = true;
+        let health = conn.health || 'offline';
+        let statusClass = 'st-offline';
+        
+        // Lógica de colores por salud del enlace (Optimizado)
+        if (health === 'healthy') {
+            statusClass = 'st-online';
+        } else if (health === 'suspicious' || health === 'unresponsive') {
+            statusClass = 'st-warning';
+        } else if (health === 'new') {
+            statusClass = 'st-encrypted';
+        }
+
+        let statusText = "CONECTADO";
+        if (health === 'suspicious') statusText = 'INACTIVO';
+        if (health === 'unresponsive') statusText = 'SIN RESPUESTA';
+        
+        html += `
+            <div class="peer-item ${activeTarget === id ? 'active' : ''}" 
+                 data-peer-id="${id}"
+                 onclick="selectPeer('${id}')">
+                <div class="peer-info">
+                    <span class="status-dot ${statusClass}"></span>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-weight:bold; color:#00ff88;">${id.substring(0, 8)}</span>
+                        <span style="font-size:0.55rem; color:#888;">
+                            ${statusText}
+                            ${conn.latency ? ` (${conn.latency}ms)` : ''}
+                        </span>
+                    </div>
+                </div>
+                <span class="del-btn" onclick="event.stopPropagation(); executeRemoveId('${id}')">×</span>
+            </div>
+        `;
+    });
+    
+    // Si no hay satélites conectados, mostramos un aviso limpio
+    if (!hasVisiblePeers) {
+        html = `
+            <div style="padding:15px; text-align:center; color:#444; font-size:0.6rem; border:1px dashed #222; margin:10px; border-radius:5px;">
+                <i class="fas fa-satellite-dish" style="margin-bottom:5px; display:block;"></i>
+                BUSCANDO SATÉLITES ACTIVOS...
+            </div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Si existe la función de indicadores globales, la actualizamos
+    if (typeof updateConnectionStatusIndicators === "function") {
+        updateConnectionStatusIndicators();
+    }
+}
+
+        
 
         function updateConnectionStatusIndicators() {
             const onlineHealthy = Object.keys(connections).filter(id => 
@@ -6911,20 +6930,21 @@ function handleReceivedData(senderId, data) {
         // ====== FUNCIONES RESTANTES ======
         
         function generateKey() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let key = '';
-            for (let i = 0; i < 12; i++) {
-                key += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            document.getElementById('key').value = key;
-            document.getElementById('key').type = 'text';
-            
-            setTimeout(() => {
-                document.getElementById('key').type = 'password';
-            }, 2000);
-            
-            return key;
-        }
+    // Generamos 32 caracteres (256 bits si son ASCII) para máxima seguridad AES
+    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let result = "";
+    const values = new Uint32Array(32);
+    window.crypto.getRandomValues(values);
+    for (let i = 0; i < 32; i++) {
+        result += charset[values[i] % charset.length];
+    }
+    const keyInput = document.getElementById('key');
+    if (keyInput) {
+        keyInput.value = result;
+        keyInput.type = 'text'; // Mostrar para copiar
+        updateMonitor("🔐 NUEVA CLAVE MAESTRA AES-256 GENERADA");
+    }
+}
 
         function copyID() {
             if (!myPeerId) {
