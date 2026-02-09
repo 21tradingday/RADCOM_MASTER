@@ -2790,8 +2790,8 @@
     <script>
 
             
-        // ====== VERSIÓN 5.5 - CON RECONOCIMIENTO DE VOZ MEJORADO ======
-        const VERSION = "5.5";
+        // ====== VERSIÓN 5.6 - CON RECONOCIMIENTO DE VOZ MEJORADO ======
+        const VERSION = "5.6";
         const SYSTEM_NAME = "RADCOM MASTER";
         
         const chars = [
