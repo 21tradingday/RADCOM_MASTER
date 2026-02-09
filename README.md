@@ -2589,8 +2589,8 @@
                 
                 <select id="encryptionMode" title="Encriptación">
                     <option value="xor">XOR Simple</option>
-                    <option value="aes" >AES-256-GCM</option>
-                    <option value="none"selected>Sin encriptación</option>
+                    <option value="aes" selected>AES-256-GCM</option>
+                    <option value="none">Sin encriptación</option>
                 </select>
                 
                 <div style="position:relative; flex:1;">
