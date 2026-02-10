@@ -3,15 +3,19 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.6- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
+    <title>RADCOM MASTER v5.6.1- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
+    <script src="js/weather-logic.js"></script>
     <script src="weather-logic.js"></script> 
     <script src="https://api.open-meteo.com/v1/forecast?latitude=40.4599&longitude=-3.4859&hourly=temperature_2m,visibility,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_80m,wind_gusts_10m"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>    
-    <style>   
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@noble/ed25519@2.1.0/+esm"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@noble/hashes@1.5.0/+esm"></script>    
+    <style>  
         
         /* === ESTILOS ORIGINALES - SIN CAMBIOS === */
         
@@ -36,8 +40,8 @@
         /* === CONTENEDOR PRINCIPAL 720x720 === */
         
         .container { 
-            width: 720px; 
-            height: 720px; 
+            width: 640px; 
+            height: 640px; 
             border: 2px solid #1a1a1a; 
             background: linear-gradient(145deg, #050505 0%, #0a0a0a 100%);
             display: flex; 
@@ -1887,7 +1891,414 @@
             }
         }
 
-        
+        /* === NUEVOS ESTILOS PARA BOTÓN CONSOLA v5.6.1 === */
+.console-btn {
+    width: 36px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    border: 1px solid #333;
+    background: linear-gradient(135deg, #222 0, #333 100%);
+    color: #00ff88;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.console-btn:hover {
+    border-color: #00ff88;
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.5);
+    background: linear-gradient(135deg, #333 0, #444 100%);
+}
+
+/* === VENTANA CONSOLA 680x680 === */
+.console-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.console-modal-content {
+    background: linear-gradient(145deg, #050505 0%, #0a0a0a 100%);
+    border: 2px solid #00ff88;
+    border-radius: 5px;
+    width: 680px;
+    height: 680px;
+    color: #00ff88;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(0, 255, 136, 0.2);
+}
+
+.console-header {
+    background: linear-gradient(90deg, #000 0%, #111 100%);
+    padding: 8px 12px;
+    border-bottom: 2px solid #00ff88;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.console-title {
+    font-size: 0.9rem;
+    color: #00ff88;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.console-close {
+    background: none;
+    border: none;
+    color: #ff3300;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 2px;
+    transition: all 0.2s;
+}
+
+.console-close:hover {
+    background: rgba(255, 51, 0, 0.2);
+}
+
+/* === PESTAÑAS CONSOLA === */
+.console-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.9);
+    border-bottom: 1px solid #333;
+}
+
+.console-tab {
+    flex: 1;
+    padding: 6px 10px;
+    background: rgba(17, 17, 17, 0.8);
+    color: #888;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    transition: all 0.3s;
+    border-right: 1px solid #222;
+}
+
+.console-tab:last-child {
+    border-right: none;
+}
+
+.console-tab:hover {
+    background: rgba(0, 255, 136, 0.1);
+    color: #00ff88;
+}
+
+.console-tab.active {
+    background: rgba(0, 255, 136, 0.15);
+    color: #00ff88;
+    border-bottom: 2px solid #00ff88;
+}
+
+/* === CONTENIDO PESTAÑAS === */
+.console-tab-content {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+    padding: 10px;
+}
+
+.console-tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* === PESTAÑA 1: CMD CONSOLE === */
+.CMD-console-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.CMD-output {
+    flex: 1;
+    background: rgba(0, 10, 0, 0.8);
+    border: 1px solid #00ff88;
+    border-radius: 3px;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: #00ff88;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    white-space: pre-wrap;
+    line-height: 1.2;
+}
+
+.CMD-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.CMD-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #333;
+    color: #00ff88;
+    padding: 6px 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    border-radius: 2px;
+    outline: none;
+}
+
+.CMD-input:focus {
+    border-color: #00ff88;
+    box-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+}
+
+.CMD-btn {
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #00ff88 0%, #0088ff 100%);
+    color: #000;
+    border: none;
+    border-radius: 2px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: all 0.2s;
+}
+
+.CMD-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 255, 136, 0.3);
+}
+
+.CMD-btn-clear {
+    background: linear-gradient(135deg, #ff3300 0%, #ff6600 100%);
+    color: white;
+}
+
+/* === PESTAÑA 2: HEX EDITOR === */
+.hex-editor-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.hex-toolbar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #333;
+}
+
+.hex-toolbar-btn {
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #333;
+    color: #888;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 0.6rem;
+    transition: all 0.2s;
+}
+
+.hex-toolbar-btn:hover {
+    border-color: #0088ff;
+    color: #0088ff;
+}
+
+.hex-toolbar-btn.active {
+    background: rgba(0, 136, 255, 0.2);
+    border-color: #0088ff;
+    color: #0088ff;
+}
+
+.hex-editor {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #00ff88;
+    border-radius: 3px;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.65rem;
+    color: #00ff88;
+    outline: none;
+    resize: none;
+    white-space: pre;
+    overflow: auto;
+    line-height: 1.1;
+}
+
+.hex-editor:focus {
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.2);
+}
+
+.hex-status-bar {
+    margin-top: 8px;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid #333;
+    border-radius: 2px;
+    font-size: 0.55rem;
+    color: #888;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* === PESTAÑA 3: HEX DECODER === */
+.hex-decoder-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.hex-decoder-split {
+    display: flex;
+    flex: 1;
+    gap: 10px;
+    overflow: hidden;
+}
+
+.hex-decoder-input {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.hex-decoder-output {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.hex-decoder-label {
+    font-size: 0.65rem;
+    color: #00ff88;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hex-decoder-textarea {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #333;
+    border-radius: 3px;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.65rem;
+    color: #00ff88;
+    outline: none;
+    resize: none;
+}
+
+.hex-decoder-textarea:focus {
+    border-color: #00ff88;
+}
+
+.hex-decoder-controls {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.hex-decoder-btn {
+    flex: 1;
+    padding: 6px 10px;
+    background: linear-gradient(135deg, #222 0%, #333 100%);
+    border: 1px solid #444;
+    color: #00ff88;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 0.65rem;
+    transition: all 0.2s;
+}
+
+.hex-decoder-btn:hover {
+    background: linear-gradient(135deg, #00ff88 0%, #0088ff 100%);
+    color: #000;
+}
+
+/* === SCROLLBAR ESTILIZADO === */
+.hex-editor::-webkit-scrollbar,
+.CMD-output::-webkit-scrollbar,
+.hex-decoder-textarea::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.hex-editor::-webkit-scrollbar-track,
+.CMD-output::-webkit-scrollbar-track,
+.hex-decoder-textarea::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.hex-editor::-webkit-scrollbar-thumb,
+.CMD-output::-webkit-scrollbar-thumb,
+.hex-decoder-textarea::-webkit-scrollbar-thumb {
+    background: #00ff88;
+    border-radius: 3px;
+}
+
+.hex-editor::-webkit-scrollbar-thumb:hover,
+.CMD-output::-webkit-scrollbar-thumb:hover,
+.hex-decoder-textarea::-webkit-scrollbar-thumb:hover {
+    background: #33ff99;
+}
+
+/* === MODO HEX HIGHLIGHTING === */
+.hex-byte {
+    padding: 0 1px;
+    border-radius: 1px;
+    transition: all 0.1s;
+}
+
+.hex-byte:hover {
+    background: rgba(0, 255, 136, 0.3);
+    color: #fff;
+}
+
+.hex-ascii {
+    color: #ffaa00;
+    font-weight: bold;
+}
+
+/* === LÍNEA DE SCAN PARA CONSOLA === */
+.console-scan-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0.5px;
+    background: linear-gradient(90deg, transparent, #00ff88, transparent);
+    animation: consoleScan 6s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes consoleScan {
+    0% { top: 0; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 680px; opacity: 0; }
+}        
 
     </style>
 </head>
@@ -1901,7 +2312,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.6</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.6.1</span></span>
     <span style="color:#888; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <!-- NUEVO: BADGE DE SEGURIDAD -->
@@ -2038,12 +2449,15 @@
                                     <div id="current-pos" class="preview-value" style="color:#00ff88;">V:-- H:--</div>
                                 </div>
                             </div>
+                            <!-- NUEVO BOTÓN CONSOLA -->
+    <button id="consoleBtn" class="console-btn" title="Consola & Programación HEX" onclick="openConsole()">
+        <i class="fas fa-terminal"></i>
+    </button>
                             <button class="btn-header" onclick="clearTableSelection()" 
                                     style="font-size:0.45rem; padding:1px 3px;">
                                 <i class="fas fa-times"></i> LIMPIAR
                             </button>
-                        </div>
-                        
+                        </div>                                    
                         <div class="tab-container">
                             <button class="tab-button active" data-tab="ascii" onclick="switchTab('ascii')">ASCII</button>
                             <button class="tab-button" data-tab="morse" onclick="switchTab('morse')">CQ Morse</button>
@@ -2569,11 +2983,114 @@
         </div>
     </div>
 
+    <!-- ====== VENTANA CONSOLA v5.6.1 ====== -->
+<div class="console-modal-overlay" id="consoleModal">
+    <div class="console-modal-content">
+        <div class="console-scan-line"></div>
+        
+        <div class="console-header">
+            <div class="console-title">
+                <i class="fas fa-terminal"></i> RADCOM CONSOLE v5.6.1 - SYSTEM CONTROL
+            </div>
+            <button class="console-close" onclick="closeConsole()">&times;</button>
+        </div>
+        
+        <!-- Pestañas -->
+        <div class="console-tabs">
+            <button class="console-tab active" onclick="switchConsoleTab('CMD')">CMD Console</button>
+            <button class="console-tab" onclick="switchConsoleTab('hex')">Hex Editor</button>
+            <button class="console-tab" onclick="switchConsoleTab('decode')">Hex Decoder</button>
+        </div>
+        
+        <!-- Contenido de pestañas -->
+        <div id="console-tab-CMD" class="console-tab-content active">
+            <div class="CMD-console-container">
+                <div id="CMD-output" class="CMD-output">
+&gt; RADCOM CMD CONSOLE v5.6.1 INITIALIZED
+&gt; System: RADCOM MASTER
+&gt; Version: 5.6.1
+&gt; Ready for commands...
+                </div>
+                <div class="CMD-input-row">
+                    <input type="text" id="CMD-input" class="CMD-input" placeholder="Enter command..." 
+                           onkeydown="handleCMDCommand(event)">
+                    <button class="CMD-btn" onclick="executeCMDCommand()">EXECUTE</button>
+                    <button class="CMD-btn CMD-btn-clear" onclick="clearCMDConsole()">CLEAR</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="console-tab-hex" class="console-tab-content">
+            <div class="hex-editor-container">
+                <div class="hex-toolbar">
+                    <button class="hex-toolbar-btn" onclick="hexLoadCurrentPage()">
+                        <i class="fas fa-code"></i> Load Page
+                    </button>
+                    <button class="hex-toolbar-btn" onclick="hexSaveChanges()">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button class="hex-toolbar-btn" onclick="hexFind()">
+                        <i class="fas fa-search"></i> Find
+                    </button>
+                    <button class="hex-toolbar-btn" onclick="hexFormat()">
+                        <i class="fas fa-align-left"></i> Format
+                    </button>
+                    <button class="hex-toolbar-btn" onclick="hexMinify()">
+                        <i class="fas fa-compress"></i> Minify
+                    </button>
+                </div>
+                <textarea id="hex-editor" class="hex-editor" spellcheck="false"></textarea>
+                <div class="hex-status-bar">
+                    <span id="hex-status">Ready</span>
+                    <span id="hex-position">Line: 1, Col: 1</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="console-tab-decode" class="console-tab-content">
+            <div class="hex-decoder-container">
+                <div class="hex-decoder-split">
+                    <div class="hex-decoder-input">
+                        <div class="hex-decoder-label">
+                            <i class="fas fa-keyboard"></i> Input (Hex or Text)
+                        </div>
+                        <textarea id="hex-decoder-input" class="hex-decoder-textarea" 
+                                  placeholder="Paste HEX data or text here..." 
+                                  oninput="autoDetectAndConvert()"></textarea>
+                    </div>
+                    <div class="hex-decoder-output">
+                        <div class="hex-decoder-label">
+                            <i class="fas fa-laptop-code"></i> Output
+                        </div>
+                        <textarea id="hex-decoder-output" class="hex-decoder-textarea" 
+                                  placeholder="Converted output will appear here..." 
+                                  readonly></textarea>
+                    </div>
+                </div>
+                <div class="hex-decoder-controls">
+                    <button class="hex-decoder-btn" onclick="convertTextToHex()">
+                        <i class="fas fa-arrow-right"></i> Text → HEX
+                    </button>
+                    <button class="hex-decoder-btn" onclick="convertHexToText()">
+                        <i class="fas fa-arrow-left"></i> HEX → Text
+                    </button>
+                    <button class="hex-decoder-btn" onclick="decodeBase64()">
+                        <i class="fas fa-unlock"></i> Base64
+                    </button>
+                    <button class="hex-decoder-btn" onclick="clearDecoder()">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <script>
 
             
         // ====== VERSIÓN  ======
-        const VERSION = "5.6";
+        const VERSION = "5.6.1";
         const SYSTEM_NAME = "RADCOM MASTER";
         
         const chars = [
@@ -8053,7 +8570,7 @@ function updateConnectedCount() {
 // Actualiza tu updateQueueCounter y demás funciones pequeñas si es necesario.
 
 // =============================================
-// PARTE D - FINALIZACIÓN v5.6
+// PARTE D - FINALIZACIÓN v5.6.1
 // =============================================
 
 
@@ -8166,10 +8683,726 @@ function finalInitialization() {
         }
     }, 25000);
     
-    updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión final estable y segura`);
+    updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión estable y segura`);
 }
 
 // === LLAMADA FINAL ===
+
+// ====== SISTEMA CONSOLA v5.6.1 ======
+
+let currentConsoleTab = 'CMD';
+let hexEditorContent = '';
+
+// Abrir ventana consola
+function openConsole() {
+    document.getElementById('consoleModal').style.display = 'flex';
+    switchConsoleTab('CMD');
+    updateMonitor("🚀 CONSOLE v5.6.1 ACTIVATED", "info");
+    playStrongBeep(1000, 100);
+}
+
+// Cerrar ventana consola
+function closeConsole() {
+    document.getElementById('consoleModal').style.display = 'none';
+    updateMonitor("🔒 Console closed", "info");
+}
+
+// Cambiar pestaña consola
+function switchConsoleTab(tab) {
+    currentConsoleTab = tab;
+    
+    // Actualizar pestañas activas
+    document.querySelectorAll('.console-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.console-tab-content').forEach(c => c.classList.remove('active'));
+    
+    // Activar pestaña seleccionada
+    document.querySelector(`.console-tab[onclick="switchConsoleTab('${tab}')"]`).classList.add('active');
+    document.getElementById(`console-tab-${tab}`).classList.add('active');
+    
+    // Inicializar contenido según pestaña
+    if (tab === 'hex') {
+        initializeHexEditor();
+    } else if (tab === 'CMD') {
+        document.getElementById('CMD-input').focus();
+    } else if (tab === 'decode') {
+        document.getElementById('hex-decoder-input').focus();
+    }
+    
+    playStrongBeep(600, 50);
+}
+
+// ====== CMD CONSOLE FUNCTIONS ======
+
+function handleCMDCommand(event) {
+    if (event.key === 'Enter') {
+        executeCMDCommand();
+    }
+}
+
+function executeCMDCommand() {
+    const input = document.getElementById('CMD-input');
+    const command = input.value.trim();
+    
+    if (!command) return;
+    
+    // Mostrar comando
+    appendToCMDConsole(`&gt; ${command}`);
+    
+    // Procesar comando
+    processCMDCommand(command);
+    
+    // Limpiar input
+    input.value = '';
+    input.focus();
+}
+
+function processCMDCommand(command) {
+    const cmd = command.toLowerCase();
+    
+    switch(cmd) {
+        case 'help':
+        case '?':
+            showCMDHelp();
+            break;
+            
+        case 'status':
+            showSystemStatus();
+            break;
+            
+        case 'clear':
+            clearCMDConsole();
+            break;
+            
+        case 'connections':
+            showConnections();
+            break;
+            
+        case 'version':
+            appendToCMDConsole(`RADCOM MASTER v${VERSION}`);
+            break;
+            
+        case 'restart':
+            appendToCMDConsole("Restarting system...");
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+            break;
+            
+        case 'test':
+            runSystemTest();
+            break;
+            
+        case 'encrypt test':
+            testEncryption();
+            break;
+            
+        case 'morse test':
+            testMorseSystem();
+            break;
+            
+        case 'radio test':
+            testRadioSystem();
+            break;
+            
+        case 'satellite test':
+            testSatelliteSystem();
+            break;
+            
+        case 'export config':
+            exportConfiguration();
+            break;
+            
+        case 'import config':
+            importConfiguration();
+            break;
+            
+        case 'debug':
+            toggleDebugMode();
+            break;
+            
+        default:
+            if (cmd.startsWith('echo ')) {
+                appendToCMDConsole(cmd.substring(5));
+            } else if (cmd.startsWith('hex ')) {
+                convertToHex(cmd.substring(4));
+            } else if (cmd.startsWith('decode ')) {
+                decodeHex(cmd.substring(7));
+            } else {
+                appendToCMDConsole(`Unknown command: "${command}". Type "help" for commands.`);
+            }
+    }
+}
+
+function appendToCMDConsole(text) {
+    const console = document.getElementById('CMD-output');
+    console.innerHTML += `\n${text}`;
+    console.scrollTop = console.scrollHeight;
+}
+
+function clearCMDConsole() {
+    document.getElementById('CMD-output').innerHTML = 
+        '&gt; RADCOM CMD CONSOLE v5.6.1 INITIALIZED\n' +
+        '&gt; System: RADCOM MASTER\n' +
+        '&gt; Version: ' + VERSION + '\n' +
+        '&gt; Ready for commands...';
+}
+
+function showCMDHelp() {
+    const help = [
+        '=== RADCOM CMD CONSOLE COMMANDS ===',
+        'help / ?          - Show this help',
+        'status           - System status',
+        'clear            - Clear console',
+        'connections      - Show active connections',
+        'version          - Show version',
+        'restart          - Restart system',
+        'test             - Run system tests',
+        'encrypt test     - Test encryption',
+        'morse test       - Test Morse system',
+        'radio test       - Test radio system',
+        'satellite test   - Test satellite system',
+        'export config    - Export configuration',
+        'import config    - Import configuration',
+        'debug            - Toggle debug mode',
+        'echo [text]      - Echo text',
+        'hex [text]       - Convert text to hex',
+        'decode [hex]     - Decode hex to text',
+        '==================================='
+    ];
+    
+    help.forEach(line => appendToCMDConsole(line));
+}
+
+function showSystemStatus() {
+    const onlineCount = Object.keys(connections).filter(id => 
+        connections[id]?.status === 'online').length;
+    
+    const status = [
+        '=== SYSTEM STATUS ===',
+        `Version: ${VERSION}`,
+        `ID: ${myPeerId ? myPeerId.substring(0, 20) + '...' : 'Not set'}`,
+        `Connections: ${onlineCount} online`,
+        `Messages: ${stats.messages} sent/received`,
+        `Data TX: ${formatBytes(stats.tx)}`,
+        `Data RX: ${formatBytes(stats.rx)}`,
+        `Uptime: ${formatUptime(Date.now() - stats.startTime)}`,
+        `Encryption: ${document.getElementById('encryptionMode')?.value || 'AES-256-GCM'}`,
+        `GPS: ${satelliteSystem.latitude ? 'Active' : 'Inactive'}`,
+        `Radio: ${currentBand} ${currentFrequency}${currentUnit}`,
+        `Morse: ${morseSpeed} speed`,
+        `Voice: ${recognizing ? 'Active' : 'Inactive'}`,
+        '====================='
+    ];
+    
+    status.forEach(line => appendToCMDConsole(line));
+}
+
+function showConnections() {
+    const connectionsList = Object.keys(connections).map(id => {
+        const conn = connections[id];
+        return `${id.substring(0, 12)}... | ${conn.status} | ${conn.type} | ${conn.health}`;
+    });
+    
+    appendToCMDConsole('=== ACTIVE CONNECTIONS ===');
+    if (connectionsList.length === 0) {
+        appendToCMDConsole('No connections');
+    } else {
+        connectionsList.forEach(conn => appendToCMDConsole(conn));
+    }
+    appendToCMDConsole('==========================');
+}
+
+function runSystemTest() {
+    appendToCMDConsole('Running system tests...');
+    
+    const tests = [
+        { name: 'PeerJS Connection', test: () => !!peer && !peer.disconnected },
+        { name: 'Audio System', test: () => typeof AudioContext !== 'undefined' },
+        { name: 'LocalStorage', test: () => typeof localStorage !== 'undefined' },
+        { name: 'WebRTC', test: () => !!window.RTCPeerConnection },
+        { name: 'GPS Support', test: () => !!navigator.geolocation },
+        { name: 'Voice Recognition', test: () => !!window.SpeechRecognition || !!window.webkitSpeechRecognition }
+    ];
+    
+    let passed = 0;
+    tests.forEach(test => {
+        const result = test.test();
+        appendToCMDConsole(`${result ? '✓' : '✗'} ${test.name}: ${result ? 'PASS' : 'FAIL'}`);
+        if (result) passed++;
+    });
+    
+    appendToCMDConsole(`\n${passed}/${tests.length} tests passed`);
+}
+
+// ====== HEX EDITOR FUNCTIONS ======
+
+function initializeHexEditor() {
+    const editor = document.getElementById('hex-editor');
+    if (!hexEditorContent) {
+        hexEditorContent = `// RADCOM HEX EDITOR v5.6.1
+// Load page HTML or paste your code here
+// Use toolbar buttons to format, minify, or save
+
+// Example HTML:
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>RADCOM System</title>
+    <style>
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>RADCOM MASTER</h1>
+</body>
+</html>`;
+        
+        editor.value = hexEditorContent;
+    }
+    
+    editor.addEventListener('input', updateHexPosition);
+    updateHexPosition();
+}
+
+function updateHexPosition() {
+    const editor = document.getElementById('hex-editor');
+    const text = editor.value;
+    const lines = text.substring(0, editor.selectionStart).split('\n');
+    const line = lines.length;
+    const col = lines[lines.length - 1].length + 1;
+    
+    document.getElementById('hex-position').textContent = 
+        `Line: ${line}, Col: ${col} | Chars: ${text.length}`;
+}
+
+function hexLoadCurrentPage() {
+    // Cargar el HTML actual de la página
+    const htmlContent = document.documentElement.outerHTML;
+    const formatted = formatHTML(htmlContent);
+    
+    document.getElementById('hex-editor').value = formatted;
+    hexEditorContent = formatted;
+    
+    updateHexStatus('Page HTML loaded');
+    appendToCMDConsole('Loaded current page HTML into hex editor');
+}
+
+function hexSaveChanges() {
+    const content = document.getElementById('hex-editor').value;
+    
+    // Aquí iría la lógica para guardar cambios
+    // Por ahora solo mostramos un mensaje
+    updateHexStatus('Changes saved (simulated)');
+    appendToCMDConsole('Hex editor changes saved');
+    
+    // En un sistema real, aquí se enviaría al servidor o se guardaría en localStorage
+    localStorage.setItem('radcom_hex_editor_backup', content);
+    
+    playStrongBeep(800, 50);
+}
+
+function hexFind() {
+    const search = prompt('Search in hex editor:');
+    if (search) {
+        const editor = document.getElementById('hex-editor');
+        const content = editor.value;
+        const index = content.indexOf(search);
+        
+        if (index !== -1) {
+            editor.focus();
+            editor.setSelectionRange(index, index + search.length);
+            updateHexStatus(`Found: "${search}"`);
+        } else {
+            updateHexStatus(`Not found: "${search}"`);
+        }
+    }
+}
+
+function hexFormat() {
+    const editor = document.getElementById('hex-editor');
+    const content = editor.value;
+    
+    // Intentar formatear como HTML
+    if (content.includes('<') && content.includes('>')) {
+        editor.value = formatHTML(content);
+        updateHexStatus('Formatted as HTML');
+    } 
+    // Intentar formatear como JSON
+    else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+        try {
+            const json = JSON.parse(content);
+            editor.value = JSON.stringify(json, null, 2);
+            updateHexStatus('Formatted as JSON');
+        } catch {
+            updateHexStatus('Not valid JSON');
+        }
+    } 
+    // Formatear como JavaScript
+    else if (content.includes('function') || content.includes('const ') || content.includes('let ')) {
+        editor.value = formatJavaScript(content);
+        updateHexStatus('Formatted as JavaScript');
+    }
+    
+    hexEditorContent = editor.value;
+}
+
+function hexMinify() {
+    const editor = document.getElementById('hex-editor');
+    let content = editor.value;
+    
+    // Método MANUAL sin regex problemáticos
+    let result = '';
+    let inComment = false;
+    
+    for (let i = 0; i < content.length; i++) {
+        // Detectar comentarios
+        if (content.substr(i, 4) === '<!--') {
+            inComment = true;
+            i += 3;
+            continue;
+        }
+        
+        if (inComment && content.substr(i, 3) === '-->') {
+            inComment = false;
+            i += 2;
+            continue;
+        }
+        
+        if (!inComment) {
+            result += content[i];
+        }
+    }
+    
+    content = result;
+    
+    // Reemplazar múltiples espacios (manualmente)
+    let lastCharWasSpace = false;
+    result = '';
+    
+    for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+        const isWhitespace = char === ' ' || char === '\n' || char === '\t' || char === '\r';
+        
+        if (isWhitespace) {
+            if (!lastCharWasSpace && i > 0 && i < content.length - 1) {
+                // Solo agregar un espacio si no es al inicio/final
+                result += ' ';
+                lastCharWasSpace = true;
+            }
+        } else {
+            result += char;
+            lastCharWasSpace = false;
+        }
+    }
+    
+    content = result.trim();
+    
+    // Eliminar espacios entre tags (manualmente)
+    result = '';
+    for (let i = 0; i < content.length; i++) {
+        if (content[i] === '>' && i + 1 < content.length) {
+            result += '>';
+            // Saltar espacios después de >
+            let j = i + 1;
+            while (j < content.length && (content[j] === ' ' || content[j] === '\n' || content[j] === '\t')) {
+                j++;
+            }
+            if (j < content.length && content[j] === '<') {
+                result += '<';
+                i = j;
+            } else {
+                i = j - 1;
+            }
+        } else {
+            result += content[i];
+        }
+    }
+    
+    editor.value = result;
+    hexEditorContent = result;
+    updateHexStatus('Minified content');
+}
+
+function updateHexStatus(message) {
+    document.getElementById('hex-status').textContent = message;
+    setTimeout(() => {
+        document.getElementById('hex-status').textContent = 'Ready';
+    }, 3000);
+}
+
+function formatHTML(html) {
+    // Formateador HTML simple
+    let formatted = '';
+    let indent = 0;
+    const lines = html.split('\n');
+    
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        
+        if (line.includes('</')) {
+            indent--;
+        }
+        
+        formatted += '    '.repeat(Math.max(0, indent)) + line + '\n';
+        
+        if (line.includes('<') && !line.includes('/>') && !line.includes('</')) {
+            indent++;
+        }
+    }
+    
+    return formatted;
+}
+
+function formatJavaScript(js) {
+    // Formateador JavaScript simple
+    js = js.replace(/{/g, ' {\n');
+    js = js.replace(/}/g, '\n}\n');
+    js = js.replace(/;/g, ';\n');
+    
+    let formatted = '';
+    let indent = 0;
+    const lines = js.split('\n');
+    
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        
+        if (line.includes('}')) {
+            indent--;
+        }
+        
+        formatted += '    '.repeat(Math.max(0, indent)) + line + '\n';
+        
+        if (line.includes('{')) {
+            indent++;
+        }
+    }
+    
+    return formatted;
+}
+
+// ====== HEX DECODER FUNCTIONS ======
+
+function autoDetectAndConvert() {
+    const input = document.getElementById('hex-decoder-input').value.trim();
+    
+    if (!input) {
+        document.getElementById('hex-decoder-output').value = '';
+        return;
+    }
+    
+    // Auto-detect: si parece hex, convertir a texto
+    if (/^[0-9a-fA-F\s]+$/.test(input.replace(/\s/g, ''))) {
+        convertHexToText();
+    }
+    // Si parece texto normal, convertir a hex
+    else if (/^[\x00-\x7F\s]+$/.test(input)) {
+        convertTextToHex();
+    }
+}
+
+function convertTextToHex() {
+    const input = document.getElementById('hex-decoder-input').value;
+    let output = '';
+    
+    for (let i = 0; i < input.length; i++) {
+        const hex = input.charCodeAt(i).toString(16).toUpperCase().padStart(2, '0');
+        output += hex + ' ';
+        
+        // Agrupar en bloques de 8 bytes
+        if ((i + 1) % 8 === 0) {
+            output += ' ';
+        }
+        
+        // Nueva línea cada 32 bytes
+        if ((i + 1) % 32 === 0) {
+            output += '\n';
+        }
+    }
+    
+    // Agregar representación ASCII
+    output += '\n\nASCII: ';
+    for (let i = 0; i < Math.min(input.length, 64); i++) {
+        const char = input[i];
+        output += (char >= ' ' && char <= '~') ? char : '.';
+    }
+    
+    document.getElementById('hex-decoder-output').value = output.trim();
+    updateMonitor("📝 Converted text to HEX", "info");
+}
+
+function convertHexToText() {
+    const input = document.getElementById('hex-decoder-input').value;
+    const hex = input.replace(/[^0-9a-fA-F]/g, '');
+    
+    let output = '';
+    for (let i = 0; i < hex.length; i += 2) {
+        const hexByte = hex.substr(i, 2);
+        if (hexByte) {
+            const charCode = parseInt(hexByte, 16);
+            if (!isNaN(charCode)) {
+                output += String.fromCharCode(charCode);
+            }
+        }
+    }
+    
+    // Mostrar información adicional
+    const info = [
+        `Length: ${output.length} characters`,
+        `Hex bytes: ${Math.ceil(hex.length / 2)}`,
+        '',
+        'Decoded text:',
+        '-------------',
+        output
+    ].join('\n');
+    
+    document.getElementById('hex-decoder-output').value = info;
+    updateMonitor("🔓 Converted HEX to text", "info");
+}
+
+function decodeBase64() {
+    const input = document.getElementById('hex-decoder-input').value.trim();
+    
+    try {
+        const decoded = atob(input);
+        document.getElementById('hex-decoder-output').value = decoded;
+        updateMonitor("🔓 Decoded Base64", "info");
+    } catch (error) {
+        document.getElementById('hex-decoder-output').value = 
+            `Error decoding Base64: ${error.message}`;
+        updateMonitor("❌ Base64 decode failed", "error");
+    }
+}
+
+function clearDecoder() {
+    document.getElementById('hex-decoder-input').value = '';
+    document.getElementById('hex-decoder-output').value = '';
+    updateMonitor("🧹 Decoder cleared", "info");
+}
+
+// ====== UTILITY FUNCTIONS ======
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatUptime(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// ====== TEST FUNCTIONS ======
+
+function testEncryption() {
+    appendToCMDConsole('Testing encryption...');
+    const testText = "RADCOM TEST MESSAGE";
+    const key = "TESTKEY123";
+    
+    const encrypted = xorEncrypt(testText, key);
+    const decrypted = xorDecrypt(encrypted, key);
+    
+    appendToCMDConsole(`Original: ${testText}`);
+    appendToCMDConsole(`Encrypted (HEX): ${Array.from(encrypted).map(c => 
+        c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ')}`);
+    appendToCMDConsole(`Decrypted: ${decrypted}`);
+    appendToCMDConsole(`Test ${testText === decrypted ? 'PASSED ✓' : 'FAILED ✗'}`);
+}
+
+function testMorseSystem() {
+    appendToCMDConsole('Testing Morse system...');
+    
+    const testWord = "SOS";
+    const morse = textToMorse(testWord);
+    appendToCMDConsole(`${testWord} → ${morse}`);
+    
+    if (typeof playMorseCharSound === 'function') {
+        appendToCMDConsole('Playing test sound...');
+        setTimeout(() => playMorseCharSound('S'), 100);
+        setTimeout(() => playMorseCharSound('O'), 500);
+        setTimeout(() => playMorseCharSound('S'), 900);
+    }
+}
+
+function testRadioSystem() {
+    appendToCMDConsole('Testing radio system...');
+    appendToCMDConsole(`Current band: ${currentBand}`);
+    appendToCMDConsole(`Frequency: ${currentFrequency} ${currentUnit}`);
+    
+    if (typeof playRadioBeep === 'function') {
+        appendToCMDConsole('Playing radio test tone...');
+        playRadioBeep(1000, 200);
+    }
+}
+
+function testSatelliteSystem() {
+    appendToCMDConsole('Testing satellite system...');
+    
+    if (satelliteSystem.latitude && satelliteSystem.longitude) {
+        appendToCMDConsole(`GPS Active: ${satelliteSystem.latitude.toFixed(4)}°, ${satelliteSystem.longitude.toFixed(4)}°`);
+        appendToCMDConsole(`Altitude: ${satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) + ' m' : 'N/A'}`);
+    } else {
+        appendToCMDConsole('GPS: Inactive');
+    }
+    
+    if (satelliteSystem.weatherData) {
+        appendToCMDConsole('Weather data: Available');
+    }
+}
+
+function exportConfiguration() {
+    const config = {
+        version: VERSION,
+        peerId: myPeerId,
+        connections: Object.keys(connections).length,
+        settings: {
+            encryption: document.getElementById('encryptionMode')?.value,
+            autoReconnect: document.getElementById('autoReconnect')?.checked,
+            soundEnabled: document.getElementById('soundEnabled')?.checked
+        },
+        stats: stats,
+        timestamp: new Date().toISOString()
+    };
+    
+    const configStr = JSON.stringify(config, null, 2);
+    document.getElementById('hex-decoder-input').value = configStr;
+    document.getElementById('hex-decoder-output').value = btoa(configStr);
+    
+    switchConsoleTab('decode');
+    appendToCMDConsole('Configuration exported to decoder');
+}
+
+function importConfiguration() {
+    appendToCMDConsole('Import configuration: Use Base64 decode in Hex Decoder tab');
+    switchConsoleTab('decode');
+}
+
+function toggleDebugMode() {
+    const debugMode = localStorage.getItem('radcom_debug_mode') !== 'true';
+    localStorage.setItem('radcom_debug_mode', debugMode);
+    
+    appendToCMDConsole(`Debug mode ${debugMode ? 'ENABLED' : 'DISABLED'}`);
+    updateMonitor(`Debug ${debugMode ? 'ON' : 'OFF'}`, debugMode ? "warning" : "info");
+}
+
+
+// Inicializar consola cuando se carga la página
+setTimeout(() => {
+    console.log("🚀 RADCOM CONSOLE v5.6.1 ready");
+}, 1000);
 
 
 setTimeout(finalInitialization, 1200);
@@ -8182,7 +9415,7 @@ function force720() {
     }
 }
 
-window.addEventListener('load', force720);
+
 
         // Exportar nuevas funciones
         window.forceUpdateSatelliteData = forceUpdateSatelliteData;
