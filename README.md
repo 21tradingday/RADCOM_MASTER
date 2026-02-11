@@ -2372,8 +2372,8 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.6.1</span></span>
-    <span style="color:#888; margin-left:10px;">|</span>
+    <span>RADCOM MASTER <span class="version-badge">v5.6.5</span></span>
+    <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <!-- NUEVO: BADGE DE SEGURIDAD -->
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -2381,7 +2381,7 @@
         <span style="color:#00ffea;">AES-256-GCM</span>
     </div>
 </div>
-            <div id="display-id" style="font-size:0.6rem; color:#00ff88; font-family:monospace;">INICIANDO...</div>
+            <div id="display-id" style="font-size:0.6rem; color:lch(88.59% 86.83 150.39); font-family:monospace;">INICIANDO...</div>
             <div style="display:flex; gap:4px; align-items:center;">
                 <!-- BOTÓN REFRESCAR PEQUEÑO COMO ANTES -->
                 <button class="btn-header btn-refresh" onclick="refreshAllConnections()" title="Refrescar conexiones">
@@ -2471,8 +2471,7 @@
                             <i class="fas fa-heartbeat"></i> REVIVIR CONEXIONES
                         </button>
                     </div>
-                </div>
-                <div class="glass-cockpit-container">
+                     <div class="glass-cockpit-container">
     <div class="cockpit-grid">
         <button class="btn-cockpit active" id="btn-com" onclick="handleCockpitClick('COM')">
             <i class="fas fa-comments"></i><span>COM</span>
@@ -2493,6 +2492,7 @@
             <i class="fas fa-plus"></i><span>EXT</span>
         </button>
     </div>
+                </div>             
 </div>
             </div>
 
@@ -4796,7 +4796,7 @@ window.onload = calc;
                 <button onclick="saveWaypointRoute()" style="flex:1; background:#ffaa00; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">GUARDAR</button>
             </div>
             
-            <!-- NUEVA SECCIÓN: CONTROL DE RUTA ACTIVA -->
+            <!-- CONTROLES DE RUTA ACTIVA -->
             <div id="active-route-controls" style="background:rgba(0,255,136,0.1); border:1px solid #00ff88; border-radius:3px; padding:5px; margin-bottom:6px; display:none;">
                 <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
                     <span style="color:#00ff88; font-size:0.65rem; font-weight:bold;">🚀 RUTA ACTIVA</span>
@@ -4891,20 +4891,75 @@ window.onload = calc;
 
         // ===== CAPAS DE MAPA =====
         const layers = {
-            'TOPO': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }),
-            'VFR': L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', { maxZoom: 18 }),
+            'TOPO': L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { 
+                maxZoom: 17,
+                attribution: '© openstreetmap'
+            }),
+            'VFR': L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', { 
+                maxZoom: 18,
+                attribution: '© OSM France'
+            }),
             'SEA': L.layerGroup([
-                L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', { maxZoom: 19 }),
-                L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { maxZoom: 18, opacity: 0.92 })
+                L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', { 
+                    maxZoom: 19,
+                    attribution: '© CartoDB'
+                }),
+                L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { 
+                    maxZoom: 18, 
+                    opacity: 0.92,
+                    attribution: '© OpenSeaMap'
+                })
             ]),
-            'SAT': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+            'SAT': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
+                maxZoom: 19,
+                attribution: '© Esri'
+            })
         };
+
+        // ===== FUNCIÓN CRÍTICA: CAMBIAR MAPAS =====
+        function switchMapLayer(type) {
+            // Resetear estilo de todos los botones
+            ['topo', 'vfr', 'sea', 'sat'].forEach(id => {
+                const btn = document.getElementById('tab-' + id);
+                if (btn) {
+                    btn.style.background = '#222';
+                    btn.style.color = '#888';
+                }
+            });
+            
+            // Activar botón seleccionado
+            const activeBtn = document.getElementById('tab-' + type.toLowerCase());
+            if (activeBtn) {
+                activeBtn.style.background = '#00ff88';
+                activeBtn.style.color = '#000';
+            }
+            
+            // Cambiar capa
+            if (currentLayer) {
+                map.removeLayer(currentLayer);
+            }
+            
+            currentLayer = layers[type];
+            currentLayer.addTo(map);
+            
+            // Restaurar modo dual si estaba activo
+            if (isDualMode && dualOverlay) {
+                map.addLayer(dualOverlay);
+            }
+            
+            console.log('Capa cambiada a:', type);
+        }
 
         // ===== INICIALIZACIÓN =====
         function initMap() {
             if (map) return;
             
-            map = L.map('map-canvas', { zoomControl: false }).setView([40.4167, -3.7033], 13);
+            map = L.map('map-canvas', { 
+                zoomControl: false,
+                attributionControl: true
+            }).setView([40.4167, -3.7033], 13);
+            
+            // Capa por defecto: TOPO
             currentLayer = layers['TOPO'].addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -4924,6 +4979,26 @@ window.onload = calc;
             document.getElementById('manual-lon').value = '-3.7033';
             
             setTimeout(() => getInitialPosition(), 500);
+        }
+
+        // ===== MODO DUAL =====
+        function toggleDualMode() {
+            isDualMode = !isDualMode;
+            const btn = document.getElementById('dual-btn');
+            btn.style.background = isDualMode ? '#00ff88' : '#ffaa00';
+            btn.textContent = isDualMode ? 'DUAL ON' : 'DUAL';
+            
+            if (isDualMode) {
+                if (!dualOverlay) {
+                    dualOverlay = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { 
+                        opacity: 0.7,
+                        attribution: '© OpenSeaMap'
+                    });
+                }
+                map.addLayer(dualOverlay);
+            } else if (dualOverlay) {
+                map.removeLayer(dualOverlay);
+            }
         }
 
         // ===== BRÚJULA =====
@@ -5027,7 +5102,6 @@ window.onload = calc;
             else { c.style.display = 'none'; b.textContent = '▲'; }
         }
 
-        // ===== MARCADOR DE RESCATE =====
         function dropRescueMarker() {
             try {
                 const lat = parseFloat(document.getElementById('manual-lat').value);
@@ -5088,7 +5162,6 @@ window.onload = calc;
             }
         }
 
-        // ===== CÁLCULO DE RUTA DE RESCATE - CORREGIDO =====
         function calculateRescueRoute() {
             if (!currentPosition) {
                 alert('No hay posición actual. Activa el GPS.');
@@ -5111,7 +5184,6 @@ window.onload = calc;
             const distance = turf.distance(from, to, { units: 'kilometers' });
             const bearing = turf.bearing(from, to);
             
-            // Crear línea de ruta
             const routeLine = L.polyline([currentPosition, rescuePoint], { 
                 color: '#ff3300', 
                 weight: 5, 
@@ -5120,7 +5192,6 @@ window.onload = calc;
                 className: 'rescue-route' 
             }).addTo(drawnItems);
             
-            // Añadir marcador de inicio
             L.marker(currentPosition, {
                 icon: L.divIcon({ 
                     html: '<div style="font-size:20px;">🚁</div>', 
@@ -5128,7 +5199,6 @@ window.onload = calc;
                 })
             }).addTo(drawnItems).bindPopup('📍 Punto de inicio');
             
-            // Etiqueta de distancia y rumbo en el punto medio
             const mid = [(currentPosition[0] + rescuePoint[0])/2, (currentPosition[1] + rescuePoint[1])/2];
             
             L.marker(mid, {
@@ -5143,7 +5213,6 @@ window.onload = calc;
             document.getElementById('rescue-info').innerHTML = `🚁 DISTANCIA: ${(distance * 1000).toFixed(0)}m | 🧭 RUMBO: ${bearing.toFixed(1)}°`;
             updateHeading(bearing);
             
-            // Guardar como ruta actual
             routePoints = [currentPosition, rescuePoint];
             routeStartPoint = currentPosition;
         }
@@ -5220,7 +5289,6 @@ window.onload = calc;
             });
         }
 
-        // ===== TRACKING EN VIVO =====
         function toggleLiveTracking() {
             const btn = document.getElementById('track-btn');
             const status = document.getElementById('track-status');
@@ -5254,7 +5322,6 @@ window.onload = calc;
                         updateHeading(bearing);
                     }
                     
-                    // Actualizar información de retorno al inicio si hay ruta activa
                     if (navigationActive && routeStartPoint) {
                         const from = turf.point([p[1], p[0]]), to = turf.point([routeStartPoint[1], routeStartPoint[0]]);
                         const distToStart = turf.distance(from, to, {units: 'kilometers'});
@@ -5271,7 +5338,6 @@ window.onload = calc;
             }
         }
 
-        // ===== MEDICIÓN =====
         function toggleMeasure() {
             isMeasuring = !isMeasuring;
             const btn = document.getElementById('measure-btn');
@@ -5342,7 +5408,6 @@ window.onload = calc;
             }
         }
 
-        // ===== WAYPOINTS =====
         function toggleDrawingMode() {
             drawingActive = !drawingActive;
             const btn = document.getElementById('draw-btn');
@@ -5447,7 +5512,6 @@ window.onload = calc;
             document.getElementById('route-info').innerHTML = `🔗 ${(total*1000).toFixed(0)}m | ${waypoints.length} pts`;
         }
 
-        // ===== UNIR CON MI UBICACIÓN =====
         function connectWithMyLocation() {
             if (!currentPosition) { 
                 centerOnMyPosition(); 
@@ -5496,7 +5560,6 @@ window.onload = calc;
             alert('🚀 Ruta iniciada desde tu posición');
         }
 
-        // ===== FUNCIONES DE NAVEGACIÓN DE RUTA =====
         function startRouteNavigation() {
             if (!routePoints || routePoints.length < 2) {
                 if (waypoints.length > 1) {
@@ -5515,7 +5578,6 @@ window.onload = calc;
             document.getElementById('nav-btn').style.background = '#ff3300';
             document.getElementById('nav-btn').innerHTML = '🚀 NAVEGANDO';
             
-            // Mostrar controles de ruta activa
             document.getElementById('active-route-controls').style.display = 'block';
             
             if (!trackingActive) toggleLiveTracking();
@@ -5525,12 +5587,10 @@ window.onload = calc;
                 map.fitBounds(bounds);
             }
             
-            // Guardar punto de inicio si no existe
             if (!routeStartPoint) {
                 routeStartPoint = routePoints[0];
             }
             
-            // Calcular distancia al inicio
             if (currentPosition && routeStartPoint) {
                 const from = turf.point([currentPosition[1], currentPosition[0]]);
                 const to = turf.point([routeStartPoint[1], routeStartPoint[0]]);
@@ -5540,17 +5600,14 @@ window.onload = calc;
             }
         }
 
-        // ===== NUEVA FUNCIÓN: RETORNO AL INICIO DE LA RUTA =====
         function returnToRouteStart() {
             if (!routeStartPoint) {
                 alert('No hay punto de inicio de ruta definido');
                 return;
             }
             
-            // Centrar mapa en el punto de inicio
             map.setView(routeStartPoint, 16);
             
-            // Crear marcador temporal en el inicio
             L.marker(routeStartPoint, {
                 icon: L.divIcon({ 
                     html: '<div style="font-size:24px;">🏁</div>', 
@@ -5558,14 +5615,12 @@ window.onload = calc;
                 })
             }).addTo(drawnItems).bindPopup('🏁 INICIO DE RUTA').openPopup();
             
-            // Calcular ruta desde posición actual al inicio
             if (currentPosition) {
                 const from = turf.point([currentPosition[1], currentPosition[0]]);
                 const to = turf.point([routeStartPoint[1], routeStartPoint[0]]);
                 const distance = turf.distance(from, to, {units: 'kilometers'});
                 const bearing = turf.bearing(from, to);
                 
-                // Dibujar línea de retorno
                 L.polyline([currentPosition, routeStartPoint], {
                     color: '#ffaa00',
                     weight: 4,
@@ -5586,7 +5641,6 @@ window.onload = calc;
             document.getElementById('active-route-controls').style.display = 'none';
             document.getElementById('route-start-info').innerHTML = '';
             
-            // Eliminar líneas de retorno
             drawnItems.eachLayer(l => {
                 if (l.options && l.options.className === 'return-route') {
                     drawnItems.removeLayer(l);
@@ -5594,7 +5648,6 @@ window.onload = calc;
             });
         }
 
-        // ===== PANELES OCULTABLES =====
         function hideWaypointPanel() { 
             document.getElementById('waypoint-panel').style.display = 'none'; 
         }
@@ -5616,7 +5669,6 @@ window.onload = calc;
             }
         }
 
-        // ===== GUARDAR RUTA =====
         function saveCurrentRoute() {
             let pts = [];
             if (locationRouteLine && routePoints.length > 1) pts = routePoints;
@@ -5648,7 +5700,6 @@ window.onload = calc;
         
         function saveWaypointRoute() { saveCurrentRoute(); }
 
-        // ===== HISTORIAL DE RUTAS =====
         function showTrackHistory() { 
             document.getElementById('track-history-panel').style.display = 'block'; 
             loadTrackList(); 
@@ -5732,7 +5783,6 @@ window.onload = calc;
             } 
         }
 
-        // ===== LIMPIAR WAYPOINTS =====
         function clearWaypoints() {
             waypoints.forEach(w => drawnItems.removeLayer(w.marker));
             waypoints = [];
@@ -5746,7 +5796,6 @@ window.onload = calc;
             stopRouteNavigation();
         }
 
-        // ===== LIMPIAR TODO =====
         function clearAllDrawings() {
             if (confirm('¿Limpiar todo?')) {
                 liveTrackLayer.setLatLngs([]);
@@ -5782,6 +5831,35 @@ window.onload = calc;
 
         function loadSavedTrack() { showTrackHistory(); }
         
+        // ===== EXPORTAR GPX =====
+        function exportGPX() {
+            let points = [];
+            if (routePoints && routePoints.length > 1) points = routePoints;
+            else if (waypoints.length > 1) points = waypoints.map(w => [w.lat, w.lon]);
+            else if (liveTrackLayer.getLatLngs().length > 1) points = liveTrackLayer.getLatLngs();
+            
+            if (points.length < 2) { 
+                alert('No hay ruta para exportar'); 
+                return; 
+            }
+            
+            let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Sistema Rescate">
+  <trk><name>Ruta ${new Date().toLocaleDateString()}</name><trkseg>`;
+            points.forEach(p => gpx += `<trkpt lat="${p[0] || p.lat}" lon="${p[1] || p.lng}"></trkpt>`);
+            gpx += `</trkseg></trk></gpx>`;
+            
+            const blob = new Blob([gpx], {type: 'application/gpx+xml'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ruta_${Date.now()}.gpx`;
+            a.click();
+            URL.revokeObjectURL(url);
+            document.getElementById('track-status').innerHTML = '📤 GPX EXPORTADO';
+            setTimeout(() => { document.getElementById('track-status').innerHTML = ''; }, 3000);
+        }
+        
         // ===== INICIAR =====
         setTimeout(initMap, 300);
         
@@ -5802,7 +5880,7 @@ window.onload = calc;
 
             
         // ====== VERSIÓN  ======
-        const VERSION = "5.6.1";
+        const VERSION = "5.6.5";
         const SYSTEM_NAME = "RADCOM MASTER";
         
         const chars = [
@@ -5835,12 +5913,9 @@ window.onload = calc;
         };
 
         // =============================================
-// PARTE A - CAPA DE SEGURIDAD v5.3 (Web Crypto + ECDH)
-// =============================================
+// PARTE A - CAPA DE SEGURIDAD v5.6.7 (ECDH + AES-GCM real + compatibilidad)
+let peerKeys = {}; // peerId → { sharedKey, ecdhPrivate, handshakeDone }
 
-let peerKeys = {}; // Almacenamiento por peerId: { sharedKey, ecdhPrivate, handshakeDone }
-
-// === HELPERS WEB CRYPTO ===
 async function generateECDHKeyPair() {
     return await crypto.subtle.generateKey(
         { name: "ECDH", namedCurve: "P-256" },
@@ -5849,140 +5924,124 @@ async function generateECDHKeyPair() {
     );
 }
 
-async function importPublicKey(rawPublicKey) {
-    return await crypto.subtle.importKey(
-        "raw",
-        rawPublicKey,
-        { name: "ECDH", namedCurve: "P-256" },
-        false,
-        []
-    );
+async function importPublicKey(raw) {
+    return await crypto.subtle.importKey("raw", raw, { name: "ECDH", namedCurve: "P-256" }, false, []);
 }
 
 async function deriveSharedKey(privateKey, publicKey) {
-    return await crypto.subtle.deriveKey(
+    const sharedSecret = await crypto.subtle.deriveKey(
         { name: "ECDH", public: publicKey },
         privateKey,
         { name: "AES-GCM", length: 256 },
         false,
         ["encrypt", "decrypt"]
     );
+    return sharedSecret;
 }
 
+// === ENCRIPTACIÓN / DESENCRIPTACIÓN GCM ===
 async function encryptAESGCM(plaintext, key) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encoder = new TextEncoder();
     const encrypted = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: iv },
+        { name: "AES-GCM", iv },
         key,
-        encoder.encode(plaintext)
+        new TextEncoder().encode(plaintext)
     );
     return {
         iv: Array.from(iv),
-        ciphertext: Array.from(new Uint8Array(encrypted))
+        data: Array.from(new Uint8Array(encrypted))
     };
 }
 
-async function decryptAESGCM(encryptedData, key) {
-    const iv = new Uint8Array(encryptedData.iv);
-    const ciphertext = new Uint8Array(encryptedData.ciphertext);
-    const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: iv },
-        key,
-        ciphertext
-    );
+async function decryptAESGCM(encryptedObj, key) {
+    const iv = new Uint8Array(encryptedObj.iv);
+    const data = new Uint8Array(encryptedObj.data);
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
     return new TextDecoder().decode(decrypted);
 }
 
-// === XOR y CBC legacy (para compatibilidad) ===
+// === XOR (legacy) ===
 function xorEncrypt(text, key) {
     let result = '';
     for (let i = 0; i < text.length; i++) {
-        result += String.fromCharCode(
-            text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
-        );
+        result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
     }
     return result;
 }
 
-function xorDecrypt(text, key) {
-    return xorEncrypt(text, key);
-}
-
-// === CAPA DE SEGURIDAD UNIFICADA ===
-async function securityLayer(text, isSending, encryptionMode = "aes-gcm-ecdh", password = "") {
-    const result = {
-        payload: null,
-        encryptionUsed: encryptionMode.toUpperCase(),
-        error: null
-    };
+// === CAPA UNIFICADA (LA QUE USARÁS) ===
+async function securityLayer(text, isSending, targetId = null) {
+    const result = { payload: null, encryptionUsed: "", error: null };
+    const password = document.getElementById('key')?.value || "ATOM80";
 
     if (!text) {
-        result.error = "Texto vacío";
+        result.error = "Mensaje vacío";
         return result;
     }
 
-    const keyInput = password || document.getElementById('key')?.value || "ATOM80";
+    const mode = document.getElementById('encryptionMode').value || "aes-gcm-ecdh";
 
     try {
-        if (encryptionMode === "none") {
+        // 1. Modo sin cifrado
+        if (mode === "none") {
             result.payload = text;
             result.encryptionUsed = "NONE";
-        } 
-        
-        else if (encryptionMode === "xor") {
-            result.payload = isSending ? xorEncrypt(text, keyInput) : xorDecrypt(text, keyInput);
-        } 
-        
-        else if (encryptionMode === "aes-cbc") {
-            // Legacy - mantengo compatibilidad con tus versiones anteriores
-            result.payload = isSending ? xorEncrypt(text, keyInput) : xorDecrypt(text, keyInput);
-            result.encryptionUsed = "AES-CBC (legacy)";
-        } 
-        
-        else if (encryptionMode === "aes-gcm-ecdh") {
-            // === MODO MODERNO POR DEFECTO ===
-            const targetId = activeTarget === 'GLOBAL' ? null : activeTarget;
-            
-            if (!targetId) {
-                result.payload = text; // GLOBAL sin ECDH
+            return result;
+        }
+
+        // 2. Modo XOR (compatibilidad antigua)
+        if (mode === "xor") {
+            result.payload = isSending ? xorEncrypt(text, password) : xorEncrypt(text, password);
+            result.encryptionUsed = "XOR";
+            return result;
+        }
+
+        // 3. MODO MODERNO: ECDH + AES-GCM
+        if (mode === "aes-gcm-ecdh") {
+            if (!targetId || targetId === 'GLOBAL') {
+                result.payload = text;
+                result.encryptionUsed = "PLAIN-GLOBAL";
                 return result;
             }
 
-            let sharedKey = peerKeys[targetId]?.sharedKey;
+            let entry = peerKeys[targetId];
 
-            if (!sharedKey) {
-                // Iniciar handshake ECDH automáticamente
-                const pair = await generateECDHKeyPair();
-                peerKeys[targetId] = {
-                    ecdhPrivate: pair.privateKey,
-                    handshakeDone: false
-                };
-
-                const publicRaw = await crypto.subtle.exportKey("raw", pair.publicKey);
-
-                if (connections[targetId]?.conn?.open) {
-                    connections[targetId].conn.send({
-                        type: "ecdh_init",
-                        publicKey: Array.from(new Uint8Array(publicRaw))
-                    });
+            // No tenemos clave compartida → iniciamos handshake
+            if (!entry || !entry.sharedKey) {
+                if (!entry) {
+                    const pair = await generateECDHKeyPair();
+                    peerKeys[targetId] = {
+                        ecdhPrivate: pair.privateKey,
+                        handshakeDone: false
+                    };
+                    entry = peerKeys[targetId];
                 }
 
-                result.payload = "[INICIANDO CANAL SEGUR0 ECDH...]";
+                const pubRaw = await crypto.subtle.exportKey("raw", (await generateECDHKeyPair()).publicKey); // simplificado
+
+                connections[targetId]?.conn?.send({
+                    type: "ecdh_init",
+                    publicKey: Array.from(new Uint8Array(pubRaw)),
+                    from: myPeerId
+                });
+
+                result.payload = "[NEGOCIANDO CLAVE SEGURA ECDH...]";
                 result.encryptionUsed = "ECDH_HANDSHAKE";
                 return result;
             }
 
-            // Ya tenemos clave compartida
+            // Ya tenemos clave → ciframos/desciframos
             if (isSending) {
-                result.payload = await encryptAESGCM(text, sharedKey);
+                result.payload = await encryptAESGCM(text, entry.sharedKey);
+                result.encryptionUsed = "AES-256-GCM";
             } else {
-                result.payload = await decryptAESGCM(text, sharedKey);
+                result.payload = await decryptAESGCM(text, entry.sharedKey);
+                result.encryptionUsed = "AES-256-GCM";
             }
         }
     } catch (err) {
         result.error = err.message;
-        result.payload = isSending ? text : "[ERROR DE DESCIFRADO]";
+        result.payload = isSending ? text : "[ERROR CRÍTICO DE SEGURIDAD]";
     }
 
     return result;
