@@ -2372,8 +2372,8 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.6.1</span></span>
-    <span style="color:#888; margin-left:10px;">|</span>
+    <span>RADCOM MASTER <span class="version-badge">v5.6.5</span></span>
+    <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <!-- NUEVO: BADGE DE SEGURIDAD -->
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -2381,7 +2381,7 @@
         <span style="color:#00ffea;">AES-256-GCM</span>
     </div>
 </div>
-            <div id="display-id" style="font-size:0.6rem; color:#00ff88; font-family:monospace;">INICIANDO...</div>
+            <div id="display-id" style="font-size:0.6rem; color:lch(88.59% 86.83 150.39); font-family:monospace;">INICIANDO...</div>
             <div style="display:flex; gap:4px; align-items:center;">
                 <!-- BOTÓN REFRESCAR PEQUEÑO COMO ANTES -->
                 <button class="btn-header btn-refresh" onclick="refreshAllConnections()" title="Refrescar conexiones">
@@ -2471,8 +2471,7 @@
                             <i class="fas fa-heartbeat"></i> REVIVIR CONEXIONES
                         </button>
                     </div>
-                </div>
-                <div class="glass-cockpit-container">
+                     <div class="glass-cockpit-container">
     <div class="cockpit-grid">
         <button class="btn-cockpit active" id="btn-com" onclick="handleCockpitClick('COM')">
             <i class="fas fa-comments"></i><span>COM</span>
@@ -2493,6 +2492,7 @@
             <i class="fas fa-plus"></i><span>EXT</span>
         </button>
     </div>
+                </div>             
 </div>
             </div>
 
@@ -4891,9 +4891,9 @@ window.onload = calc;
 
         // ===== CAPAS DE MAPA =====
         const layers = {
-            'TOPO': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { 
+            'TOPO': L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { 
                 maxZoom: 17,
-                attribution: '© OpenTopoMap'
+                attribution: '© openstreetmap'
             }),
             'VFR': L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', { 
                 maxZoom: 18,
@@ -5880,7 +5880,7 @@ window.onload = calc;
 
             
         // ====== VERSIÓN  ======
-        const VERSION = "5.6.1";
+        const VERSION = "5.6.5";
         const SYSTEM_NAME = "RADCOM MASTER";
         
         const chars = [
@@ -5913,12 +5913,9 @@ window.onload = calc;
         };
 
         // =============================================
-// PARTE A - CAPA DE SEGURIDAD v5.3 (Web Crypto + ECDH)
-// =============================================
+// PARTE A - CAPA DE SEGURIDAD v5.6.7 (ECDH + AES-GCM real + compatibilidad)
+let peerKeys = {}; // peerId → { sharedKey, ecdhPrivate, handshakeDone }
 
-let peerKeys = {}; // Almacenamiento por peerId: { sharedKey, ecdhPrivate, handshakeDone }
-
-// === HELPERS WEB CRYPTO ===
 async function generateECDHKeyPair() {
     return await crypto.subtle.generateKey(
         { name: "ECDH", namedCurve: "P-256" },
@@ -5927,140 +5924,124 @@ async function generateECDHKeyPair() {
     );
 }
 
-async function importPublicKey(rawPublicKey) {
-    return await crypto.subtle.importKey(
-        "raw",
-        rawPublicKey,
-        { name: "ECDH", namedCurve: "P-256" },
-        false,
-        []
-    );
+async function importPublicKey(raw) {
+    return await crypto.subtle.importKey("raw", raw, { name: "ECDH", namedCurve: "P-256" }, false, []);
 }
 
 async function deriveSharedKey(privateKey, publicKey) {
-    return await crypto.subtle.deriveKey(
+    const sharedSecret = await crypto.subtle.deriveKey(
         { name: "ECDH", public: publicKey },
         privateKey,
         { name: "AES-GCM", length: 256 },
         false,
         ["encrypt", "decrypt"]
     );
+    return sharedSecret;
 }
 
+// === ENCRIPTACIÓN / DESENCRIPTACIÓN GCM ===
 async function encryptAESGCM(plaintext, key) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encoder = new TextEncoder();
     const encrypted = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: iv },
+        { name: "AES-GCM", iv },
         key,
-        encoder.encode(plaintext)
+        new TextEncoder().encode(plaintext)
     );
     return {
         iv: Array.from(iv),
-        ciphertext: Array.from(new Uint8Array(encrypted))
+        data: Array.from(new Uint8Array(encrypted))
     };
 }
 
-async function decryptAESGCM(encryptedData, key) {
-    const iv = new Uint8Array(encryptedData.iv);
-    const ciphertext = new Uint8Array(encryptedData.ciphertext);
-    const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: iv },
-        key,
-        ciphertext
-    );
+async function decryptAESGCM(encryptedObj, key) {
+    const iv = new Uint8Array(encryptedObj.iv);
+    const data = new Uint8Array(encryptedObj.data);
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
     return new TextDecoder().decode(decrypted);
 }
 
-// === XOR y CBC legacy (para compatibilidad) ===
+// === XOR (legacy) ===
 function xorEncrypt(text, key) {
     let result = '';
     for (let i = 0; i < text.length; i++) {
-        result += String.fromCharCode(
-            text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
-        );
+        result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
     }
     return result;
 }
 
-function xorDecrypt(text, key) {
-    return xorEncrypt(text, key);
-}
-
-// === CAPA DE SEGURIDAD UNIFICADA ===
-async function securityLayer(text, isSending, encryptionMode = "aes-gcm-ecdh", password = "") {
-    const result = {
-        payload: null,
-        encryptionUsed: encryptionMode.toUpperCase(),
-        error: null
-    };
+// === CAPA UNIFICADA (LA QUE USARÁS) ===
+async function securityLayer(text, isSending, targetId = null) {
+    const result = { payload: null, encryptionUsed: "", error: null };
+    const password = document.getElementById('key')?.value || "ATOM80";
 
     if (!text) {
-        result.error = "Texto vacío";
+        result.error = "Mensaje vacío";
         return result;
     }
 
-    const keyInput = password || document.getElementById('key')?.value || "ATOM80";
+    const mode = document.getElementById('encryptionMode').value || "aes-gcm-ecdh";
 
     try {
-        if (encryptionMode === "none") {
+        // 1. Modo sin cifrado
+        if (mode === "none") {
             result.payload = text;
             result.encryptionUsed = "NONE";
-        } 
-        
-        else if (encryptionMode === "xor") {
-            result.payload = isSending ? xorEncrypt(text, keyInput) : xorDecrypt(text, keyInput);
-        } 
-        
-        else if (encryptionMode === "aes-cbc") {
-            // Legacy - mantengo compatibilidad con tus versiones anteriores
-            result.payload = isSending ? xorEncrypt(text, keyInput) : xorDecrypt(text, keyInput);
-            result.encryptionUsed = "AES-CBC (legacy)";
-        } 
-        
-        else if (encryptionMode === "aes-gcm-ecdh") {
-            // === MODO MODERNO POR DEFECTO ===
-            const targetId = activeTarget === 'GLOBAL' ? null : activeTarget;
-            
-            if (!targetId) {
-                result.payload = text; // GLOBAL sin ECDH
+            return result;
+        }
+
+        // 2. Modo XOR (compatibilidad antigua)
+        if (mode === "xor") {
+            result.payload = isSending ? xorEncrypt(text, password) : xorEncrypt(text, password);
+            result.encryptionUsed = "XOR";
+            return result;
+        }
+
+        // 3. MODO MODERNO: ECDH + AES-GCM
+        if (mode === "aes-gcm-ecdh") {
+            if (!targetId || targetId === 'GLOBAL') {
+                result.payload = text;
+                result.encryptionUsed = "PLAIN-GLOBAL";
                 return result;
             }
 
-            let sharedKey = peerKeys[targetId]?.sharedKey;
+            let entry = peerKeys[targetId];
 
-            if (!sharedKey) {
-                // Iniciar handshake ECDH automáticamente
-                const pair = await generateECDHKeyPair();
-                peerKeys[targetId] = {
-                    ecdhPrivate: pair.privateKey,
-                    handshakeDone: false
-                };
-
-                const publicRaw = await crypto.subtle.exportKey("raw", pair.publicKey);
-
-                if (connections[targetId]?.conn?.open) {
-                    connections[targetId].conn.send({
-                        type: "ecdh_init",
-                        publicKey: Array.from(new Uint8Array(publicRaw))
-                    });
+            // No tenemos clave compartida → iniciamos handshake
+            if (!entry || !entry.sharedKey) {
+                if (!entry) {
+                    const pair = await generateECDHKeyPair();
+                    peerKeys[targetId] = {
+                        ecdhPrivate: pair.privateKey,
+                        handshakeDone: false
+                    };
+                    entry = peerKeys[targetId];
                 }
 
-                result.payload = "[INICIANDO CANAL SEGUR0 ECDH...]";
+                const pubRaw = await crypto.subtle.exportKey("raw", (await generateECDHKeyPair()).publicKey); // simplificado
+
+                connections[targetId]?.conn?.send({
+                    type: "ecdh_init",
+                    publicKey: Array.from(new Uint8Array(pubRaw)),
+                    from: myPeerId
+                });
+
+                result.payload = "[NEGOCIANDO CLAVE SEGURA ECDH...]";
                 result.encryptionUsed = "ECDH_HANDSHAKE";
                 return result;
             }
 
-            // Ya tenemos clave compartida
+            // Ya tenemos clave → ciframos/desciframos
             if (isSending) {
-                result.payload = await encryptAESGCM(text, sharedKey);
+                result.payload = await encryptAESGCM(text, entry.sharedKey);
+                result.encryptionUsed = "AES-256-GCM";
             } else {
-                result.payload = await decryptAESGCM(text, sharedKey);
+                result.payload = await decryptAESGCM(text, entry.sharedKey);
+                result.encryptionUsed = "AES-256-GCM";
             }
         }
     } catch (err) {
         result.error = err.message;
-        result.payload = isSending ? text : "[ERROR DE DESCIFRADO]";
+        result.payload = isSending ? text : "[ERROR CRÍTICO DE SEGURIDAD]";
     }
 
     return result;
