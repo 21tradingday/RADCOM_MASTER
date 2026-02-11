@@ -5913,9 +5913,12 @@ window.onload = calc;
         };
 
         // =============================================
-// PARTE A - CAPA DE SEGURIDAD v5.6.7 (ECDH + AES-GCM real + compatibilidad)
-let peerKeys = {}; // peerId → { sharedKey, ecdhPrivate, handshakeDone }
+// PARTE A - CAPA DE SEGURIDAD v5.3 (Web Crypto + ECDH)
+// =============================================
 
+let peerKeys = {}; // Almacenamiento por peerId: { sharedKey, ecdhPrivate, handshakeDone }
+
+// === HELPERS WEB CRYPTO ===
 async function generateECDHKeyPair() {
     return await crypto.subtle.generateKey(
         { name: "ECDH", namedCurve: "P-256" },
@@ -5924,124 +5927,140 @@ async function generateECDHKeyPair() {
     );
 }
 
-async function importPublicKey(raw) {
-    return await crypto.subtle.importKey("raw", raw, { name: "ECDH", namedCurve: "P-256" }, false, []);
+async function importPublicKey(rawPublicKey) {
+    return await crypto.subtle.importKey(
+        "raw",
+        rawPublicKey,
+        { name: "ECDH", namedCurve: "P-256" },
+        false,
+        []
+    );
 }
 
 async function deriveSharedKey(privateKey, publicKey) {
-    const sharedSecret = await crypto.subtle.deriveKey(
+    return await crypto.subtle.deriveKey(
         { name: "ECDH", public: publicKey },
         privateKey,
         { name: "AES-GCM", length: 256 },
         false,
         ["encrypt", "decrypt"]
     );
-    return sharedSecret;
 }
 
-// === ENCRIPTACIÓN / DESENCRIPTACIÓN GCM ===
 async function encryptAESGCM(plaintext, key) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoder = new TextEncoder();
     const encrypted = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
+        { name: "AES-GCM", iv: iv },
         key,
-        new TextEncoder().encode(plaintext)
+        encoder.encode(plaintext)
     );
     return {
         iv: Array.from(iv),
-        data: Array.from(new Uint8Array(encrypted))
+        ciphertext: Array.from(new Uint8Array(encrypted))
     };
 }
 
-async function decryptAESGCM(encryptedObj, key) {
-    const iv = new Uint8Array(encryptedObj.iv);
-    const data = new Uint8Array(encryptedObj.data);
-    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+async function decryptAESGCM(encryptedData, key) {
+    const iv = new Uint8Array(encryptedData.iv);
+    const ciphertext = new Uint8Array(encryptedData.ciphertext);
+    const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: iv },
+        key,
+        ciphertext
+    );
     return new TextDecoder().decode(decrypted);
 }
 
-// === XOR (legacy) ===
+// === XOR y CBC legacy (para compatibilidad) ===
 function xorEncrypt(text, key) {
     let result = '';
     for (let i = 0; i < text.length; i++) {
-        result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+        result += String.fromCharCode(
+            text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+        );
     }
     return result;
 }
 
-// === CAPA UNIFICADA (LA QUE USARÁS) ===
-async function securityLayer(text, isSending, targetId = null) {
-    const result = { payload: null, encryptionUsed: "", error: null };
-    const password = document.getElementById('key')?.value || "ATOM80";
+function xorDecrypt(text, key) {
+    return xorEncrypt(text, key);
+}
+
+// === CAPA DE SEGURIDAD UNIFICADA ===
+async function securityLayer(text, isSending, encryptionMode = "aes-gcm-ecdh", password = "") {
+    const result = {
+        payload: null,
+        encryptionUsed: encryptionMode.toUpperCase(),
+        error: null
+    };
 
     if (!text) {
-        result.error = "Mensaje vacío";
+        result.error = "Texto vacío";
         return result;
     }
 
-    const mode = document.getElementById('encryptionMode').value || "aes-gcm-ecdh";
+    const keyInput = password || document.getElementById('key')?.value || "ATOM80";
 
     try {
-        // 1. Modo sin cifrado
-        if (mode === "none") {
+        if (encryptionMode === "none") {
             result.payload = text;
             result.encryptionUsed = "NONE";
-            return result;
-        }
-
-        // 2. Modo XOR (compatibilidad antigua)
-        if (mode === "xor") {
-            result.payload = isSending ? xorEncrypt(text, password) : xorEncrypt(text, password);
-            result.encryptionUsed = "XOR";
-            return result;
-        }
-
-        // 3. MODO MODERNO: ECDH + AES-GCM
-        if (mode === "aes-gcm-ecdh") {
-            if (!targetId || targetId === 'GLOBAL') {
-                result.payload = text;
-                result.encryptionUsed = "PLAIN-GLOBAL";
+        } 
+        
+        else if (encryptionMode === "xor") {
+            result.payload = isSending ? xorEncrypt(text, keyInput) : xorDecrypt(text, keyInput);
+        } 
+        
+        else if (encryptionMode === "aes-cbc") {
+            // Legacy - mantengo compatibilidad con tus versiones anteriores
+            result.payload = isSending ? xorEncrypt(text, keyInput) : xorDecrypt(text, keyInput);
+            result.encryptionUsed = "AES-CBC (legacy)";
+        } 
+        
+        else if (encryptionMode === "aes-gcm-ecdh") {
+            // === MODO MODERNO POR DEFECTO ===
+            const targetId = activeTarget === 'GLOBAL' ? null : activeTarget;
+            
+            if (!targetId) {
+                result.payload = text; // GLOBAL sin ECDH
                 return result;
             }
 
-            let entry = peerKeys[targetId];
+            let sharedKey = peerKeys[targetId]?.sharedKey;
 
-            // No tenemos clave compartida → iniciamos handshake
-            if (!entry || !entry.sharedKey) {
-                if (!entry) {
-                    const pair = await generateECDHKeyPair();
-                    peerKeys[targetId] = {
-                        ecdhPrivate: pair.privateKey,
-                        handshakeDone: false
-                    };
-                    entry = peerKeys[targetId];
+            if (!sharedKey) {
+                // Iniciar handshake ECDH automáticamente
+                const pair = await generateECDHKeyPair();
+                peerKeys[targetId] = {
+                    ecdhPrivate: pair.privateKey,
+                    handshakeDone: false
+                };
+
+                const publicRaw = await crypto.subtle.exportKey("raw", pair.publicKey);
+
+                if (connections[targetId]?.conn?.open) {
+                    connections[targetId].conn.send({
+                        type: "ecdh_init",
+                        publicKey: Array.from(new Uint8Array(publicRaw))
+                    });
                 }
 
-                const pubRaw = await crypto.subtle.exportKey("raw", (await generateECDHKeyPair()).publicKey); // simplificado
-
-                connections[targetId]?.conn?.send({
-                    type: "ecdh_init",
-                    publicKey: Array.from(new Uint8Array(pubRaw)),
-                    from: myPeerId
-                });
-
-                result.payload = "[NEGOCIANDO CLAVE SEGURA ECDH...]";
+                result.payload = "[INICIANDO CANAL SEGUR0 ECDH...]";
                 result.encryptionUsed = "ECDH_HANDSHAKE";
                 return result;
             }
 
-            // Ya tenemos clave → ciframos/desciframos
+            // Ya tenemos clave compartida
             if (isSending) {
-                result.payload = await encryptAESGCM(text, entry.sharedKey);
-                result.encryptionUsed = "AES-256-GCM";
+                result.payload = await encryptAESGCM(text, sharedKey);
             } else {
-                result.payload = await decryptAESGCM(text, entry.sharedKey);
-                result.encryptionUsed = "AES-256-GCM";
+                result.payload = await decryptAESGCM(text, sharedKey);
             }
         }
     } catch (err) {
         result.error = err.message;
-        result.payload = isSending ? text : "[ERROR CRÍTICO DE SEGURIDAD]";
+        result.payload = isSending ? text : "[ERROR DE DESCIFRADO]";
     }
 
     return result;
