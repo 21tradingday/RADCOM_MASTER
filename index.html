@@ -4218,7 +4218,222 @@
 </html>
     </div>
 
-    <div id="util-source-storage" style="display:none;">        
+    <div id="util-source-storage" style="display:none;"> 
+        <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --radcom-green: #00ff88;
+            --radcom-bg: #000000;
+            --radcom-dark: #111111;
+            --radcom-border: #333333;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: var(--radcom-bg);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 720px;
+            background: var(--radcom-dark);
+            border: 1px solid var(--radcom-border);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
+        }
+
+        h1 {
+            color: var(--radcom-green);
+            font-size: 1.2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--radcom-border);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.7rem;
+            color: #888;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        input {
+            background: #000;
+            border: 1px solid var(--radcom-border);
+            color: var(--radcom-green);
+            padding: 10px;
+            font-size: 1rem;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--radcom-green);
+        }
+
+        /* Panel de Resultados */
+        .results-panel {
+            margin-top: 25px;
+            background: #050505;
+            border: 1px solid var(--radcom-green);
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .res-item {
+            text-align: center;
+        }
+
+        .res-label {
+            font-size: 0.6rem;
+            color: var(--radcom-green);
+            display: block;
+        }
+
+        .res-val {
+            font-size: 1.4rem;
+            font-weight: bold;
+        }
+
+        /* El Marcador de Rango (Gráfico) */
+        .range-container {
+            grid-column: span 2;
+            margin-top: 20px;
+            padding: 10px 0;
+        }
+
+        .range-bar {
+            height: 10px;
+            background: #222;
+            position: relative;
+            border-radius: 5px;
+            border: 1px solid #444;
+        }
+
+        .marker {
+            width: 4px;
+            height: 20px;
+            background: var(--radcom-green);
+            position: absolute;
+            top: -6px;
+            box-shadow: 0 0 10px var(--radcom-green);
+            transition: left 0.5s ease;
+        }
+
+        .labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.6rem;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Calculadora PTV Pro v5.6.3</h1>
+    
+    <div class="grid">
+        <div class="input-group">
+            <label>Peso Piloto (kg)</label>
+            <input type="number" id="piloto" value="80" oninput="calc()">
+        </div>
+        <div class="input-group">
+            <label>Motor/Chasis (kg)</label>
+            <input type="number" id="motor" value="22" oninput="calc()">
+        </div>
+        <div class="input-group">
+            <label>Equipo/Reserva (kg)</label>
+            <input type="number" id="equipo" value="5" oninput="calc()">
+        </div>
+        <div class="input-group">
+            <label>Carga Vivac (kg)</label>
+            <input type="number" id="vivac" value="0" oninput="calc()">
+        </div>
+    </div>
+
+    <div class="results-panel">
+        <div class="res-item">
+            <span class="res-label">PTV TOTAL</span>
+            <span class="res-val" id="resPTV">107.0</span><span style="font-size: 0.7rem;"> kg</span>
+        </div>
+        <div class="res-item">
+            <span class="res-label">VELA IDEAL (4.15 kg/m²)</span>
+            <span class="res-val" id="resSurf" style="color: var(--radcom-green);">25.8</span><span style="font-size: 0.7rem;"> m²</span>
+        </div>
+
+        <div class="range-container">
+            <span class="res-label" style="text-align: center; margin-bottom: 10px;">POSICIÓN EN RANGO CERTIFICACIÓN (Óptimo 75%)</span>
+            <div class="range-bar">
+                <div id="marker" class="marker" style="left: 75%;"></div>
+            </div>
+            <div class="labels">
+                <span id="labelMin">90 kg</span>
+                <span>CENTRO</span>
+                <span id="labelMax">112 kg</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function calc() {
+    const p = parseFloat(document.getElementById('piloto').value) || 0;
+    const m = parseFloat(document.getElementById('motor').value) || 0;
+    const e = parseFloat(document.getElementById('equipo').value) || 0;
+    const v = parseFloat(document.getElementById('vivac').value) || 0;
+
+    const ptv = p + m + e + v;
+    document.getElementById('resPTV').innerText = ptv.toFixed(1);
+
+    // Vela ideal para carga alar media-alta (4.15 kg/m²)
+    const superficie = ptv / 4.15;
+    document.getElementById('resSurf').innerText = superficie.toFixed(1);
+
+    // Cálculo de Rango Teórico (Amplitud de 22kg típica)
+    const amplitud = 22;
+    const kgMax = ptv + (amplitud * 0.25);
+    const kgMin = kgMax - amplitud;
+
+    document.getElementById('labelMin').innerText = Math.round(kgMin) + " kg";
+    document.getElementById('labelMax').innerText = Math.round(kgMax) + " kg";
+
+    // Mover el marcador (siempre estará al 75% visualmente porque el rango se calcula relativo al PTV)
+    // Pero si quisieras comparar contra una vela fija, aquí cambiaría la lógica.
+    document.getElementById('marker').style.left = "75%";
+}
+
+// Iniciar al cargar
+window.onload = calc;
+</script>
+
+</body>
+</html>       
     </div>
 
     <div id="ecm-source-storage" style="display:none;">
@@ -4480,64 +4695,1105 @@
 </html>
     </div>
 
-    <div id="map-source-storage" style="display:none;">
-    <style>
-        #map-wrapper { width: 100%; height: 100%; background: #000; position: relative; }
-        #map-container { width: 100%; height: calc(100% - 40px); background: #111; }
-        .map-tabs { display: flex; background: #222; border-bottom: 1px solid #00ff88; }
-        .map-tab { 
-            flex: 1; padding: 10px; text-align: center; color: #888; 
-            font-size: 0.65rem; cursor: pointer; border-right: 1px solid #333;
-            font-family: monospace; text-transform: uppercase;
-        }
-        .map-tab.active { background: #00ff88; color: #000; font-weight: bold; }
-        .map-tools { position: absolute; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
-        .tool-btn { background: rgba(0,0,0,0.8); border: 1px solid #00ff88; color: #00ff88; padding: 8px; cursor: pointer; border-radius: 4px; }
-    </style>
 
-    <div id="map-wrapper">
-        <div class="map-tabs">
-            <div class="map-tab active" onclick="parent.switchMapLayer('TOPO')">TOPOGRÁFICO</div>
-            <div class="map-tab" onclick="parent.switchMapLayer('VFR')">VUELO VFR</div>
-            <div class="map-tab" onclick="parent.switchMapLayer('SEA')">NÁUTICO</div>
+  <div id="map-source-storage" style="display:none;">
+    <div style="display:flex; flex-direction:column; height:100%; width:100%; background:#000; position:relative; overflow:hidden;">
+        
+        <!-- BARRA SUPERIOR CON 4 VISTAS + DUAL -->
+        <div style="display:flex; background:#111; border-bottom:2px solid #00ff88; height:52px; flex-shrink:0; z-index:1002; align-items:center; padding:0 10px;">
+            <div style="display:flex; flex:1; gap:4px;">
+                <button onclick="switchMapLayer('TOPO')" id="tab-topo" style="flex:1; background:#00ff88; color:#000; border:none; font-weight:bold; cursor:pointer; font-size:0.73rem; padding:8px 4px;">TOPOGRÁFICO</button>
+                <button onclick="switchMapLayer('VFR')"  id="tab-vfr"  style="flex:1; background:#222; color:#888; border:none; font-weight:bold; cursor:pointer; font-size:0.73rem; padding:8px 4px;">VFR AÉREO</button>
+                <button onclick="switchMapLayer('SEA')"  id="tab-sea"  style="flex:1; background:#222; color:#888; border:none; font-weight:bold; cursor:pointer; font-size:0.73rem; padding:8px 4px;">NÁUTICO</button>
+                <button onclick="switchMapLayer('SAT')"  id="tab-sat"  style="flex:1; background:#222; color:#888; border:none; font-weight:bold; cursor:pointer; font-size:0.73rem; padding:8px 4px;">SATÉLITE</button>
+            </div>
+            
+            <!-- BOTÓN DUAL -->
+            <button onclick="toggleDualMode()" id="dual-btn" 
+                    style="margin-left:12px; background:#ffaa00; color:#000; border:none; padding:8px 16px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.75rem;">
+                DUAL
+            </button>
         </div>
-        <div id="map-container"></div>
-        <div class="map-tools">
-            <button class="tool-btn" title="Mi Posición">🎯</button>
-            <button class="tool-btn" title="Añadir Track">✍️</button>
-            <button class="tool-btn" title="Descargar Offline">💾</button>
+
+        <!-- MAPA -->
+        <div id="map-canvas" style="flex:1; background:#050505; position:relative;"></div>
+
+        <!-- Barra herramientas vertical izquierda -->
+        <div style="position:absolute; top:65px; left:10px; background:rgba(0,0,0,0.75); border:1px solid #00ff88; border-radius:3px; padding:5px 3px; z-index:1000; display:flex; flex-direction:column; gap:4px;">
+            <button onclick="centerOnMyPosition()" title="Mi posición" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">📍</button>
+            <button onclick="toggleLiveTracking()" id="track-btn" title="Live Tracking" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">▶️</button>
+            <button onclick="toggleMeasure()" id="measure-btn" title="Medir distancia y rumbo" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">📏</button>
+            <button onclick="toggleDrawingMode()" id="draw-btn" title="Dibujar waypoints" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">✍️</button>
+            <button onclick="saveCurrentRoute()" title="Guardar ruta" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">💾</button>
+            <button onclick="showTrackHistory()" title="Historial" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">📋</button>
+            <button onclick="toggleWaypointPanel()" id="toggle-waypoint-btn" title="Mostrar/Ocultar Waypoints" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">📍</button>
+            <button onclick="clearAllDrawings()" title="Limpiar" style="background:none; border:none; color:#ff3300; font-size:1rem; cursor:pointer; padding:2px;">🗑️</button>
+        </div>
+
+        <!-- PANEL RESCATE -->
+        <div id="rescue-panel" style="position:absolute; bottom:50px; left:15px; background:rgba(0,0,0,0.85); border:1px solid #ff3300; border-radius:4px; padding:6px; z-index:1000; width:200px; backdrop-filter:blur(3px);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ff3300; padding-bottom:3px;">
+                <span style="color:#ff3300; font-weight:bold; font-size:0.7rem;">🆘 RESCATE</span>
+                <button onclick="toggleRescuePanel()" id="rescue-toggle-btn" style="background:none; border:none; color:#ff3300; font-size:0.8rem; cursor:pointer; padding:1px 4px;">▲</button>
+            </div>
+            <div id="rescue-content" style="display:none; margin-top:5px;">
+                <div style="display:flex; gap:3px; align-items:center; margin-bottom:4px;">
+                    <span style="color:#fff; width:28px; font-size:0.6rem;">LAT:</span>
+                    <input type="text" id="manual-lat" placeholder="40.4167" value="40.4167" 
+                           style="flex:1; background:#222; color:#ff3300; border:1px solid #ff3300; padding:2px; border-radius:2px; font-family:monospace; font-size:0.6rem;">
+                </div>
+                <div style="display:flex; gap:3px; align-items:center; margin-bottom:5px;">
+                    <span style="color:#fff; width:28px; font-size:0.6rem;">LON:</span>
+                    <input type="text" id="manual-lon" placeholder="-3.7033" value="-3.7033" 
+                           style="flex:1; background:#222; color:#ff3300; border:1px solid #ff3300; padding:2px; border-radius:2px; font-family:monospace; font-size:0.6rem;">
+                </div>
+                
+                <div style="display:flex; gap:4px; margin-bottom:4px;">
+                    <button onclick="updateRescueCoordinatesFromPosition()" style="flex:1; background:#0088ff; color:#fff; border:none; padding:3px; border-radius:2px; font-size:0.6rem; font-weight:bold;">📍 MI POS</button>
+                    <button onclick="dropRescueMarker()" style="flex:1; background:#ffaa00; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem; font-weight:bold;">🆘 MARCAR</button>
+                </div>
+                
+                <div style="display:flex; gap:4px; margin-bottom:4px;">
+                    <button onclick="goToCoordinates()" style="flex:1; background:#ff3300; color:#fff; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">IR</button>
+                    <button onclick="clearRescuePanel()" style="flex:1; background:#666; color:#fff; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">LIMPIAR</button>
+                </div>
+                
+                <div style="display:flex; gap:4px; margin-bottom:4px;">
+                    <button onclick="startRescueMission()" id="start-rescue-btn" style="flex:1; background:#00ff88; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">🚁 INICIAR</button>
+                    <button onclick="cancelRescueMission()" id="cancel-rescue-btn" style="flex:1; background:#666; color:#fff; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">✕ ANULAR</button>
+                </div>
+                
+                <div style="display:flex; gap:4px; margin-bottom:4px;">
+                    <button onclick="calculateRescueRoute()" style="flex:1; background:#00ccff; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">🗺️ RUTA</button>
+                </div>
+                
+                <div id="rescue-info" style="color:#00ffff; font-size:0.55rem; text-align:center; padding:2px; background:rgba(0,255,255,0.1); border-radius:2px; min-height:18px;"></div>
+                <div id="manual-coord-status" style="color:#ffaa00; font-size:0.5rem; text-align:center; margin-top:2px;"></div>
+            </div>
+        </div>
+
+        <!-- PANEL DE WAYPOINTS/RUTA - CON RETORNO AL INICIO -->
+        <div id="waypoint-panel" style="position:absolute; top:65px; right:190px; background:rgba(0,0,0,0.85); border:1px solid #00ff88; border-radius:4px; padding:8px; z-index:1000; width:230px; display:none; backdrop-filter:blur(3px);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #00ff88; padding-bottom:5px; margin-bottom:6px;">
+                <span style="color:#00ff88; font-weight:bold; font-size:0.75rem;">✍️ WAYPOINTS / RUTA</span>
+                <button onclick="hideWaypointPanel()" style="background:none; border:none; color:#00ff88; font-size:0.8rem; cursor:pointer; padding:0 4px;">✕</button>
+            </div>
+            <div id="waypoint-list" style="max-height:140px; overflow-y:auto; color:#fff; font-size:0.6rem; margin-bottom:6px;"></div>
+            
+            <div style="background:rgba(0,100,255,0.1); border:1px solid #0088ff; border-radius:3px; padding:5px; margin-bottom:6px;">
+                <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+                    <span style="color:#0088ff; font-size:0.65rem; font-weight:bold;">📍 MI POSICIÓN</span>
+                </div>
+                <div style="display:flex; gap:4px;">
+                    <button onclick="connectWithMyLocation()" style="flex:1; background:#0088ff; color:#fff; border:none; padding:3px; border-radius:2px; font-size:0.6rem; font-weight:bold;">UNIR</button>
+                    <button onclick="startRouteFromLocation()" style="flex:1; background:#00ccff; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem; font-weight:bold;">INICIAR</button>
+                </div>
+                <div id="location-route-info" style="color:#88ffff; font-size:0.55rem; text-align:center; margin-top:4px; min-height:14px;"></div>
+            </div>
+            
+            <div style="display:flex; gap:4px; margin-bottom:4px;">
+                <button onclick="connectWaypoints()" style="flex:1; background:#00ff88; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">UNIR TODO</button>
+                <button onclick="saveWaypointRoute()" style="flex:1; background:#ffaa00; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">GUARDAR</button>
+            </div>
+            
+            <!-- NUEVA SECCIÓN: CONTROL DE RUTA ACTIVA -->
+            <div id="active-route-controls" style="background:rgba(0,255,136,0.1); border:1px solid #00ff88; border-radius:3px; padding:5px; margin-bottom:6px; display:none;">
+                <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+                    <span style="color:#00ff88; font-size:0.65rem; font-weight:bold;">🚀 RUTA ACTIVA</span>
+                </div>
+                <div style="display:flex; gap:4px;">
+                    <button onclick="returnToRouteStart()" style="flex:1; background:#ffaa00; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem; font-weight:bold;">↩️ RETORNO AL INICIO</button>
+                    <button onclick="stopRouteNavigation()" style="flex:1; background:#ff3300; color:#fff; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">⏹️ DETENER</button>
+                </div>
+                <div id="route-start-info" style="color:#00ff88; font-size:0.55rem; text-align:center; margin-top:4px; min-height:14px;"></div>
+            </div>
+            
+            <div style="display:flex; gap:4px;">
+                <button onclick="startRouteNavigation()" id="nav-btn" style="flex:1; background:#00ccff; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">INICIAR RUTA</button>
+                <button onclick="clearWaypoints()" style="flex:1; background:#ff3300; color:#fff; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">BORRAR</button>
+            </div>
+            <div id="route-info" style="color:#00ffff; font-size:0.55rem; text-align:center; padding:3px; margin-top:5px; background:rgba(0,255,255,0.05); border-radius:2px;"></div>
+        </div>
+
+        <!-- PANEL DE RUTAS GUARDADAS -->
+        <div id="track-history-panel" style="position:absolute; bottom:50px; right:15px; background:rgba(0,0,0,0.85); border:1px solid #00ff88; border-radius:4px; padding:8px; z-index:1000; width:240px; display:none; backdrop-filter:blur(3px);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #00ff88; padding-bottom:5px; margin-bottom:6px;">
+                <span style="color:#00ff88; font-weight:bold; font-size:0.75rem;">📋 RUTAS GUARDADAS</span>
+                <button onclick="toggleTrackHistory()" style="background:none; border:none; color:#00ff88; font-size:0.8rem; cursor:pointer; padding:0 4px;">✕</button>
+            </div>
+            <div id="track-list" style="max-height:200px; overflow-y:auto; color:#fff; font-size:0.6rem; margin-bottom:5px;"></div>
+            <button onclick="clearAllTracks()" style="width:100%; background:#ff3300; color:#fff; border:none; padding:4px; border-radius:2px; font-size:0.6rem;">🗑️ BORRAR HISTORIAL</button>
+        </div>
+
+        <!-- PANEL BRÚJULA -->
+        <div id="compass-container" style="position:absolute; bottom:30px; right:20px; width:160px; height:160px; z-index:2000; pointer-events:none; opacity:0.6; filter:drop-shadow(0 0 8px rgba(0,0,0,0.7));"></div>
+        <div id="compass-data-panel" style="position:absolute; top:15px; right:20px; background:rgba(0,0,0,0.7); border:1px solid #00ff88; border-radius:4px; padding:8px; z-index:2001; min-width:130px; backdrop-filter:blur(3px);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="color:#00ff88; font-size:0.7rem; font-weight:bold;">🧭 COMPASS</span>
+                <button onclick="toggleCompassPanel()" id="compass-panel-toggle" style="background:none; border:none; color:#00ff88; font-size:0.8rem; cursor:pointer; padding:0 4px;">▼</button>
+            </div>
+            <div id="compass-data-content">
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="color:#0088ff; font-size:0.75rem; font-weight:bold;">N:</span>
+                        <span id="magnetic-reading-small" style="color:#fff; font-size:0.7rem; font-family:monospace;">0°</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="color:#00ff88; font-size:0.75rem; font-weight:bold;">R:</span>
+                        <span id="heading-reading-small" style="color:#fff; font-size:0.7rem; font-family:monospace;">0°</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="color:#88ffff; font-size:0.75rem; font-weight:bold;">V:</span>
+                        <span id="wind-reading-small" style="color:#fff; font-size:0.7rem; font-family:monospace;">0°</span>
+                        <span id="wind-speed-small" style="color:#88ffff; font-size:0.6rem; margin-left:auto;">0kt</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de estado inferior -->
+        <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:#00ff88; font-family:monospace; font-size:0.7rem; padding:5px 12px; text-align:center; z-index:1000; border-top:1px solid #00ff88;">
+            <span style="color:#00ff88;">LAT:</span> <span id="cursor-lat" style="color:#fff;">00.000000</span> 
+            <span style="color:#00ff88; margin-left:12px;">|</span> 
+            <span style="color:#00ff88; margin-left:12px;">LON:</span> <span id="cursor-lon" style="color:#fff;">00.000000</span>
+            <span style="margin-left:15px; color:#ffaa00;" id="track-status"></span>
+            <span style="margin-left:15px; color:#00ffff;" id="measure-status"></span>
+            <span style="margin-left:15px; color:#ff3300;" id="rescue-status"></span>
+            <span style="margin-left:15px; color:#00ff88;" id="navigation-status"></span>
         </div>
     </div>
-</div>
 
-<div id="map-source-storage" style="display:none;">
-    <style>
-        #map-wrapper { width: 100%; height: 100%; background: #000; position: relative; }
-        #map-container { width: 100%; height: calc(100% - 40px); background: #111; }
-        .map-tabs { display: flex; background: #222; border-bottom: 1px solid #00ff88; }
-        .map-tab { 
-            flex: 1; padding: 10px; text-align: center; color: #888; 
-            font-size: 0.65rem; cursor: pointer; border-right: 1px solid #333;
-            font-family: monospace; text-transform: uppercase;
+    <!-- LEAFLET Y TURF -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <script>
+        // ===== VARIABLES GLOBALES =====
+        let map, currentLayer, isDualMode = false, dualOverlay = null;
+        let liveTrackLayer, drawnItems, rescueMarker = null, rescueCircle = null;
+        let trackingActive = false, navigationActive = false;
+        let watchId = null, navWatchId = null;
+        let measureLayer, isMeasuring = false;
+        let measurePoints = [], measureTotal = 0;
+        let currentPosition = null, rescuePoint = null;
+        let savedTracks = [];
+        let drawingActive = false, waypoints = [], waypointLine = null;
+        let rescueMissionActive = false;
+        let routePoints = [], routeStartPoint = null, locationRouteLine = null;
+        let magneticDeclination = 2.5, windDirection = 0, windSpeed = 0;
+
+        // Cargar rutas guardadas
+        try {
+            const stored = localStorage.getItem('savedRoutes');
+            if (stored) savedTracks = JSON.parse(stored);
+        } catch(e) {}
+
+        // ===== CAPAS DE MAPA =====
+        const layers = {
+            'TOPO': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }),
+            'VFR': L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', { maxZoom: 18 }),
+            'SEA': L.layerGroup([
+                L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', { maxZoom: 19 }),
+                L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { maxZoom: 18, opacity: 0.92 })
+            ]),
+            'SAT': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+        };
+
+        // ===== INICIALIZACIÓN =====
+        function initMap() {
+            if (map) return;
+            
+            map = L.map('map-canvas', { zoomControl: false }).setView([40.4167, -3.7033], 13);
+            currentLayer = layers['TOPO'].addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            liveTrackLayer = L.polyline([], { color: '#00ff88', weight: 4, opacity: 0.8 }).addTo(map);
+            drawnItems = new L.FeatureGroup().addTo(map);
+            measureLayer = L.layerGroup().addTo(map);
+
+            map.on('mousemove', e => {
+                document.getElementById('cursor-lat').textContent = e.latlng.lat.toFixed(6);
+                document.getElementById('cursor-lon').textContent = e.latlng.lng.toFixed(6);
+            });
+            
+            initCompass();
+            loadTrackList();
+            
+            document.getElementById('manual-lat').value = '40.4167';
+            document.getElementById('manual-lon').value = '-3.7033';
+            
+            setTimeout(() => getInitialPosition(), 500);
         }
-        .map-tab.active { background: #00ff88; color: #000; font-weight: bold; }
-        .map-tools { position: absolute; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
-        .tool-btn { background: rgba(0,0,0,0.8); border: 1px solid #00ff88; color: #00ff88; padding: 8px; cursor: pointer; border-radius: 4px; }
-    </style>
 
-    <div id="map-wrapper">
-        <div class="map-tabs">
-            <div class="map-tab active" onclick="parent.switchMapLayer('TOPO')">TOPOGRÁFICO</div>
-            <div class="map-tab" onclick="parent.switchMapLayer('VFR')">VUELO VFR</div>
-            <div class="map-tab" onclick="parent.switchMapLayer('SEA')">NÁUTICO</div>
-        </div>
-        <div id="map-container"></div>
-        <div class="map-tools">
-            <button class="tool-btn" title="Mi Posición">🎯</button>
-            <button class="tool-btn" title="Añadir Track">✍️</button>
-            <button class="tool-btn" title="Descargar Offline">💾</button>
-        </div>
-    </div>
+        // ===== BRÚJULA =====
+        function initCompass() {
+            const container = document.getElementById('compass-container');
+            container.innerHTML = `
+                <svg viewBox="0 0 200 200" style="width:100%; height:100%; backdrop-filter:blur(2px); border-radius:50%; background:rgba(5,5,5,0.15);">
+                    <defs>
+                        <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="2"/><feMerge><feMergeNode in="offsetblur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                        <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="2"/><feMerge><feMergeNode in="offsetblur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                        <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/><feMerge><feMergeNode in="offsetblur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    </defs>
+                    <circle cx="100" cy="100" r="85" fill="none" stroke="#444" stroke-width="1" stroke-dasharray="3 3" opacity="0.3"/>
+                    <circle cx="100" cy="100" r="82" fill="none" stroke="#00ff88" stroke-width="0.6" opacity="0.2"/>
+                    <line x1="100" y1="20" x2="100" y2="28" stroke="#fff" stroke-width="1.8" opacity="0.8"/>
+                    <line x1="100" y1="172" x2="100" y2="180" stroke="#fff" stroke-width="1.5" opacity="0.6"/>
+                    <line x1="20" y1="100" x2="28" y2="100" stroke="#fff" stroke-width="1.5" opacity="0.6"/>
+                    <line x1="172" y1="100" x2="180" y2="100" stroke="#fff" stroke-width="1.5" opacity="0.6"/>
+                    <text x="100" y="40" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold" opacity="0.9">N</text>
+                    <text x="100" y="175" text-anchor="middle" fill="#fff" font-size="9" opacity="0.7">S</text>
+                    <text x="40" y="105" text-anchor="middle" fill="#fff" font-size="9" opacity="0.7">W</text>
+                    <text x="160" y="105" text-anchor="middle" fill="#fff" font-size="9" opacity="0.7">E</text>
+                    <polygon id="north-magnetic" points="100,38 90,58 110,58" fill="#0088ff" stroke="#fff" stroke-width="1.2" filter="url(#glow-blue)" opacity="0.95" transform-origin="100 100"/>
+                    <polygon id="heading-indicator" points="100,30 87,55 113,55" fill="#00ff88" stroke="#fff" stroke-width="1.2" filter="url(#glow-green)" opacity="0.95" transform-origin="100 100"/>
+                    <g id="wind-indicator" transform-origin="100 100">
+                        <line x1="100" y1="100" x2="100" y2="48" stroke="#88ffff" stroke-width="2.5" stroke-linecap="round" opacity="0.9" filter="url(#glow-cyan)"/>
+                        <polygon points="100,40 93,53 107,53" fill="#88ffff" stroke="#fff" stroke-width="0.8" opacity="0.95"/>
+                        <circle cx="100" cy="100" r="5" fill="#88ffff" stroke="#fff" stroke-width="1" opacity="0.95"/>
+                    </g>
+                    <circle cx="100" cy="100" r="7" fill="#0a0a0a" stroke="#00ff88" stroke-width="1.2"/>
+                    <circle cx="100" cy="100" r="3" fill="#00ff88" stroke="none"/>
+                </svg>
+            `;
+        }
+
+        function updateHeading(bearing) {
+            const el = document.getElementById('heading-indicator');
+            const txt = document.getElementById('heading-reading-small');
+            if (el) { bearing = (bearing + 360) % 360; el.style.transform = `rotate(${bearing}deg)`; }
+            if (txt) txt.textContent = `${bearing.toFixed(0)}°`;
+        }
+
+        function updateMagneticNorth(trueNorth) {
+            const el = document.getElementById('north-magnetic');
+            const txt = document.getElementById('magnetic-reading-small');
+            if (el) { let mn = (trueNorth - magneticDeclination + 360) % 360; el.style.transform = `rotate(${mn}deg)`; }
+            if (txt) txt.textContent = `${((0 - magneticDeclination + 360) % 360).toFixed(0)}°`;
+        }
+
+        function updateWindDirection(dir, spd = 0) {
+            const el = document.getElementById('wind-indicator');
+            const txt = document.getElementById('wind-reading-small');
+            const spdTxt = document.getElementById('wind-speed-small');
+            if (el) { dir = (dir + 360) % 360; el.style.transform = `rotate(${dir}deg)`; }
+            if (txt) txt.textContent = `${dir.toFixed(0)}°`;
+            if (spdTxt) spdTxt.textContent = `${spd.toFixed(0)}kt`;
+        }
+
+        // ===== POSICIÓN INICIAL =====
+        function getInitialPosition() {
+            if (!navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition(pos => {
+                currentPosition = [pos.coords.latitude, pos.coords.longitude];
+                map.setView(currentPosition, 15);
+                addBaseMarker();
+                updateMagneticNorth(0);
+                updateWindDirection(180, 8);
+            }, null, { enableHighAccuracy: true, timeout: 10000 });
+        }
+
+        function addBaseMarker() {
+            L.marker(currentPosition, {
+                icon: L.divIcon({ html: '<div style="font-size:22px;">📍</div>', iconSize: [26, 26] })
+            }).addTo(drawnItems).bindPopup('🚨 BASE - TU POSICIÓN').openPopup();
+        }
+
+        // ===== PANEL RESCATE =====
+        function updateRescueCoordinatesFromPosition() {
+            if (currentPosition) {
+                document.getElementById('manual-lat').value = currentPosition[0].toFixed(6);
+                document.getElementById('manual-lon').value = currentPosition[1].toFixed(6);
+                document.getElementById('manual-coord-status').innerHTML = '📍 Coordenadas actualizadas';
+                document.getElementById('manual-coord-status').style.color = '#00ff88';
+            } else {
+                alert('No hay posición disponible. Activa el GPS primero.');
+                centerOnMyPosition();
+                setTimeout(() => {
+                    if (currentPosition) {
+                        document.getElementById('manual-lat').value = currentPosition[0].toFixed(6);
+                        document.getElementById('manual-lon').value = currentPosition[1].toFixed(6);
+                        document.getElementById('manual-coord-status').innerHTML = '📍 Coordenadas actualizadas';
+                    }
+                }, 2000);
+            }
+        }
+
+        function toggleRescuePanel() {
+            const c = document.getElementById('rescue-content');
+            const b = document.getElementById('rescue-toggle-btn');
+            if (c.style.display === 'none') { c.style.display = 'block'; b.textContent = '▼'; }
+            else { c.style.display = 'none'; b.textContent = '▲'; }
+        }
+
+        // ===== MARCADOR DE RESCATE =====
+        function dropRescueMarker() {
+            try {
+                const lat = parseFloat(document.getElementById('manual-lat').value);
+                const lon = parseFloat(document.getElementById('manual-lon').value);
+                
+                if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                    throw new Error('Coordenadas inválidas');
+                }
+                
+                if (rescueMarker) map.removeLayer(rescueMarker);
+                if (rescueCircle) map.removeLayer(rescueCircle);
+                
+                const pulseIcon = L.divIcon({
+                    html: '<div style="font-size:32px; animation: pulse 1.5s infinite;">🆘</div>',
+                    className: 'rescue-pulse-icon',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 40],
+                    popupAnchor: [0, -40]
+                });
+                
+                rescueMarker = L.marker([lat, lon], {
+                    icon: pulseIcon,
+                    zIndexOffset: 1000
+                }).addTo(map);
+                
+                rescuePoint = [lat, lon];
+                
+                rescueCircle = L.circleMarker([lat, lon], {
+                    radius: 20,
+                    color: '#ff3300',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillColor: '#ff3300',
+                    fillOpacity: 0.2
+                }).addTo(map);
+                
+                rescueMarker.bindPopup(`
+                    <div style="color:#ff3300; text-align:center; font-weight:bold;">
+                        <div style="font-size:1.2rem; margin-bottom:5px;">🚨 PUNTO DE RESCATE</div>
+                        <div>LAT: ${lat.toFixed(6)}</div>
+                        <div>LON: ${lon.toFixed(6)}</div>
+                        <div style="margin-top:8px; font-size:0.9rem; color:#fff;">${new Date().toLocaleTimeString()}</div>
+                        <button onclick="calculateRescueRoute()" style="background:#ff3300; color:white; border:none; padding:5px 10px; border-radius:4px; margin-top:10px; cursor:pointer; font-weight:bold;">🗺️ CALCULAR RUTA</button>
+                    </div>
+                `, { minWidth: 220 }).openPopup();
+                
+                document.getElementById('manual-coord-status').innerHTML = '✅ PUNTO DE RESCATE MARCADO';
+                document.getElementById('manual-coord-status').style.color = '#ff3300';
+                document.getElementById('rescue-status').innerHTML = '🆘 RESCATE ACTIVO';
+                
+                if (currentPosition) {
+                    calculateRescueRoute();
+                }
+                
+            } catch(e) {
+                document.getElementById('manual-coord-status').innerHTML = '❌ Coordenadas inválidas';
+                document.getElementById('manual-coord-status').style.color = '#ff3300';
+            }
+        }
+
+        // ===== CÁLCULO DE RUTA DE RESCATE - CORREGIDO =====
+        function calculateRescueRoute() {
+            if (!currentPosition) {
+                alert('No hay posición actual. Activa el GPS.');
+                return;
+            }
+            if (!rescuePoint) {
+                alert('Marca un punto de rescate primero.');
+                return;
+            }
+            
+            drawnItems.eachLayer(l => { 
+                if (l.options && l.options.className === 'rescue-route') {
+                    drawnItems.removeLayer(l); 
+                }
+            });
+            
+            const from = turf.point([currentPosition[1], currentPosition[0]]);
+            const to = turf.point([rescuePoint[1], rescuePoint[0]]);
+            
+            const distance = turf.distance(from, to, { units: 'kilometers' });
+            const bearing = turf.bearing(from, to);
+            
+            // Crear línea de ruta
+            const routeLine = L.polyline([currentPosition, rescuePoint], { 
+                color: '#ff3300', 
+                weight: 5, 
+                opacity: 0.8, 
+                dashArray: '10, 10', 
+                className: 'rescue-route' 
+            }).addTo(drawnItems);
+            
+            // Añadir marcador de inicio
+            L.marker(currentPosition, {
+                icon: L.divIcon({ 
+                    html: '<div style="font-size:20px;">🚁</div>', 
+                    iconSize: [24, 24] 
+                })
+            }).addTo(drawnItems).bindPopup('📍 Punto de inicio');
+            
+            // Etiqueta de distancia y rumbo en el punto medio
+            const mid = [(currentPosition[0] + rescuePoint[0])/2, (currentPosition[1] + rescuePoint[1])/2];
+            
+            L.marker(mid, {
+                icon: L.divIcon({
+                    html: `<div style="background:#ff3300; color:white; padding:6px 12px; border-radius:20px; font-weight:bold; font-size:0.8rem; white-space:nowrap; box-shadow:0 0 10px rgba(255,51,0,0.5); border:1px solid white;">
+                            🚁 ${(distance * 1000).toFixed(0)}m | 🧭 ${bearing.toFixed(1)}°
+                          </div>`,
+                    iconSize: [140, 32]
+                })
+            }).addTo(drawnItems);
+            
+            document.getElementById('rescue-info').innerHTML = `🚁 DISTANCIA: ${(distance * 1000).toFixed(0)}m | 🧭 RUMBO: ${bearing.toFixed(1)}°`;
+            updateHeading(bearing);
+            
+            // Guardar como ruta actual
+            routePoints = [currentPosition, rescuePoint];
+            routeStartPoint = currentPosition;
+        }
+
+        function startRescueMission() {
+            if (!rescuePoint) { 
+                alert('Marca un punto de rescate primero'); 
+                return; 
+            }
+            rescueMissionActive = true;
+            const btn = document.getElementById('start-rescue-btn');
+            btn.style.background = '#ff3300'; 
+            btn.innerHTML = '🚁 MISIÓN ACTIVA';
+            document.getElementById('rescue-status').innerHTML = '🚨 MISIÓN DE RESCATE ACTIVA';
+            document.getElementById('rescue-status').style.color = '#ff3300';
+            
+            if (!trackingActive) toggleLiveTracking();
+            calculateRescueRoute();
+            startRouteNavigation();
+        }
+
+        function cancelRescueMission() {
+            rescueMissionActive = false;
+            const btn = document.getElementById('start-rescue-btn');
+            btn.style.background = '#00ff88'; 
+            btn.innerHTML = '🚁 INICIAR';
+            document.getElementById('rescue-status').innerHTML = '✕ MISIÓN ANULADA';
+            document.getElementById('rescue-status').style.color = '#ffaa00';
+        }
+
+        function clearRescuePanel() {
+            if (rescueMarker) { map.removeLayer(rescueMarker); rescueMarker = null; }
+            if (rescueCircle) { map.removeLayer(rescueCircle); rescueCircle = null; }
+            rescuePoint = null;
+            
+            document.getElementById('rescue-info').innerHTML = '';
+            document.getElementById('manual-coord-status').innerHTML = '🧹 Marcador eliminado';
+            document.getElementById('rescue-status').innerHTML = '';
+            
+            if (rescueMissionActive) cancelRescueMission();
+            
+            drawnItems.eachLayer(l => { 
+                if (l.options && l.options.className === 'rescue-route') {
+                    drawnItems.removeLayer(l); 
+                }
+            });
+        }
+
+        function goToCoordinates() {
+            try {
+                const lat = parseFloat(document.getElementById('manual-lat').value);
+                const lon = parseFloat(document.getElementById('manual-lon').value);
+                if (isNaN(lat) || isNaN(lon)) throw new Error();
+                map.setView([lat, lon], 16);
+                document.getElementById('manual-coord-status').innerHTML = '📍 Vista centrada';
+                document.getElementById('manual-coord-status').style.color = '#00ff88';
+            } catch(e) { 
+                document.getElementById('manual-coord-status').innerHTML = '❌ Coordenadas inválidas';
+                document.getElementById('manual-coord-status').style.color = '#ff3300';
+            }
+        }
+
+        function centerOnMyPosition() {
+            if (!navigator.geolocation) { alert('Geolocalización no soportada'); return; }
+            navigator.geolocation.getCurrentPosition(pos => {
+                currentPosition = [pos.coords.latitude, pos.coords.longitude];
+                map.setView(currentPosition, 16);
+                
+                L.marker(currentPosition, {
+                    icon: L.divIcon({ html: '<div style="font-size:22px;">📍</div>', iconSize: [26, 26] })
+                }).addTo(drawnItems).bindPopup('📍 TU POSICIÓN').openPopup();
+                
+                if (rescuePoint) calculateRescueRoute();
+            });
+        }
+
+        // ===== TRACKING EN VIVO =====
+        function toggleLiveTracking() {
+            const btn = document.getElementById('track-btn');
+            const status = document.getElementById('track-status');
+            if (!trackingActive) {
+                trackingActive = true;
+                btn.style.color = '#ffaa00'; btn.textContent = '⏸️';
+                const points = [];
+                watchId = navigator.geolocation.watchPosition(pos => {
+                    const p = [pos.coords.latitude, pos.coords.longitude];
+                    points.push(p);
+                    if (points.length > 500) points.shift();
+                    liveTrackLayer.setLatLngs(points);
+                    currentPosition = p;
+                    
+                    if (points.length > 1) {
+                        const last = points[points.length - 1], prev = points[points.length - 2];
+                        const from = turf.point([prev[1], prev[0]]), to = turf.point([last[1], last[0]]);
+                        updateHeading(turf.bearing(from, to));
+                        let total = 0;
+                        for (let i = 1; i < points.length; i++) {
+                            const f = turf.point([points[i-1][1], points[i-1][0]]), t = turf.point([points[i][1], points[i][0]]);
+                            total += turf.distance(f, t, {units: 'kilometers'});
+                        }
+                        status.innerHTML = `🔴 ${(total*1000).toFixed(0)}m`;
+                    }
+                    
+                    if (rescueMissionActive && rescuePoint) {
+                        const from = turf.point([p[1], p[0]]), to = turf.point([rescuePoint[1], rescuePoint[0]]);
+                        const dist = turf.distance(from, to, {units: 'kilometers'}), bearing = turf.bearing(from, to);
+                        document.getElementById('rescue-info').innerHTML = `🚁 ${(dist*1000).toFixed(0)}m | 🧭 ${bearing.toFixed(1)}°`;
+                        updateHeading(bearing);
+                    }
+                    
+                    // Actualizar información de retorno al inicio si hay ruta activa
+                    if (navigationActive && routeStartPoint) {
+                        const from = turf.point([p[1], p[0]]), to = turf.point([routeStartPoint[1], routeStartPoint[0]]);
+                        const distToStart = turf.distance(from, to, {units: 'kilometers'});
+                        const bearingToStart = turf.bearing(from, to);
+                        document.getElementById('route-start-info').innerHTML = `↩️ INICIO: ${(distToStart*1000).toFixed(0)}m | 🧭 ${bearingToStart.toFixed(1)}°`;
+                    }
+                    
+                }, null, { enableHighAccuracy: true });
+            } else {
+                trackingActive = false;
+                btn.style.color = '#00ff88'; btn.textContent = '▶️';
+                status.innerHTML = '⏹️ PAUSADO';
+                if (watchId) navigator.geolocation.clearWatch(watchId);
+            }
+        }
+
+        // ===== MEDICIÓN =====
+        function toggleMeasure() {
+            isMeasuring = !isMeasuring;
+            const btn = document.getElementById('measure-btn');
+            const status = document.getElementById('measure-status');
+            if (isMeasuring) {
+                measurePoints = []; measureLayer.clearLayers(); measureTotal = 0;
+                btn.style.color = '#ffaa00'; btn.style.background = 'rgba(255,170,0,0.2)';
+                status.innerHTML = '📏 Click en mapa';
+                map.off('click', addMeasurePoint);
+                map.on('click', addMeasurePoint);
+                document.getElementById('rescue-status').innerHTML = '📏 MODO MEDICIÓN';
+            } else {
+                btn.style.color = '#00ff88'; btn.style.background = 'none';
+                status.innerHTML = '';
+                map.off('click', addMeasurePoint);
+                document.getElementById('rescue-status').innerHTML = '';
+            }
+        }
+
+        function getCardinalDirection(b) {
+            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            return dirs[Math.round(((b + 360) % 360) / 45) % 8];
+        }
+
+        function addMeasurePoint(e) {
+            if (!isMeasuring) return;
+            const p = e.latlng;
+            measurePoints.push(p);
+            
+            L.circleMarker(p, { 
+                radius: 6, 
+                color: '#00ffff', 
+                weight: 2, 
+                fillColor: '#00ffff', 
+                fillOpacity: 0.8 
+            }).addTo(measureLayer).bindPopup(`<b>P${measurePoints.length}</b><br>${p.lat.toFixed(6)}<br>${p.lng.toFixed(6)}`);
+            
+            if (measurePoints.length > 1) {
+                const last = measurePoints[measurePoints.length - 2];
+                const from = turf.point([last.lng, last.lat]), to = turf.point([p.lng, p.lat]);
+                const dKm = turf.distance(from, to, {units: 'kilometers'}), dM = dKm * 1000;
+                const b = turf.bearing(from, to), card = getCardinalDirection(b);
+                
+                L.polyline([last, p], { 
+                    color: '#00ffff', 
+                    weight: 4, 
+                    opacity: 0.8, 
+                    dashArray: '8,6' 
+                }).addTo(measureLayer);
+                
+                measureTotal += dKm;
+                
+                const mid = [(last.lat + p.lat)/2, (last.lng + p.lng)/2];
+                L.marker(mid, {
+                    icon: L.divIcon({ 
+                        html: `<div style="background:#00ffff; color:#000; padding:4px 8px; border-radius:16px; font-size:0.65rem; white-space:nowrap;">
+                                ${dM.toFixed(1)}m | ${b.toFixed(1)}° ${card}
+                              </div>`, 
+                        iconSize: [120, 24] 
+                    })
+                }).addTo(measureLayer);
+                
+                document.getElementById('measure-status').innerHTML = 
+                    measurePoints.length > 2 ? `📐 TOTAL: ${(measureTotal*1000).toFixed(0)}m | ${measurePoints.length} pts` :
+                    `📏 ${dM.toFixed(1)}m | ${b.toFixed(1)}° ${card}`;
+                
+                updateHeading(b);
+            }
+        }
+
+        // ===== WAYPOINTS =====
+        function toggleDrawingMode() {
+            drawingActive = !drawingActive;
+            const btn = document.getElementById('draw-btn');
+            if (drawingActive) {
+                btn.style.color = '#ffaa00'; btn.style.background = 'rgba(255,170,0,0.2)';
+                map.on('click', addWaypoint);
+                document.getElementById('waypoint-panel').style.display = 'block';
+                document.getElementById('rescue-status').innerHTML = '✍️ DIBUJO ACTIVO';
+            } else {
+                btn.style.color = '#00ff88'; btn.style.background = 'none';
+                map.off('click', addWaypoint);
+                document.getElementById('rescue-status').innerHTML = '';
+            }
+        }
+
+        function addWaypoint(e) {
+            const lat = e.latlng.lat, lon = e.latlng.lng, id = Date.now() + Math.random();
+            const marker = L.marker([lat, lon], {
+                icon: L.divIcon({
+                    html: `<div style="position:relative;">
+                            <div style="font-size:22px;">📍</div>
+                            <div style="background:#00ff88; color:#000; padding:1px 5px; border-radius:8px; font-size:0.5rem; position:absolute; top:-20px; left:5px; white-space:nowrap;">
+                                ${lat.toFixed(4)}, ${lon.toFixed(4)}
+                            </div>
+                           </div>`,
+                    iconSize: [36, 45]
+                })
+            }).addTo(drawnItems);
+            
+            marker.bindPopup(`
+                <div style="text-align:center; font-size:0.7rem;">
+                    <b style="color:#00ff88;">📍 WAYPOINT</b><br>
+                    ${lat.toFixed(6)}<br>${lon.toFixed(6)}<br>
+                    <button onclick="setAsRescuePoint(${lat}, ${lon})" style="background:#ff3300; color:white; border:none; padding:3px 6px; border-radius:2px; margin-top:3px; font-size:0.6rem;">🆘 RESCATE</button>
+                    <button onclick="removeWaypoint('${id}')" style="background:#666; color:white; border:none; padding:3px 6px; border-radius:2px; margin-left:3px; font-size:0.6rem;">✕</button>
+                </div>
+            `);
+            
+            waypoints.push({ id, lat, lon, marker });
+            updateWaypointList();
+            if (waypoints.length > 1) connectWaypoints();
+        }
+
+        function removeWaypoint(id) {
+            const i = waypoints.findIndex(w => w.id == id);
+            if (i !== -1) {
+                drawnItems.removeLayer(waypoints[i].marker);
+                waypoints.splice(i, 1);
+                updateWaypointList();
+                if (waypointLine) { drawnItems.removeLayer(waypointLine); waypointLine = null; }
+                if (waypoints.length > 1) connectWaypoints();
+            }
+        }
+
+        function setAsRescuePoint(lat, lon) {
+            document.getElementById('manual-lat').value = lat.toFixed(6);
+            document.getElementById('manual-lon').value = lon.toFixed(6);
+            dropRescueMarker();
+            const c = document.getElementById('rescue-content');
+            if (c.style.display === 'none') toggleRescuePanel();
+        }
+
+        function updateWaypointList() {
+            const list = document.getElementById('waypoint-list');
+            if (waypoints.length === 0) { 
+                list.innerHTML = '<div style="color:#888; padding:5px; text-align:center;">Sin waypoints</div>'; 
+                return; 
+            }
+            let html = '';
+            waypoints.forEach((wp, i) => {
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,255,136,0.05); margin-bottom:3px; padding:4px; border-left:2px solid #00ff88;">
+                            <div>
+                                <span style="color:#00ff88; font-weight:bold; font-size:0.6rem;">WP${i+1}</span>
+                                <span style="color:#aaa; font-size:0.5rem; margin-left:4px;">${wp.lat.toFixed(4)}, ${wp.lon.toFixed(4)}</span>
+                            </div>
+                            <div>
+                                <button onclick="setAsRescuePoint(${wp.lat}, ${wp.lon})" style="background:#ff3300; color:white; border:none; padding:2px 4px; border-radius:2px; font-size:0.5rem;">🆘</button>
+                                <button onclick="removeWaypoint('${wp.id}')" style="background:#666; color:white; border:none; padding:2px 4px; border-radius:2px; font-size:0.5rem; margin-left:2px;">✕</button>
+                            </div>
+                        </div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        function connectWaypoints() {
+            if (waypoints.length < 2) return;
+            if (waypointLine) drawnItems.removeLayer(waypointLine);
+            const pts = waypoints.map(w => [w.lat, w.lon]);
+            waypointLine = L.polyline(pts, { 
+                color: '#00ff88', 
+                weight: 3, 
+                opacity: 0.7, 
+                dashArray: '6,5' 
+            }).addTo(drawnItems);
+            routePoints = pts;
+            routeStartPoint = pts[0];
+            let total = 0;
+            for (let i = 1; i < pts.length; i++) {
+                const f = turf.point([pts[i-1][1], pts[i-1][0]]), t = turf.point([pts[i][1], pts[i][0]]);
+                total += turf.distance(f, t, {units: 'kilometers'});
+            }
+            document.getElementById('route-info').innerHTML = `🔗 ${(total*1000).toFixed(0)}m | ${waypoints.length} pts`;
+        }
+
+        // ===== UNIR CON MI UBICACIÓN =====
+        function connectWithMyLocation() {
+            if (!currentPosition) { 
+                centerOnMyPosition(); 
+                setTimeout(connectWithMyLocation, 2000); 
+                return; 
+            }
+            if (waypoints.length === 0) { 
+                alert('Dibuja waypoints primero'); 
+                return; 
+            }
+            if (locationRouteLine) drawnItems.removeLayer(locationRouteLine);
+            const pts = [currentPosition, ...waypoints.map(w => [w.lat, w.lon])];
+            locationRouteLine = L.polyline(pts, { 
+                color: '#0088ff', 
+                weight: 4, 
+                opacity: 0.8, 
+                dashArray: '8,6' 
+            }).addTo(drawnItems);
+            routePoints = pts;
+            routeStartPoint = pts[0];
+            let total = 0;
+            for (let i = 1; i < pts.length; i++) {
+                const f = turf.point([pts[i-1][1], pts[i-1][0]]), t = turf.point([pts[i][1], pts[i][0]]);
+                total += turf.distance(f, t, {units: 'kilometers'});
+            }
+            const f = turf.point([currentPosition[1], currentPosition[0]]), t = turf.point([waypoints[0].lon, waypoints[0].lat]);
+            const d = turf.distance(f, t, {units: 'kilometers'}), b = turf.bearing(f, t);
+            document.getElementById('location-route-info').innerHTML = `📍 WP1: ${(d*1000).toFixed(0)}m | 🧭 ${b.toFixed(0)}°`;
+            document.getElementById('route-info').innerHTML = `🔵 RUTA: ${(total*1000).toFixed(0)}m | ${waypoints.length} wp`;
+            updateHeading(b);
+            map.fitBounds(locationRouteLine.getBounds());
+        }
+
+        function startRouteFromLocation() {
+            if (!currentPosition) { 
+                centerOnMyPosition(); 
+                setTimeout(startRouteFromLocation, 2000); 
+                return; 
+            }
+            if (waypoints.length === 0) { 
+                alert('Dibuja waypoints primero'); 
+                return; 
+            }
+            if (!locationRouteLine) connectWithMyLocation();
+            startRouteNavigation();
+            alert('🚀 Ruta iniciada desde tu posición');
+        }
+
+        // ===== FUNCIONES DE NAVEGACIÓN DE RUTA =====
+        function startRouteNavigation() {
+            if (!routePoints || routePoints.length < 2) {
+                if (waypoints.length > 1) {
+                    connectWaypoints();
+                } else if (rescuePoint && currentPosition) {
+                    routePoints = [currentPosition, rescuePoint];
+                    routeStartPoint = currentPosition;
+                } else {
+                    alert('Primero crea una ruta con waypoints, conecta con tu ubicación o marca un punto de rescate');
+                    return;
+                }
+            }
+            
+            navigationActive = true;
+            document.getElementById('navigation-status').innerHTML = '🧭 NAVEGANDO RUTA';
+            document.getElementById('nav-btn').style.background = '#ff3300';
+            document.getElementById('nav-btn').innerHTML = '🚀 NAVEGANDO';
+            
+            // Mostrar controles de ruta activa
+            document.getElementById('active-route-controls').style.display = 'block';
+            
+            if (!trackingActive) toggleLiveTracking();
+            
+            if (routePoints && routePoints.length > 1) {
+                const bounds = L.latLngBounds(routePoints.map(p => [p[0], p[1]]));
+                map.fitBounds(bounds);
+            }
+            
+            // Guardar punto de inicio si no existe
+            if (!routeStartPoint) {
+                routeStartPoint = routePoints[0];
+            }
+            
+            // Calcular distancia al inicio
+            if (currentPosition && routeStartPoint) {
+                const from = turf.point([currentPosition[1], currentPosition[0]]);
+                const to = turf.point([routeStartPoint[1], routeStartPoint[0]]);
+                const distToStart = turf.distance(from, to, {units: 'kilometers'});
+                const bearingToStart = turf.bearing(from, to);
+                document.getElementById('route-start-info').innerHTML = `↩️ INICIO: ${(distToStart*1000).toFixed(0)}m | 🧭 ${bearingToStart.toFixed(1)}°`;
+            }
+        }
+
+        // ===== NUEVA FUNCIÓN: RETORNO AL INICIO DE LA RUTA =====
+        function returnToRouteStart() {
+            if (!routeStartPoint) {
+                alert('No hay punto de inicio de ruta definido');
+                return;
+            }
+            
+            // Centrar mapa en el punto de inicio
+            map.setView(routeStartPoint, 16);
+            
+            // Crear marcador temporal en el inicio
+            L.marker(routeStartPoint, {
+                icon: L.divIcon({ 
+                    html: '<div style="font-size:24px;">🏁</div>', 
+                    iconSize: [28, 28] 
+                })
+            }).addTo(drawnItems).bindPopup('🏁 INICIO DE RUTA').openPopup();
+            
+            // Calcular ruta desde posición actual al inicio
+            if (currentPosition) {
+                const from = turf.point([currentPosition[1], currentPosition[0]]);
+                const to = turf.point([routeStartPoint[1], routeStartPoint[0]]);
+                const distance = turf.distance(from, to, {units: 'kilometers'});
+                const bearing = turf.bearing(from, to);
+                
+                // Dibujar línea de retorno
+                L.polyline([currentPosition, routeStartPoint], {
+                    color: '#ffaa00',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 8',
+                    className: 'return-route'
+                }).addTo(drawnItems);
+                
+                alert(`↩️ Retorno al inicio: ${(distance*1000).toFixed(0)}m | Rumbo: ${bearing.toFixed(1)}°`);
+            }
+        }
+
+        function stopRouteNavigation() {
+            navigationActive = false;
+            document.getElementById('navigation-status').innerHTML = '';
+            document.getElementById('nav-btn').style.background = '#00ccff';
+            document.getElementById('nav-btn').innerHTML = 'INICIAR RUTA';
+            document.getElementById('active-route-controls').style.display = 'none';
+            document.getElementById('route-start-info').innerHTML = '';
+            
+            // Eliminar líneas de retorno
+            drawnItems.eachLayer(l => {
+                if (l.options && l.options.className === 'return-route') {
+                    drawnItems.removeLayer(l);
+                }
+            });
+        }
+
+        // ===== PANELES OCULTABLES =====
+        function hideWaypointPanel() { 
+            document.getElementById('waypoint-panel').style.display = 'none'; 
+        }
+        
+        function toggleWaypointPanel() {
+            const p = document.getElementById('waypoint-panel');
+            p.style.display = p.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function toggleCompassPanel() {
+            const c = document.getElementById('compass-data-content');
+            const b = document.getElementById('compass-panel-toggle');
+            if (c.style.display === 'none') { 
+                c.style.display = 'block'; 
+                b.innerHTML = '▼'; 
+            } else { 
+                c.style.display = 'none'; 
+                b.innerHTML = '▲'; 
+            }
+        }
+
+        // ===== GUARDAR RUTA =====
+        function saveCurrentRoute() {
+            let pts = [];
+            if (locationRouteLine && routePoints.length > 1) pts = routePoints;
+            else if (waypoints.length > 1) pts = waypoints.map(w => [w.lat, w.lon]);
+            else if (rescuePoint && currentPosition) pts = [currentPosition, rescuePoint];
+            else { 
+                alert('No hay ruta para guardar'); 
+                return; 
+            }
+            let total = 0;
+            for (let i = 1; i < pts.length; i++) {
+                const f = turf.point([pts[i-1][1], pts[i-1][0]]), t = turf.point([pts[i][1], pts[i][0]]);
+                total += turf.distance(f, t, {units: 'kilometers'});
+            }
+            savedTracks.push({
+                id: Date.now(),
+                date: new Date().toLocaleString(),
+                points: pts,
+                distance: total,
+                pointCount: pts.length,
+                type: locationRouteLine ? 'ruta_desde_ubicacion' : 'ruta'
+            });
+            if (savedTracks.length > 15) savedTracks.shift();
+            localStorage.setItem('savedRoutes', JSON.stringify(savedTracks));
+            loadTrackList();
+            document.getElementById('track-status').innerHTML = `✅ GUARDADA (${(total*1000).toFixed(0)}m)`;
+            setTimeout(() => { document.getElementById('track-status').innerHTML = ''; }, 3000);
+        }
+        
+        function saveWaypointRoute() { saveCurrentRoute(); }
+
+        // ===== HISTORIAL DE RUTAS =====
+        function showTrackHistory() { 
+            document.getElementById('track-history-panel').style.display = 'block'; 
+            loadTrackList(); 
+        }
+        
+        function toggleTrackHistory() { 
+            document.getElementById('track-history-panel').style.display = 'none'; 
+        }
+
+        function loadTrackList() {
+            const list = document.getElementById('track-list');
+            if (savedTracks.length === 0) { 
+                list.innerHTML = '<div style="color:#888; padding:8px; text-align:center;">No hay rutas</div>'; 
+                return; 
+            }
+            let html = '';
+            savedTracks.slice().reverse().forEach((t, i) => {
+                html += `<div style="background:rgba(0,255,136,0.05); margin-bottom:6px; padding:6px; border-left:2px solid #00ff88;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span style="color:#00ff88; font-size:0.65rem; font-weight:bold;">${t.type === 'ruta_desde_ubicacion' ? '📍 DESDE POS' : '📍 RUTA'}</span>
+                                <span style="color:#aaa; font-size:0.5rem;">${t.pointCount} pts</span>
+                            </div>
+                            <div style="color:#fff; font-size:0.6rem; margin:3px 0;">📏 ${(t.distance*1000).toFixed(0)}m</div>
+                            <div style="display:flex; gap:4px; margin-top:3px;">
+                                <button onclick="loadRoute('${t.id}')" style="flex:1; background:#00ff88; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.55rem;">CARGAR</button>
+                                <button onclick="startRouteFromHistory('${t.id}')" style="flex:1; background:#00ccff; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.55rem;">INICIAR</button>
+                                <button onclick="deleteRoute('${t.id}')" style="flex:1; background:#ff3300; color:#fff; border:none; padding:3px; border-radius:2px; font-size:0.55rem;">BORRAR</button>
+                            </div>
+                        </div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        function startRouteFromHistory(id) {
+            const t = savedTracks.find(t => t.id == id);
+            if (t) {
+                if (waypointLine) drawnItems.removeLayer(waypointLine);
+                waypointLine = L.polyline(t.points, { 
+                    color: t.type === 'ruta_desde_ubicacion' ? '#0088ff' : '#00ff88', 
+                    weight: 4, 
+                    opacity: 0.8, 
+                    dashArray: '8,6' 
+                }).addTo(drawnItems);
+                routePoints = t.points;
+                routeStartPoint = t.points[0];
+                startRouteNavigation();
+                alert(`🚀 Ruta iniciada - ${(t.distance*1000).toFixed(0)}m`);
+                toggleTrackHistory();
+            }
+        }
+
+        function loadRoute(id) {
+            const t = savedTracks.find(t => t.id == id);
+            if (t) {
+                if (waypointLine) drawnItems.removeLayer(waypointLine);
+                waypointLine = L.polyline(t.points, { 
+                    color: t.type === 'ruta_desde_ubicacion' ? '#0088ff' : '#00ff88', 
+                    weight: 4, 
+                    opacity: 0.8, 
+                    dashArray: '8,6' 
+                }).addTo(drawnItems);
+                routePoints = t.points;
+                routeStartPoint = t.points[0];
+                map.fitBounds(waypointLine.getBounds());
+                document.getElementById('route-info').innerHTML = `📂 CARGADA: ${(t.distance*1000).toFixed(0)}m`;
+                toggleTrackHistory();
+            }
+        }
+
+        function deleteRoute(id) { 
+            savedTracks = savedTracks.filter(t => t.id != id); 
+            localStorage.setItem('savedRoutes', JSON.stringify(savedTracks)); 
+            loadTrackList(); 
+        }
+        
+        function clearAllTracks() { 
+            if (confirm('¿Borrar todas las rutas?')) { 
+                savedTracks = []; 
+                localStorage.setItem('savedRoutes', JSON.stringify(savedTracks)); 
+                loadTrackList(); 
+            } 
+        }
+
+        // ===== LIMPIAR WAYPOINTS =====
+        function clearWaypoints() {
+            waypoints.forEach(w => drawnItems.removeLayer(w.marker));
+            waypoints = [];
+            if (waypointLine) { drawnItems.removeLayer(waypointLine); waypointLine = null; }
+            if (locationRouteLine) { drawnItems.removeLayer(locationRouteLine); locationRouteLine = null; }
+            routePoints = [];
+            routeStartPoint = null;
+            updateWaypointList();
+            document.getElementById('route-info').innerHTML = '';
+            document.getElementById('location-route-info').innerHTML = '';
+            stopRouteNavigation();
+        }
+
+        // ===== LIMPIAR TODO =====
+        function clearAllDrawings() {
+            if (confirm('¿Limpiar todo?')) {
+                liveTrackLayer.setLatLngs([]);
+                drawnItems.clearLayers();
+                measureLayer.clearLayers();
+                
+                if (rescueMarker) { map.removeLayer(rescueMarker); rescueMarker = null; }
+                if (rescueCircle) { map.removeLayer(rescueCircle); rescueCircle = null; }
+                rescuePoint = null;
+                
+                waypoints = []; 
+                routePoints = []; 
+                routeStartPoint = null;
+                measurePoints = []; 
+                measureTotal = 0;
+                waypointLine = null; 
+                locationRouteLine = null;
+                
+                document.getElementById('waypoint-panel').style.display = 'none';
+                document.getElementById('measure-status').innerHTML = '';
+                document.getElementById('route-info').innerHTML = '';
+                document.getElementById('location-route-info').innerHTML = '';
+                document.getElementById('rescue-info').innerHTML = '';
+                
+                if (currentPosition) addBaseMarker();
+                if (rescueMissionActive) cancelRescueMission();
+                
+                stopRouteNavigation();
+                updateWaypointList();
+                document.getElementById('track-status').innerHTML = '🧹 LIMPIADO';
+            }
+        }
+
+        function loadSavedTrack() { showTrackHistory(); }
+        
+        // ===== INICIAR =====
+        setTimeout(initMap, 300);
+        
+        // Añadir estilos de animación
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes pulse { 
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+        }`;
+        document.head.appendChild(style);
+    </script>
 </div>
 
 
@@ -10874,24 +12130,58 @@ function handleCockpitClick(modulo) {
 }
 
 
-
 function openModuleWindow(modulo) {
     const modal = document.getElementById('modal-680');
     const body = document.getElementById('modal-body');
     const title = document.getElementById('modal-title');
     
+    if (!modal || !body) {
+        console.error("❌ Error Crítico: No se encuentran los elementos del modal.");
+        return;
+    }
+
     modal.style.display = 'block';
     title.innerText = `SISTEMA RADCOM - MÓDULO ${modulo}`;
+    body.innerHTML = `<iframe id="module-frame" style="width:100%; height:100%; border:none; background:#000;"></iframe>`;
     
-    if (modulo === 'MAP') {
-        body.innerHTML = document.getElementById('map-source-storage').innerHTML;
-        initMapEngine(); // Llamada para arrancar el mapa
+    const config = {
+        'NAV': 'pfd-source-storage',
+        'ECM': 'ecm-source-storage',
+        'MAP': 'map-source-storage',
+        'UTIL': 'util-source-storage',
+        'LEGAL': 'legal-source-storage'
+    };
+
+    const sourceId = config[modulo];
+    const storage = document.getElementById(sourceId);
+
+    if (storage) {
+        const frame = document.getElementById('module-frame').contentWindow.document;
+        frame.open();
+        frame.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+                <style>
+                    body { margin:0; padding:0; background:#000; color:white; overflow:hidden; font-family:monospace; width:100vw; height:100vh; }
+                    ${modulo === 'ECM' ? 'body { display:flex; justify-content:center; align-items:center; transform: scale(1); transform-origin: center; }' : ''}
+                </style>
+            </head>
+            <body>
+                ${storage.innerHTML}
+            </body>
+            </html>
+        `);
+        frame.close();
     } else {
-        // ... (resto de lógica para NAV, ECM, UTIL que ya tienes)
-        body.innerHTML = `<iframe id="module-frame" style="width:100%; height:100%; border:none; background:#000;"></iframe>`;
-        // ... inyección de código anterior ...
+        body.innerHTML = `<div style="color:#ff3300; padding:20px; font-family:monospace;">⚠️ ERROR: SOURCE [${sourceId}] NO ENCONTRADO EN EL ALMACÉN</div>`;
     }
 }
+
+
 
 
 let currentBaseLayer = null;
@@ -10899,10 +12189,10 @@ let currentBaseLayer = null;
 
 
 let mapInstance = null;
-let drawnItems = new L.FeatureGroup();
+
 let userMarker = null;           // Marcador que te sigue
 let currentTrack = null;         // Ruta que se va dibujando en tiempo real
-let watchId = null;              // Para parar el seguimiento
+
 
 function initMapEngine() {
     if (mapInstance) mapInstance.remove();
