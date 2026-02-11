@@ -2867,8 +2867,8 @@
                 
                 <select id="encryptionMode" title="Encriptación">
                     <option value="xor">XOR Simple</option>
-                    <option value="aes" selected>AES-256-GCM</option>
-                    <option value="none">Sin encriptación</option>
+                    <option value="aes" >AES-256-GCM</option>
+                    <option value="none"selected>Sin encriptación</option>
                 </select>
                 
                 <div style="position:relative; flex:1;">
@@ -12259,15 +12259,8 @@ function openModuleWindow(modulo) {
     }
 }
 
-
-
-
 let currentBaseLayer = null;
-
-
-
 let mapInstance = null;
-
 let userMarker = null;           // Marcador que te sigue
 let currentTrack = null;         // Ruta que se va dibujando en tiempo real
 
@@ -12473,9 +12466,6 @@ function closeModal680() {
     handleCockpitClick('COM');
 }
 
-
-
-
 // Inicializar consola cuando se carga la página
 setTimeout(() => {
     console.log("🚀 RADCOM CONSOLE v5.6.1 ready");
@@ -12491,10 +12481,6 @@ function force720() {
         container.style.height = '720px';
     }
 }
-
-
-
-
 
         // Exportar nuevas funciones
         window.forceUpdateSatelliteData = forceUpdateSatelliteData;
