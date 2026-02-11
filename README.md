@@ -3,7 +3,7 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.6.1- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
+    <title>RADCOM MASTER v5.6.3- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
@@ -14,7 +14,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@noble/ed25519@2.1.0/+esm"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@noble/hashes@1.5.0/+esm"></script>    
+    <script src="https://cdn.jsdelivr.net/npm/@noble/hashes@1.5.0/+esm"></script> 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>      
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <style>  
         
         /* === ESTILOS ORIGINALES - SIN CAMBIOS === */
@@ -2298,7 +2302,63 @@
     10% { opacity: 1; }
     90% { opacity: 1; }
     100% { top: 680px; opacity: 0; }
-}        
+}    
+
+/* === botones nuevos com nav mapas === */
+
+.glass-cockpit-container {
+    margin-top: 15px;
+    padding: 10px;
+    border-top: 2px solid #222;
+    background: rgba(0,0,0,0.3);
+}
+
+.cockpit-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.btn-cockpit {
+    background: #111;
+    border: 1px solid #333;
+    color: #00ff88;
+    padding: 10px 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif; /* Si la usas */
+}
+
+.btn-cockpit i {
+    font-size: 1.2rem;
+    margin-bottom: 4px;
+}
+
+.btn-cockpit span {
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+}
+
+.btn-cockpit:hover {
+    background: #1a1a1a;
+    border-color: #00ff88;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+}
+
+.btn-cockpit.active {
+    background: #00ff88;
+    color: #000;
+    font-weight: bold;
+    border-color: #fff;
+}
+
+
+
 
     </style>
 </head>
@@ -2412,6 +2472,28 @@
                         </button>
                     </div>
                 </div>
+                <div class="glass-cockpit-container">
+    <div class="cockpit-grid">
+        <button class="btn-cockpit active" id="btn-com" onclick="handleCockpitClick('COM')">
+            <i class="fas fa-comments"></i><span>COM</span>
+        </button>
+        <button class="btn-cockpit" id="btn-nav" onclick="handleCockpitClick('NAV')">
+            <i class="fas fa-compass"></i><span>NAV</span>
+        </button>
+        <button class="btn-cockpit" id="btn-ecm" onclick="handleCockpitClick('ECM')">
+            <i class="fas fa-engine"></i><span>ECM</span>
+        </button>
+        <button class="btn-cockpit" id="btn-map" onclick="handleCockpitClick('MAP')">
+            <i class="fas fa-map-marked-alt"></i><span>MAP</span>
+        </button>
+        <button class="btn-cockpit" id="btn-util" onclick="handleCockpitClick('UTIL')">
+            <i class="fas fa-tools"></i><span>UTIL</span>
+        </button>
+        <button class="btn-cockpit" id="btn-res" onclick="handleCockpitClick('RES')">
+            <i class="fas fa-plus"></i><span>EXT</span>
+        </button>
+    </div>
+</div>
             </div>
 
             <div class="content-area">
@@ -3086,6 +3168,1380 @@
     </div>
 </div>
 
+<div id="modal-680" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:680px; height:680px; background:#000; border:2px solid #00ff88; z-index:9999; box-shadow: 0 0 20px rgba(0,255,136,0.5);">
+    <div style="display:flex; justify-content:space-between; background:#222; padding:5px 10px; border-bottom:1px solid #00ff88;">
+        <span id="modal-title" style="color:#00ff88; font-family:monospace; font-weight:bold;">SISTEMA NAV</span>
+        <button onclick="closeModal680()" style="background:none; border:none; color:#ff3300; cursor:pointer; font-weight:bold;">[ X ]</button>
+    </div>
+    <div id="modal-body" style="width:100%; height:calc(100% - 30px); overflow:hidden;">
+        </div>
+</div>
+
+<div id="pfd-source-storage" style="display:none;">
+    <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PFD/ECAM Paramotor - Diseño Final</title>
+    <style>
+        :root {
+            --color-black: #000000;
+            --color-white: #FFFFFF;
+            --color-red: #FF0000;
+            --color-amber: #FFBF00;
+            --color-green: #00FF00;
+            --color-cyan: #00FFFF;
+            --color-magenta: #FF00FF;
+            --color-blue: #0000FF;
+            --color-gray: #333333;
+            --color-dark-gray: #1A1A1A;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .display-container {
+            width: 480px;
+            height: 480px;
+            background-color: var(--color-black);
+            border: 2px solid var(--color-gray);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* ============ BARRA SUPERIOR PERSONALIZADA ============ */
+        .top-bar {
+            height: 30px;
+            background-color: var(--color-dark-gray);
+            border-bottom: 1px solid var(--color-gray);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+        }
+        
+        .left-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .right-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .center-logo {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--color-white);
+            letter-spacing: 1px;
+        }
+        
+        .info-box {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .info-label {
+            font-size: 10px;
+            color: var(--color-cyan);
+        }
+        
+        .info-value {
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .signal-indicator {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .signal-bar {
+            width: 3px;
+            height: 10px;
+            background-color: var(--color-green);
+            border-radius: 1px;
+        }
+        
+        /* ============ PFD (3/4 de la pantalla) ============ */
+        .pfd-area {
+            height: 360px; /* 3/4 de 480px */
+            position: relative;
+        }
+        
+        /* ============ TAPE DE VELOCIDAD (IZQUIERDA) ============ */
+        .speed-tape-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 60px;
+            height: 360px;
+            background-color: var(--color-black);
+            border-right: 1px solid var(--color-gray);
+        }
+        
+        .speed-values {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .speed-value {
+            position: absolute;
+            right: 5px;
+            font-size: 10px;
+            color: var(--color-white);
+            transform: translateY(-50%);
+        }
+        
+        .speed-current {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--color-cyan);
+            background-color: rgba(0,0,0,0.8);
+            padding: 5px 8px;
+            border-radius: 3px;
+            border: 2px solid var(--color-cyan);
+            text-align: center;
+            min-width: 50px;
+        }
+        
+        .speed-label {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: var(--color-cyan);
+        }
+        
+        .speed-mark {
+            position: absolute;
+            right: 0;
+            width: 15px;
+            height: 1px;
+            background-color: var(--color-white);
+        }
+        
+        /* ============ ÁREA CENTRAL PFD ============ */
+        .center-area {
+            position: absolute;
+            left: 60px;
+            top: 0;
+            width: 360px;
+            height: 360px;
+            background-color: var(--color-black);
+        }
+        
+        .attitude-display {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 280px;
+            height: 180px;
+            border: 2px solid var(--color-gray);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .sky {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 50%;
+            background: linear-gradient(to bottom, #000066, #001155);
+        }
+        
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 50%;
+            background: linear-gradient(to top, #663300, #552200);
+        }
+        
+        .pitch-line {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 1px;
+            background-color: var(--color-white);
+        }
+        
+        .pitch-label {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: var(--color-white);
+        }
+        
+        .heading-display {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 220px;
+            height: 35px;
+            background-color: rgba(0,0,0,0.7);
+            border: 1px solid var(--color-gray);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .heading-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--color-white);
+        }
+        
+        .heading-label {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: var(--color-cyan);
+        }
+        
+        /* ============ TAPE DE ALTITUD + VSI (DERECHA) ============ */
+        .altitude-tape-container {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 80px;
+            height: 360px;
+            background-color: var(--color-black);
+            border-left: 1px solid var(--color-gray);
+            display: flex;
+        }
+        
+        .altitude-column {
+            width: 60px;
+            height: 100%;
+            position: relative;
+        }
+        
+        .altitude-values {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .altitude-value {
+            position: absolute;
+            left: 5px;
+            font-size: 10px;
+            color: var(--color-white);
+            transform: translateY(-50%);
+        }
+        
+        .altitude-current {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--color-cyan);
+            background-color: rgba(0,0,0,0.8);
+            padding: 5px 8px;
+            border-radius: 3px;
+            border: 2px solid var(--color-cyan);
+            text-align: center;
+            min-width: 50px;
+        }
+        
+        .altitude-label {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: var(--color-cyan);
+        }
+        
+        .altitude-mark {
+            position: absolute;
+            left: 0;
+            width: 15px;
+            height: 1px;
+            background-color: var(--color-white);
+        }
+        
+        /* Variómetro (VSI) - columna derecha dentro del tape de altitud */
+        .vsi-column {
+            width: 20px;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            border-left: 1px solid var(--color-gray);
+            position: relative;
+        }
+        
+        .vsi-scale {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .vsi-zero {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--color-white);
+        }
+        
+        .vsi-mark {
+            position: absolute;
+            left: 5px;
+            font-size: 8px;
+            color: var(--color-white);
+        }
+        
+        .vsi-needle {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 12px solid var(--color-amber);
+        }
+        
+        .vsi-label {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--color-cyan);
+            writing-mode: vertical-rl;
+        }
+        
+        /* ============ ECAM (1/4 de la pantalla) ============ */
+        .ecam-area {
+            height: 90px;
+            background-color: var(--color-dark-gray);
+            border-top: 2px solid var(--color-gray);
+            display: flex;
+        }
+        
+        .ecam-column {
+            flex: 1;
+            padding: 5px 8px;
+            border-right: 1px solid var(--color-gray);
+        }
+        
+        .ecam-column:last-child {
+            border-right: none;
+        }
+        
+        .column-title {
+            font-size: 9px;
+            color: var(--color-cyan);
+            text-transform: uppercase;
+            margin-bottom: 3px;
+            border-bottom: 1px solid var(--color-gray);
+            padding-bottom: 1px;
+        }
+        
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        
+        .data-label {
+            font-size: 9px;
+            color: var(--color-cyan);
+        }
+        
+        .data-value {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--color-white);
+        }
+        
+        /* ============ ALERTAS ============ */
+        .alert-box {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--color-red);
+            color: var(--color-white);
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border: 2px solid var(--color-white);
+            border-radius: 5px;
+            z-index: 100;
+            text-align: center;
+            box-shadow: 0 0 20px var(--color-red);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        /* ============ BARRA DE COMBUSTIBLE ============ */
+        .fuel-bar-container {
+            margin-top: 3px;
+            width: 100%;
+            height: 8px;
+            background-color: var(--color-gray);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .fuel-level {
+            height: 100%;
+            background-color: var(--color-green);
+            border-radius: 4px;
+        }
+        
+        .fuel-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1px;
+            font-size: 7px;
+            color: var(--color-white);
+        }
+        
+        /* ============ COLORES DE ESTADO ============ */
+        .status-normal { color: var(--color-white); }
+        .status-warning { color: var(--color-amber); }
+        .status-critical { color: var(--color-red); }
+        .status-good { color: var(--color-green); }
+        .status-info { color: var(--color-cyan); }
+        
+        /* ============ INDICADORES DE SEÑAL ============ */
+        .signal-weak .signal-bar:nth-child(4),
+        .signal-weak .signal-bar:nth-child(5) {
+            background-color: var(--color-gray);
+        }
+        
+        .signal-medium .signal-bar:nth-child(5) {
+            background-color: var(--color-gray);
+        }
+        
+        /* ============ BARRA INFERIOR ============ */
+        .bottom-bar {
+            height: 30px;
+            background-color: var(--color-dark-gray);
+            border-top: 1px solid var(--color-gray);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            font-size: 11px;
+            color: var(--color-white);
+        }
+        
+        .flight-info {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .info-item-label {
+            color: var(--color-cyan);
+        }
+        
+        .info-item-value {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="display-container">
+        
+        <!-- ============ BARRA SUPERIOR PERSONALIZADA ============ -->
+        <div class="top-bar">
+            <div class="left-info">
+                <div class="info-box">
+                    <span class="info-label">BATT</span>
+                    <span class="info-value status-good">12.4V</span>
+                </div>
+                <div class="info-box">
+                    <span class="info-label">DATE</span>
+                    <span class="info-value status-normal">26/01/2026</span>
+                </div>
+            </div>
+            
+            <div class="center-logo">PARAMOTOR CUSTOM</div>
+            
+            <div class="right-info">
+                <div class="signal-indicator signal-medium">
+                    <div class="signal-bar" style="height: 6px;"></div>
+                    <div class="signal-bar" style="height: 9px;"></div>
+                    <div class="signal-bar" style="height: 12px;"></div>
+                    <div class="signal-bar" style="height: 9px;"></div>
+                    <div class="signal-bar" style="height: 6px;"></div>
+                </div>
+                <div class="info-box">
+                    <span class="info-label">GPS</span>
+                    <span class="info-value status-good">8 SAT</span>
+                </div>
+                <div class="info-box">
+                    <span class="info-label">UTC</span>
+                    <span class="info-value status-normal">18:34:17</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ============ ÁREA PFD (3/4 superior) ============ -->
+        <div class="pfd-area">
+            
+            <!-- Tape de velocidad (izquierda) -->
+            <div class="speed-tape-container">
+                <div class="speed-values" id="speedValues">
+                    <!-- Valores generados dinámicamente -->
+                </div>
+                <div class="speed-current" id="speedCurrent">62</div>
+                <div class="speed-label">km/h</div>
+            </div>
+            
+            <!-- Área central PFD -->
+            <div class="center-area">
+                <!-- Horizonte artificial -->
+                <div class="attitude-display">
+                    <div class="sky"></div>
+                    <div class="ground"></div>
+                    
+                    <!-- Líneas de pitch -->
+                    <div class="pitch-line" style="top: 20%; width: 50px;"></div>
+                    <div class="pitch-label" style="top: 20%; right: 10px;">10°</div>
+                    
+                    <div class="pitch-line" style="top: 30%; width: 40px;"></div>
+                    <div class="pitch-line" style="top: 40%; width: 30px;"></div>
+                    <div class="pitch-line" style="top: 50%; width: 280px; background-color: var(--color-cyan);"></div>
+                    <div class="pitch-line" style="top: 60%; width: 30px;"></div>
+                    <div class="pitch-line" style="top: 70%; width: 40px;"></div>
+                    
+                    <div class="pitch-line" style="top: 80%; width: 50px;"></div>
+                    <div class="pitch-label" style="top: 80%; right: 10px;">-10°</div>
+                </div>
+                
+                <!-- Indicador de rumbo -->
+                <div class="heading-display">
+                    <div class="heading-value">185°</div>
+                </div>
+                <div class="heading-label">HDG</div>
+            </div>
+            
+            <!-- Tape de altitud + VSI (derecha) -->
+            <div class="altitude-tape-container">
+                <div class="altitude-column">
+                    <div class="altitude-values" id="altitudeValues">
+                        <!-- Valores generados dinámicamente -->
+                    </div>
+                    <div class="altitude-current" id="altitudeCurrent">456</div>
+                    <div class="altitude-label">m</div>
+                </div>
+                
+                <!-- Variómetro (VSI) -->
+                <div class="vsi-column">
+                    <div class="vsi-scale" id="vsiScale">
+                        <div class="vsi-zero"></div>
+                        <div class="vsi-needle" id="vsiNeedle" style="top: 35%;"></div>
+                    </div>
+                    <div class="vsi-label">m/s</div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- ============ ÁREA ECAM ============ -->
+        <div class="ecam-area">
+            
+            <!-- Columna 1: Motor -->
+            <div class="ecam-column">
+                <div class="column-title">MOTOR</div>
+                <div class="data-row">
+                    <span class="data-label">EGT</span>
+                    <span class="data-value status-critical" id="egtValue">888°C</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">CHT</span>
+                    <span class="data-value status-normal" id="chtValue">185°C</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">N1</span>
+                    <span class="data-value status-normal" id="n1Value">96.5%</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">RPM</span>
+                    <span class="data-value status-normal" id="rpmValue">9900</span>
+                </div>
+            </div>
+            
+            <!-- Columna 2: Combustible -->
+            <div class="ecam-column">
+                <div class="column-title">COMBUSTIBLE</div>
+                <div class="data-row">
+                    <span class="data-label">FOB</span>
+                    <span class="data-value status-warning" id="fuelValue">7.2 L</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">TIME RES</span>
+                    <span class="data-value status-normal" id="timeResValue">55 MIN</span>
+                </div>
+                <div class="fuel-bar-container">
+                    <div class="fuel-level" id="fuelLevel" style="width: 72%;"></div>
+                </div>
+                <div class="fuel-labels">
+                    <span>0</span>
+                    <span>10L</span>
+                </div>
+            </div>
+            
+            <!-- Columna 3: Tiempos -->
+            <div class="ecam-column">
+                <div class="column-title">TIEMPOS</div>
+                <div class="data-row">
+                    <span class="data-label">FLIGHT</span>
+                    <span class="data-value status-normal" id="flightTimeValue">01:18</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">TOTAL</span>
+                    <span class="data-value status-normal" id="totalTimeValue">125:30</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">CRONO</span>
+                    <span class="data-value status-normal">00:00</span>
+                </div>
+            </div>
+            
+            <!-- Columna 4: Sistema -->
+            <div class="ecam-column">
+                <div class="column-title">SISTEMA</div>
+                <div class="data-row">
+                    <span class="data-label">BATT</span>
+                    <span class="data-value status-good" id="battValue">12.4V</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">PRESS</span>
+                    <span class="data-value status-normal" id="pressValue">1013 hPa</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">TEMP</span>
+                    <span class="data-value status-normal">15°C</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">V/S</span>
+                    <span class="data-value status-normal">2.3 m/s</span>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- ============ BARRA INFERIOR ============ -->
+        <div class="bottom-bar">
+            <div class="flight-info">
+                <div class="info-item">
+                    <span class="info-item-label">DIST:</span>
+                    <span class="info-item-value">15.7 km</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-item-label">TO HOME:</span>
+                    <span class="info-item-value">3.2 km</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-item-label">WIND:</span>
+                    <span class="info-item-value">12 km/h</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <span class="info-item-label">MODE:</span>
+                <span class="info-item-value status-normal">MANUAL</span>
+            </div>
+        </div>
+        
+        <!-- Alerta EGT -->
+        <div class="alert-box" id="alertBox" style="display: none;">EGT TOO HIGH</div>
+        
+    </div>
+
+    <script>
+        // ============ DATOS DEL PROYECTO ============
+        const projectData = {
+            // PFD Data
+            speed: 62,
+            altitude: 456,
+            heading: 185,
+            vsi: 2.3,
+            
+            // Engine Data
+            egt: 888,
+            cht: 185,
+            n1: 96.5,
+            rpm: 9900,
+            
+            // Fuel Data
+            fuel: 7.2,
+            fuelCapacity: 10,
+            timeRemaining: 55,
+            
+            // Time Data
+            flightTime: 78, // minutos
+            totalTime: 125.5, // horas:minutos
+            
+            // System Data
+            battery: 12.4,
+            pressure: 1013,
+            temperature: 15,
+            
+            // Navigation Data
+            distance: 15.7,
+            distanceToHome: 3.2,
+            windSpeed: 12
+        };
+        
+        // ============ INICIALIZACIÓN ============
+        function initDisplay() {
+            updateStaticValues();
+            generateSpeedTape();
+            generateAltitudeTape();
+            generateVsiScale();
+            checkAlerts();
+        }
+        
+        // ============ ACTUALIZAR VALORES ESTÁTICOS ============
+        function updateStaticValues() {
+            // PFD Values
+            document.getElementById('speedCurrent').textContent = Math.round(projectData.speed);
+            document.getElementById('altitudeCurrent').textContent = Math.round(projectData.altitude);
+            
+            // Engine Values
+            document.getElementById('egtValue').textContent = Math.round(projectData.egt) + '°C';
+            document.getElementById('chtValue').textContent = Math.round(projectData.cht) + '°C';
+            document.getElementById('n1Value').textContent = projectData.n1.toFixed(1) + '%';
+            document.getElementById('rpmValue').textContent = Math.round(projectData.rpm);
+            
+            // Fuel Values
+            document.getElementById('fuelValue').textContent = projectData.fuel.toFixed(1) + ' L';
+            document.getElementById('timeResValue').textContent = Math.round(projectData.timeRemaining) + ' MIN';
+            
+            // Calculate fuel percentage
+            const fuelPercent = (projectData.fuel / projectData.fuelCapacity) * 100;
+            document.getElementById('fuelLevel').style.width = fuelPercent + '%';
+            
+            // Update fuel color based on level
+            if (fuelPercent < 20) {
+                document.getElementById('fuelValue').className = 'data-value status-critical';
+                document.getElementById('fuelLevel').style.backgroundColor = 'var(--color-red)';
+            } else if (fuelPercent < 50) {
+                document.getElementById('fuelValue').className = 'data-value status-warning';
+                document.getElementById('fuelLevel').style.backgroundColor = 'var(--color-amber)';
+            } else {
+                document.getElementById('fuelValue').className = 'data-value status-normal';
+                document.getElementById('fuelLevel').style.backgroundColor = 'var(--color-green)';
+            }
+            
+            // Time Values
+            const flightHours = Math.floor(projectData.flightTime / 60);
+            const flightMinutes = Math.round(projectData.flightTime % 60);
+            document.getElementById('flightTimeValue').textContent = 
+                `${flightHours.toString().padStart(2, '0')}:${flightMinutes.toString().padStart(2, '0')}`;
+            
+            const totalHours = Math.floor(projectData.totalTime);
+            const totalMinutes = Math.round((projectData.totalTime - totalHours) * 60);
+            document.getElementById('totalTimeValue').textContent = 
+                `${totalHours.toString().padStart(3, '0')}:${totalMinutes.toString().padStart(2, '0')}`;
+            
+            // System Values
+            document.getElementById('battValue').textContent = projectData.battery.toFixed(1) + 'V';
+            document.getElementById('pressValue').textContent = Math.round(projectData.pressure) + ' hPa';
+            
+            // Update VSI needle
+            const vsiNeedle = document.getElementById('vsiNeedle');
+            const vsiPosition = 50 - (projectData.vsi * 10); // 10px por m/s
+            vsiNeedle.style.top = vsiPosition + '%';
+            
+            // Update VSI needle color
+            if (projectData.vsi < -2) {
+                vsiNeedle.style.borderTopColor = 'var(--color-red)';
+            } else if (projectData.vsi < -1) {
+                vsiNeedle.style.borderTopColor = 'var(--color-amber)';
+            } else {
+                vsiNeedle.style.borderTopColor = 'var(--color-green)';
+            }
+            
+            // Update EGT color
+            const egtValue = document.getElementById('egtValue');
+            if (projectData.egt > 850) {
+                egtValue.className = 'data-value status-critical';
+            } else if (projectData.egt > 750) {
+                egtValue.className = 'data-value status-warning';
+            } else {
+                egtValue.className = 'data-value status-normal';
+            }
+        }
+        
+        // ============ GENERAR TAPE DE VELOCIDAD ============
+        function generateSpeedTape() {
+            const tape = document.getElementById('speedValues');
+            tape.innerHTML = '';
+            
+            const center = 180; // Centro del tape (360px / 2)
+            const pxPerUnit = 3; // 3px por km/h
+            
+            // Generar marcas cada 10 km/h
+            for (let i = -100; i <= 100; i += 10) {
+                const value = projectData.speed + i;
+                if (value >= 0 && value <= 200) {
+                    const position = center - (i * pxPerUnit);
+                    
+                    // Marca principal cada 20 km/h
+                    if (i % 20 === 0) {
+                        const mark = document.createElement('div');
+                        mark.className = 'speed-mark';
+                        mark.style.top = position + 'px';
+                        tape.appendChild(mark);
+                        
+                        const number = document.createElement('div');
+                        number.className = 'speed-value';
+                        number.textContent = value;
+                        number.style.top = position + 'px';
+                        tape.appendChild(number);
+                    }
+                    // Marca menor cada 10 km/h
+                    else {
+                        const mark = document.createElement('div');
+                        mark.className = 'speed-mark';
+                        mark.style.top = position + 'px';
+                        mark.style.width = '10px';
+                        tape.appendChild(mark);
+                    }
+                }
+            }
+        }
+        
+        // ============ GENERAR TAPE DE ALTITUD ============
+        function generateAltitudeTape() {
+            const tape = document.getElementById('altitudeValues');
+            tape.innerHTML = '';
+            
+            const center = 180;
+            const pxPerUnit = 1.5; // 1.5px por metro
+            
+            // Generar marcas cada 20 metros
+            for (let i = -200; i <= 200; i += 20) {
+                const value = projectData.altitude + i;
+                if (value >= 0) {
+                    const position = center - (i * pxPerUnit);
+                    
+                    // Marca principal cada 40 metros
+                    if (i % 40 === 0) {
+                        const mark = document.createElement('div');
+                        mark.className = 'altitude-mark';
+                        mark.style.top = position + 'px';
+                        tape.appendChild(mark);
+                        
+                        const number = document.createElement('div');
+                        number.className = 'altitude-value';
+                        number.textContent = value;
+                        number.style.top = position + 'px';
+                        tape.appendChild(number);
+                    }
+                    // Marca menor cada 20 metros
+                    else {
+                        const mark = document.createElement('div');
+                        mark.className = 'altitude-mark';
+                        mark.style.top = position + 'px';
+                        mark.style.width = '10px';
+                        tape.appendChild(mark);
+                    }
+                }
+            }
+        }
+        
+        // ============ GENERAR ESCALA VSI ============
+        function generateVsiScale() {
+            const scale = document.getElementById('vsiScale');
+            
+            // Agregar marcas VSI
+            for (let i = -5; i <= 5; i++) {
+                if (i !== 0) {
+                    const position = 180 - (i * 18); // 18px por m/s
+                    
+                    const mark = document.createElement('div');
+                    mark.className = 'vsi-mark';
+                    mark.textContent = Math.abs(i);
+                    mark.style.top = position + 'px';
+                    
+                    // Posicionar números a la izquierda para positivos, derecha para negativos
+                    if (i > 0) {
+                        mark.style.left = '3px';
+                    } else {
+                        mark.style.left = '3px';
+                    }
+                    
+                    scale.appendChild(mark);
+                    
+                    // Línea pequeña
+                    const line = document.createElement('div');
+                    line.style.position = 'absolute';
+                    line.style.left = '0';
+                    line.style.width = '5px';
+                    line.style.height = '1px';
+                    line.style.backgroundColor = 'var(--color-white)';
+                    line.style.top = position + 'px';
+                    scale.appendChild(line);
+                }
+            }
+        }
+        
+        // ============ VERIFICAR ALERTAS ============
+        function checkAlerts() {
+            const alertBox = document.getElementById('alertBox');
+            
+            if (projectData.egt > 850) {
+                alertBox.style.display = 'block';
+                alertBox.textContent = 'EGT TOO HIGH';
+            } else if (projectData.fuel < 2) {
+                alertBox.style.display = 'block';
+                alertBox.textContent = 'LOW FUEL';
+            } else {
+                alertBox.style.display = 'none';
+            }
+        }
+        
+        // ============ CONTROL MANUAL DE VALORES ============
+        document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case 'ArrowUp':
+                    projectData.altitude += 10;
+                    break;
+                case 'ArrowDown':
+                    projectData.altitude -= 10;
+                    break;
+                case 'ArrowLeft':
+                    projectData.speed -= 5;
+                    break;
+                case 'ArrowRight':
+                    projectData.speed += 5;
+                    break;
+                case 'e':
+                    projectData.egt += 10;
+                    break;
+                case 'E':
+                    projectData.egt -= 10;
+                    break;
+                case 'f':
+                    projectData.fuel += 0.5;
+                    if (projectData.fuel > projectData.fuelCapacity) {
+                        projectData.fuel = projectData.fuelCapacity;
+                    }
+                    break;
+                case 'F':
+                    projectData.fuel -= 0.5;
+                    if (projectData.fuel < 0) {
+                        projectData.fuel = 0;
+                    }
+                    break;
+                case 'v':
+                    projectData.vsi += 0.5;
+                    if (projectData.vsi > 5) projectData.vsi = 5;
+                    break;
+                case 'V':
+                    projectData.vsi -= 0.5;
+                    if (projectData.vsi < -5) projectData.vsi = -5;
+                    break;
+            }
+            
+            // Limitar valores
+            projectData.speed = Math.max(0, Math.min(200, projectData.speed));
+            projectData.altitude = Math.max(0, Math.min(1000, projectData.altitude));
+            projectData.egt = Math.max(600, Math.min(1000, projectData.egt));
+            
+            // Actualizar display
+            updateStaticValues();
+            generateSpeedTape();
+            generateAltitudeTape();
+            checkAlerts();
+        });
+        
+        // ============ INICIAR DISPLAY ============
+        window.onload = initDisplay;
+        
+    </script>
+</body>
+</html>
+    </div>
+
+    <div id="util-source-storage" style="display:none;">        
+    </div>
+
+    <div id="ecm-source-storage" style="display:none;">
+        <!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    
+    /* 320x240 - MARCO DE PRODUCCIÓN */
+    .pantalla-original-match {
+      width: 320px;
+      height: 240px;
+      background-color: #000;
+      border: 1px solid #252525;
+      position: relative;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: white;
+      overflow: hidden;
+      box-sizing: border-box;
+      padding: 12px;
+      /* Margen de seguridad pro */
+    }
+
+    /* HEADER - ALINEADO AL PÍXEL */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5px;
+      color: #d1d1d1;
+      margin-bottom: 8px;
+      font-weight: 300;
+    }
+
+    /* FILA SUPERIOR - BALANCE RPM/N1 */
+    .row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .rpm-group {
+      text-align: left;
+    }
+
+    .label-tech {
+      font-size: 9px;
+      color: #55FF55;
+      font-weight: bold;
+      margin-bottom: 2px;
+      letter-spacing: 0.3px;
+    }
+
+    .val-rpm {
+      font-size: 60px;
+      font-weight: 900;
+      color: #55FF55;
+      line-height: 0.82;
+      margin: 0;
+      letter-spacing: -1.5px;
+    }
+
+    .n1-box {
+      width: 110px;
+      height: 68px;
+      border: 1.8px solid #00FFFF;
+      border-radius: 10px;
+      background: rgba(0, 255, 255, 0.08);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .val-n1 {
+      font-size: 44px;
+      color: #00FFFF;
+      font-weight: bold;
+      line-height: 0.85;
+      margin-top: 2px;
+    }
+
+    /* BARRA DE PROGRESO - NI MUY FINA NI MUY GRUESA */
+    .bar-wrap {
+      width: 100%;
+      height: 12px;
+      border: 1.8px solid #55FF55;
+      border-radius: 6px;
+      margin: 12px 0;
+      background: rgba(0, 55, 0, 0.25);
+      padding: 1px;
+      box-sizing: border-box;
+    }
+
+    .bar-fill {
+      width: 72%;
+      height: 100%;
+      background: #55FF55;
+      border-radius: 4px;
+    }
+
+    /* SECCIÓN INFERIOR - EL "CORAZÓN" DEL DISEÑO */
+    .row-sensors {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    .sensor-unit {
+      text-align: center;
+      min-width: 70px;
+    }
+
+    .s-label {
+      font-size: 7.5px;
+      color: #b0b0b0;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    .s-val {
+      font-size: 28px;
+      font-weight: bold;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .s-line {
+      width: 48px;
+      height: 2.5px;
+      background: #fff;
+      margin: 5px auto 0;
+      border-radius: 1px;
+    }
+
+    /* CAJA FUEL - PROFUNDIDAD Y ESCALA CORRECTA */
+    .fuel-card {
+      width: 102px;
+      height: 72px;
+      border: 1.8px solid #FF9900;
+      border-radius: 12px;
+      background: rgba(255, 153, 0, 0.12);
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .fuel-top {
+      background: #FF9900;
+      color: #000;
+      font-size: 8.5px;
+      font-weight: 900;
+      padding: 2.5px 0;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    .fuel-val {
+      font-size: 35px;
+      color: #FF9900;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 3px;
+    }
+
+    .fuel-est {
+      font-size: 7.5px;
+      color: #FF9900;
+      text-align: center;
+      margin-top: -2px;
+      font-weight: bold;
+    }
+
+    /* FOOTER - ALINEADO A LOS BORDES */
+    .footer {
+      position: absolute;
+      bottom: 10px;
+      width: 296px;
+      display: flex;
+      justify-content: space-between;
+      left: 12px;
+    }
+
+    .tag {
+      font-size: 7.5px;
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-weight: bold;
+      letter-spacing: 0.2px;
+    }
+
+    .t-hrs {
+      border: 1.2px solid #55FF55;
+      color: #55FF55;
+      background: rgba(0, 255, 0, 0.05);
+    }
+
+    .t-svc {
+      border: 1.2px solid #FF4444;
+      color: #FF4444;
+      background: rgba(255, 0, 0, 0.05);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="pantalla-original-match">
+    <div class="header">
+      <div>18:02:25 | SAT JAN 24, 2026</div>
+      <div style="font-weight: 700; letter-spacing: 0.5px;">Paramotor Custom ATOM 80</div>
+      <div>85% 🔋</div>
+    </div>
+
+    <div class="row-top">
+      <div class="rpm-group">
+        <div class="label-tech">ENGINE RPM</div>
+        <p class="val-rpm">8463</p>
+      </div>
+      <div class="n1-box">
+        <div class="label-tech" style="color:#00FFFF; margin-bottom: 0;">N1 %</div>
+        <div class="val-n1">85</div>
+      </div>
+    </div>
+
+    <div class="bar-wrap">
+      <div class="bar-fill"></div>
+    </div>
+
+    <div class="row-sensors">
+      <div class="sensor-unit">
+        <div class="s-label">CHT CULATA</div>
+        <div class="s-val">185°C</div>
+        <div class="s-line"></div>
+      </div>
+
+      <div class="fuel-card">
+        <div class="fuel-top">FUEL LITERS</div>
+        <div class="fuel-val">8.0</div>
+        <div class="fuel-est">EST: 39 min</div>
+      </div>
+
+      <div class="sensor-unit">
+        <div class="s-label">EGT ESCAPE</div>
+        <div class="s-val">520°C</div>
+        <div class="s-line"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="tag t-hrs">TOTAL HRS: 102.5</div>
+      <div class="tag t-svc">NEXT SVC: 9.8h</div>
+    </div>
+  </div>
+
+</body>
+
+</html>
+    </div>
+
+    <div id="map-source-storage" style="display:none;">
+    <style>
+        #map-wrapper { width: 100%; height: 100%; background: #000; position: relative; }
+        #map-container { width: 100%; height: calc(100% - 40px); background: #111; }
+        .map-tabs { display: flex; background: #222; border-bottom: 1px solid #00ff88; }
+        .map-tab { 
+            flex: 1; padding: 10px; text-align: center; color: #888; 
+            font-size: 0.65rem; cursor: pointer; border-right: 1px solid #333;
+            font-family: monospace; text-transform: uppercase;
+        }
+        .map-tab.active { background: #00ff88; color: #000; font-weight: bold; }
+        .map-tools { position: absolute; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
+        .tool-btn { background: rgba(0,0,0,0.8); border: 1px solid #00ff88; color: #00ff88; padding: 8px; cursor: pointer; border-radius: 4px; }
+    </style>
+
+    <div id="map-wrapper">
+        <div class="map-tabs">
+            <div class="map-tab active" onclick="parent.switchMapLayer('TOPO')">TOPOGRÁFICO</div>
+            <div class="map-tab" onclick="parent.switchMapLayer('VFR')">VUELO VFR</div>
+            <div class="map-tab" onclick="parent.switchMapLayer('SEA')">NÁUTICO</div>
+        </div>
+        <div id="map-container"></div>
+        <div class="map-tools">
+            <button class="tool-btn" title="Mi Posición">🎯</button>
+            <button class="tool-btn" title="Añadir Track">✍️</button>
+            <button class="tool-btn" title="Descargar Offline">💾</button>
+        </div>
+    </div>
+</div>
+
+<div id="map-source-storage" style="display:none;">
+    <style>
+        #map-wrapper { width: 100%; height: 100%; background: #000; position: relative; }
+        #map-container { width: 100%; height: calc(100% - 40px); background: #111; }
+        .map-tabs { display: flex; background: #222; border-bottom: 1px solid #00ff88; }
+        .map-tab { 
+            flex: 1; padding: 10px; text-align: center; color: #888; 
+            font-size: 0.65rem; cursor: pointer; border-right: 1px solid #333;
+            font-family: monospace; text-transform: uppercase;
+        }
+        .map-tab.active { background: #00ff88; color: #000; font-weight: bold; }
+        .map-tools { position: absolute; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
+        .tool-btn { background: rgba(0,0,0,0.8); border: 1px solid #00ff88; color: #00ff88; padding: 8px; cursor: pointer; border-radius: 4px; }
+    </style>
+
+    <div id="map-wrapper">
+        <div class="map-tabs">
+            <div class="map-tab active" onclick="parent.switchMapLayer('TOPO')">TOPOGRÁFICO</div>
+            <div class="map-tab" onclick="parent.switchMapLayer('VFR')">VUELO VFR</div>
+            <div class="map-tab" onclick="parent.switchMapLayer('SEA')">NÁUTICO</div>
+        </div>
+        <div id="map-container"></div>
+        <div class="map-tools">
+            <button class="tool-btn" title="Mi Posición">🎯</button>
+            <button class="tool-btn" title="Añadir Track">✍️</button>
+            <button class="tool-btn" title="Descargar Offline">💾</button>
+        </div>
+    </div>
+</div>
+
+
+
     <script>
 
             
@@ -3433,8 +4889,7 @@ function addToQueue(packet, originalText) {
         };
         let audioContext = null;
         let currentConnectionType = 'wifi';
-        let watchId = null;  // Para guardar el ID del watch y poder pararlo después
-        
+       
         // ====== VARIABLES MEJORADAS ======
         let connectionHealth = {};
         let showOffline = false;
@@ -7210,20 +8665,29 @@ function handleReceivedData(senderId, data) {
         // ====== FUNCIONES RESTANTES ======
         
         function generateKey() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let key = '';
-            for (let i = 0; i < 12; i++) {
-                key += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            document.getElementById('key').value = key;
-            document.getElementById('key').type = 'text';
-            
-            setTimeout(() => {
-                document.getElementById('key').type = 'password';
-            }, 2000);
-            
-            return key;
-        }
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let key = '';
+    for (let i = 0; i < 12; i++) {
+        key += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    const keyInput = document.getElementById('key');
+    if (keyInput) {
+        keyInput.value = key;
+        keyInput.type = 'text';
+        
+        // CRÍTICO: Notificar al sistema que la clave ha cambiado
+        keyInput.dispatchEvent(new Event('change'));
+        keyInput.dispatchEvent(new Event('input'));
+        
+        setTimeout(() => {
+            keyInput.type = 'password';
+        }, 2000);
+    }
+    
+    updateMonitor("🔑 NUEVA CLAVE MAESTRA GENERADA");
+    return key;
+}
 
         function copyID() {
             if (!myPeerId) {
@@ -9398,6 +10862,251 @@ function toggleDebugMode() {
     updateMonitor(`Debug ${debugMode ? 'ON' : 'OFF'}`, debugMode ? "warning" : "info");
 }
 
+function handleCockpitClick(modulo) {
+    document.querySelectorAll('.btn-cockpit').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + modulo.toLowerCase()).classList.add('active');
+    
+    if (modulo === 'COM') {
+        closeModal680();
+    } else {
+        openModuleWindow(modulo);
+    }
+}
+
+
+
+function openModuleWindow(modulo) {
+    const modal = document.getElementById('modal-680');
+    const body = document.getElementById('modal-body');
+    const title = document.getElementById('modal-title');
+    
+    modal.style.display = 'block';
+    title.innerText = `SISTEMA RADCOM - MÓDULO ${modulo}`;
+    
+    if (modulo === 'MAP') {
+        body.innerHTML = document.getElementById('map-source-storage').innerHTML;
+        initMapEngine(); // Llamada para arrancar el mapa
+    } else {
+        // ... (resto de lógica para NAV, ECM, UTIL que ya tienes)
+        body.innerHTML = `<iframe id="module-frame" style="width:100%; height:100%; border:none; background:#000;"></iframe>`;
+        // ... inyección de código anterior ...
+    }
+}
+
+
+let currentBaseLayer = null;
+
+
+
+let mapInstance = null;
+let drawnItems = new L.FeatureGroup();
+let userMarker = null;           // Marcador que te sigue
+let currentTrack = null;         // Ruta que se va dibujando en tiempo real
+let watchId = null;              // Para parar el seguimiento
+
+function initMapEngine() {
+    if (mapInstance) mapInstance.remove();
+
+    const container = document.getElementById('map-container');
+    container.style.height = "100%";
+    container.style.width = "100%";
+
+    mapInstance = L.map('map-container').setView([40.4167, -3.7033], 13);
+
+    // Capas
+    const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }).addTo(mapInstance);
+    const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+
+    L.control.layers({ "🗺️ Topográfico": topo, "🛣️ Calles": streets, "🛰️ Satélite": satellite }, null, { collapsed: false }).addTo(mapInstance);
+
+    mapInstance.addLayer(drawnItems);
+
+    // Barra de dibujo (waypoints y rutas manuales)
+    const drawControl = new L.Control.Draw({
+        draw: { marker: true, polyline: true, polygon: false, rectangle: false, circle: false },
+        edit: { featureGroup: drawnItems, remove: true }
+    });
+    mapInstance.addControl(drawControl);
+
+    mapInstance.on(L.Draw.Event.CREATED, e => drawnItems.addLayer(e.layer));
+
+    // ==================== UBICACIÓN REAL + TRACKING ====================
+
+    // Botón "Mi Ubicación Actual"
+    const locationBtn = L.control({position: 'topleft'});
+    locationBtn.onAdd = function() {
+        const btn = L.DomUtil.create('button', '');
+        btn.innerHTML = '📍 Mi Ubicación';
+        btn.style.cssText = 'background:#00ff88; color:#000; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; cursor:pointer;';
+        btn.onclick = getCurrentLocation;
+        return btn;
+    };
+    locationBtn.addTo(mapInstance);
+
+    // Botón "Iniciar Tracking de Ruta"
+    const trackBtn = L.control({position: 'topleft'});
+    trackBtn.onAdd = function() {
+        const btn = L.DomUtil.create('button', '');
+        btn.id = 'track-btn';
+        btn.innerHTML = '▶️ Iniciar Tracking';
+        btn.style.cssText = 'background:#ffaa00; color:#000; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; margin-top:8px; cursor:pointer;';
+        btn.onclick = toggleLiveTracking;
+        return btn;
+    };
+    trackBtn.addTo(mapInstance);
+
+    mapInstance.invalidateSize(true);
+    updateMonitor("🗺️ Mapa listo - Pulsa 'Mi Ubicación' primero");
+}
+
+// ==================== FUNCIONES DE UBICACIÓN Y TRACKING ====================
+
+function getCurrentLocation() {
+    if (!navigator.geolocation) {
+        updateMonitor("❌ Tu navegador no soporta geolocalización", "error");
+        return;
+    }
+
+    updateMonitor("📡 Buscando tu ubicación...");
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
+            mapInstance.setView([lat, lon], 15);
+
+            if (userMarker) userMarker.remove();
+            userMarker = L.marker([lat, lon], { 
+                icon: L.divIcon({ className: 'current-location-dot', html: '🟢', iconSize: [24,24] })
+            })
+            .addTo(mapInstance)
+            .bindPopup("📍 Tu posición actual").openPopup();
+
+            updateMonitor(`✅ Ubicación actual: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+        },
+        (err) => {
+            updateMonitor("❌ No se pudo obtener la ubicación. Activa el GPS y permite el permiso.", "error");
+            console.error(err);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+}
+
+function toggleLiveTracking() {
+    const btn = document.getElementById('track-btn');
+
+    if (watchId) {
+        // Parar tracking
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        btn.innerHTML = '▶️ Iniciar Tracking';
+        btn.style.background = '#ffaa00';
+        updateMonitor("⏹️ Tracking detenido");
+    } else {
+        // Iniciar tracking
+        if (!currentTrack) {
+            currentTrack = L.polyline([], { color: '#00ff88', weight: 5 }).addTo(mapInstance);
+        }
+
+        watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+
+                // Mover marcador
+                if (userMarker) userMarker.setLatLng([lat, lon]);
+                else {
+                    userMarker = L.marker([lat, lon]).addTo(mapInstance);
+                }
+
+                // Añadir punto al track
+                currentTrack.addLatLng([lat, lon]);
+
+                mapInstance.flyTo([lat, lon], mapInstance.getZoom());
+            },
+            (err) => console.error("Error tracking:", err),
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+
+        btn.innerHTML = '⏹️ Detener Tracking';
+        btn.style.background = '#ff3300';
+        updateMonitor("🟢 Tracking de ruta INICIADO - Muévete");
+    }
+}
+
+
+// Función para borrar todo
+function clearAllDrawnItems() {
+    if (confirm("¿Estás seguro de borrar TODOS los waypoints y tracks?")) {
+        drawnItems.clearLayers();
+        updateMonitor("🗑️ Todo borrado correctamente");
+    }
+}
+
+// ==================== PANEL DE HERRAMIENTAS (Waypoints + Tracks) ====================
+function createToolsPanel() {
+    const panel = document.createElement('div');
+    panel.id = 'map-tools-panel';
+    panel.style.cssText = `
+        position: absolute; 
+        top: 130px;           /* Bajado para no tapar el selector de mapas */
+        right: 15px; 
+        z-index: 1005;        /* Más arriba que los controles de Leaflet */
+        background: rgba(0,0,0,0.92); 
+        border: 2px solid #00ff88; 
+        border-radius: 6px; 
+        padding: 10px; 
+        width: 260px; 
+        color: #00ff88;
+        font-size: 0.75rem; 
+        max-height: 65vh; 
+        overflow-y: auto;
+        box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+    `;
+
+    panel.innerHTML = `
+        <div style="margin-bottom:8px; font-weight:bold; color:#00ffea; text-align:center;">
+            📍 WAYPOINTS & TRACKS
+        </div>
+        <div id="waypoints-list" style="margin-bottom:12px; max-height:180px; overflow-y:auto;"></div>
+        <div id="tracks-list" style="max-height:140px; overflow-y:auto;"></div>
+        
+        <button onclick="clearAllDrawnItems()" 
+                style="margin-top:10px; width:100%; background:#ff3300; color:white; 
+                       border:none; padding:8px; border-radius:4px; font-weight:bold;">
+            🗑️ BORRAR TODO
+        </button>
+    `;
+
+    document.getElementById('map-container').appendChild(panel);
+}
+
+// Función de cierre reforzada
+function closeModal680() {
+    const modal = document.getElementById('modal-680');
+    if (modal) {
+        modal.style.display = 'none';
+        document.getElementById('modal-body').innerHTML = ''; // Limpia memoria
+        
+        // Reset de botones en el sidebar
+        document.querySelectorAll('.btn-cockpit').forEach(b => b.classList.remove('active'));
+        const btnCom = document.getElementById('btn-com');
+        if (btnCom) btnCom.classList.add('active');
+        
+        updateMonitor("🖥️ REGRESO A CONSOLA PRINCIPAL");
+    }
+}
+
+function closeModal680() {
+    document.getElementById('modal-680').style.display = 'none';
+    document.getElementById('modal-body').innerHTML = "";
+    handleCockpitClick('COM');
+}
+
+
+
 
 // Inicializar consola cuando se carga la página
 setTimeout(() => {
@@ -9414,6 +11123,8 @@ function force720() {
         container.style.height = '720px';
     }
 }
+
+
 
 
 
