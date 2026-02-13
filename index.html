@@ -4691,7 +4691,7 @@
     </div>
 </div>
 
-<!-- ====================== VENTANA GESTOR DE REDES v3.0 - CORREGIDA ====================== -->
+<!-- ====================== VENTANA GESTOR DE REDES v4.0 - IPHONE COMPATIBLE ====================== -->
 <div class="modal-overlay" id="networkManagerModal" style="display:none;">
     <div class="modal-content" style="width:560px; max-height:94vh;">
         <button class="modal-close" onclick="closeNetworkManager()">×</button>
@@ -4708,24 +4708,24 @@
             <div id="networkInternet" style="margin-top:15px; padding:10px; border-radius:4px;"></div>
         </div>
 
-        <!-- Información detallada -->
+        <!-- Información para iPhone -->
         <div style="background:rgba(0,30,30,0.9); padding:15px; border-radius:4px; margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                <span>📱 Dispositivo:</span>
+                <span id="deviceInfo" style="color:#00ff88;"><?php echo $dispositivo; ?></span>
+            </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                 <span>📶 Red detectada:</span>
                 <span id="detectedType" style="color:#00ff88;">---</span>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <span>📊 API type:</span>
-                <span id="apiType" style="color:#00ff88;">---</span>
-            </div>
             <div style="display:flex; justify-content:space-between;">
-                <span>📱 effectiveType:</span>
+                <span>⚡ effectiveType:</span>
                 <span id="effectiveType" style="color:#00ff88;">---</span>
             </div>
         </div>
 
         <!-- Botón de escaneo -->
-        <button onclick="detectarRedReal()" 
+        <button onclick="detectarRedIPhone()" 
                 style="width:100%; padding:14px; background:linear-gradient(90deg,#00ff88,#0088ff); 
                        color:#000; font-weight:bold; border:none; border-radius:4px; margin-top:10px; cursor:pointer;">
             <i class="fas fa-search"></i> DETECTAR RED AHORA
@@ -4734,6 +4734,7 @@
         <div id="status-real" style="margin-top:15px; font-size:0.7rem; text-align:center; color:#00ffea;"></div>
     </div>
 </div>
+
 
 
 
@@ -11279,18 +11280,23 @@ function startRealisticWaterfall() {
     startFakeWaterfall();
 }
 
-// ====================== DETECCIÓN REAL DE RED - CORREGIDA ======================
 
-function detectarRedReal() {
+
+// ====================== DETECCIÓN PARA IPHONE ======================
+
+// Variable global para el tipo de red
+window.currentConnectionMode = 'wifi';
+
+function detectarRedIPhone() {
     // Elementos del DOM
     const networkIcon = document.getElementById('networkIcon');
     const networkName = document.getElementById('networkName');
     const networkType = document.getElementById('networkType');
     const networkInternet = document.getElementById('networkInternet');
     const detectedType = document.getElementById('detectedType');
-    const apiType = document.getElementById('apiType');
     const effectiveType = document.getElementById('effectiveType');
     const statusReal = document.getElementById('status-real');
+    const deviceInfo = document.getElementById('deviceInfo');
 
     // Mostrar loading
     networkIcon.innerHTML = '🔄';
@@ -11314,130 +11320,160 @@ function detectarRedReal() {
         return;
     }
 
-    // Obtener API de conexión
+    // ===== DETECCIÓN ESPECIAL PARA IPHONE =====
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     
     if (!connection) {
-        networkIcon.innerHTML = '⚠️';
-        networkName.innerHTML = 'API NO DISPONIBLE';
-        networkType.innerHTML = 'Tu navegador no soporta detección de red';
-        networkInternet.innerHTML = '⚠️ Modo compatible';
-        detectedType.innerHTML = 'unknown';
-        statusReal.innerHTML = '⚠️ API no soportada';
+        // iPhone no soporta la API completa, usar método alternativo
+        console.log('📱 iPhone detectado - Usando método alternativo');
+        deviceInfo.innerHTML = 'iPhone (API limitada)';
+        
+        // En iPhone solo tenemos effectiveType
+        // Pero podemos deducir por la velocidad y latencia
+        
+        // Medir latencia real
+        const startTime = Date.now();
+        fetch('https://www.google.com/favicon.ico?nocache=' + Date.now(), { 
+            mode: 'no-cors',
+            cache: 'no-store'
+        })
+        .then(() => {
+            const latency = Date.now() - startTime;
+            
+            // DETECCIÓN POR LATENCIA (funciona en iPhone)
+            let tipoRed = 'wifi';
+            let nombreRed = 'WiFi';
+            let icono = '📶';
+            
+            // Si la latencia es mayor a 100ms, probablemente es 4G
+            // Si es mayor a 200ms, probablemente es 3G
+            if (latency > 150) {
+                tipoRed = 'mobile';
+                nombreRed = 'DATOS MÓVILES';
+                icono = '📱';
+            }
+            
+            // Intentar obtener effectiveType (limitado en iPhone)
+            let efectivo = 'desconocido';
+            if (connection && connection.effectiveType) {
+                efectivo = connection.effectiveType;
+                // Si dice 4g en iPhone, es móvil seguro
+                if (efectivo.includes('4g') || efectivo.includes('3g')) {
+                    tipoRed = 'mobile';
+                    nombreRed = 'DATOS MÓVILES';
+                    icono = '📱';
+                }
+            }
+            
+            // Actualizar UI
+            networkIcon.innerHTML = icono;
+            networkName.innerHTML = nombreRed;
+            networkName.style.color = '#00ff88';
+            networkType.innerHTML = `Latencia: ${latency}ms | Velocidad estimada`;
+            networkInternet.innerHTML = '✅ CONECTADO A INTERNET';
+            networkInternet.style.background = 'rgba(0,255,0,0.1)';
+            detectedType.innerHTML = tipoRed;
+            effectiveType.innerHTML = efectivo;
+            
+            // Guardar modo
+            window.currentConnectionMode = tipoRed;
+            
+            // Configurar calidad
+            const videoSelect = document.getElementById('video-quality');
+            if (videoSelect) {
+                if (tipoRed === 'mobile') {
+                    videoSelect.value = '480';
+                    statusReal.innerHTML = '📱 MODO AHORRO - Datos móviles (iPhone)';
+                } else {
+                    videoSelect.value = '1080';
+                    statusReal.innerHTML = '📶 MODO CALIDAD - WiFi (iPhone)';
+                }
+            }
+        })
+        .catch(() => {
+            // Sin internet
+            networkName.innerHTML = 'RED LOCAL';
+            networkName.style.color = '#ffaa00';
+            networkType.innerHTML = 'Sin acceso a internet';
+            networkInternet.innerHTML = '⚠️ RED LOCAL';
+            networkInternet.style.background = 'rgba(255,165,0,0.2)';
+            detectedType.innerHTML = 'local';
+            window.currentConnectionMode = 'local';
+            statusReal.innerHTML = '⚠️ Modo local';
+        });
+        
         return;
     }
 
-    // MOSTRAR DATOS CRUDOS DE LA API
-    console.log('📊 DATOS CRUDOS DE LA API:', {
-        type: connection.type,              // Esto es lo IMPORTANTE: 'wifi' o 'cellular'
-        effectiveType: connection.effectiveType, // '4g', '3g', etc.
-        downlink: connection.downlink,
-        rtt: connection.rtt,
-        saveData: connection.saveData
+    // ===== ANDROID/PC CON API COMPLETA =====
+    console.log('📊 Datos de conexión:', {
+        type: connection.type,
+        effectiveType: connection.effectiveType
     });
 
-    // Actualizar información detallada
-    apiType.innerHTML = connection.type || 'desconocido';
+    // Mostrar datos
     effectiveType.innerHTML = connection.effectiveType || 'desconocido';
+    deviceInfo.innerHTML = 'Android/PC (API completa)';
 
-    // ===== DETECCIÓN CORREGIDA =====
-    let tipoReal = 'desconocido';
-    let nombreRed = 'DESCONOCIDA';
-    
-    // 1. USAR connection.type QUE ES LO MÁS FIABLE
-    if (connection.type === 'wifi') {
-        tipoReal = 'wifi';
-        nombreRed = 'WiFi';
-        networkIcon.innerHTML = '📶';
-    }
-    else if (connection.type === 'cellular') {
-        tipoReal = 'mobile';
+    // Detectar tipo
+    let tipoRed = 'wifi';
+    let nombreRed = 'WiFi';
+    let icono = '📶';
+
+    if (connection.type === 'cellular') {
+        tipoRed = 'mobile';
         nombreRed = 'DATOS MÓVILES';
-        networkIcon.innerHTML = '📱';
-    }
-    else {
-        // 2. FALLBACK: usar effectiveType con precaución
+        icono = '📱';
+    } else if (connection.type === 'wifi') {
+        tipoRed = 'wifi';
+        nombreRed = 'WiFi';
+        icono = '📶';
+    } else {
+        // Fallback por effectiveType
         const efectivo = connection.effectiveType || '';
-        
         if (efectivo.includes('2g') || efectivo.includes('3g')) {
-            // 2g/3g son siempre móviles
-            tipoReal = 'mobile';
+            tipoRed = 'mobile';
             nombreRed = 'DATOS MÓVILES';
-            networkIcon.innerHTML = '📱';
-        }
-        else if (efectivo.includes('4g') || efectivo.includes('5g')) {
-            // 4g/5g PUEDEN SER TANTO WiFi COMO MÓVIL
-            // Por defecto asumimos WiFi si no podemos confirmar
-            tipoReal = 'wifi';
-            nombreRed = 'WiFi';
-            networkIcon.innerHTML = '📶';
-        }
-        else {
-            tipoReal = 'wifi';
-            nombreRed = 'WiFi';
-            networkIcon.innerHTML = '📶';
+            icono = '📱';
         }
     }
 
-    // Verificar internet real
-    fetch('https://www.google.com/favicon.ico', { 
-        mode: 'no-cors', 
-        cache: 'no-store' 
-    })
+    // Verificar internet
+    fetch('https://www.google.com/favicon.ico', { mode: 'no-cors', cache: 'no-store' })
     .then(() => {
-        // Hay internet
+        networkIcon.innerHTML = icono;
         networkName.innerHTML = nombreRed;
         networkName.style.color = '#00ff88';
-        networkType.innerHTML = `Velocidad: ${connection.downlink || '?'} Mbps | RTT: ${connection.rtt || '?'}ms`;
+        networkType.innerHTML = `Velocidad: ${connection.downlink || '?'} Mbps`;
         networkInternet.innerHTML = '✅ CONECTADO A INTERNET';
         networkInternet.style.background = 'rgba(0,255,0,0.1)';
-        detectedType.innerHTML = tipoReal;
+        detectedType.innerHTML = tipoRed;
         
-        // Actualizar modo global
-        window.currentConnectionMode = tipoReal;
+        window.currentConnectionMode = tipoRed;
         
-        // Configurar calidad según red
         const videoSelect = document.getElementById('video-quality');
         if (videoSelect) {
-            if (tipoReal === 'mobile') {
-                videoSelect.value = '480';
-                statusReal.innerHTML = '📱 MODO AHORRO - Datos móviles';
-            } else {
-                videoSelect.value = '1080';
-                statusReal.innerHTML = '📶 MODO CALIDAD - WiFi';
-            }
+            videoSelect.value = tipoRed === 'mobile' ? '480' : '1080';
+            statusReal.innerHTML = tipoRed === 'mobile' ? '📱 MODO MÓVIL' : '📶 MODO WiFi';
         }
     })
     .catch(() => {
-        // Red local sin internet
         networkName.innerHTML = 'RED LOCAL';
         networkName.style.color = '#ffaa00';
-        networkType.innerHTML = `Velocidad: ${connection.downlink || '?'} Mbps (sin internet)`;
-        networkInternet.innerHTML = '⚠️ RED LOCAL - Sin internet';
-        networkInternet.style.background = 'rgba(255,165,0,0.2)';
+        networkInternet.innerHTML = '⚠️ RED LOCAL';
         detectedType.innerHTML = 'local';
         window.currentConnectionMode = 'local';
-        statusReal.innerHTML = '⚠️ Modo local - Sin internet';
     });
 }
 
 // Abrir gestor de redes
 function openNetworkManager() {
     document.getElementById('networkManagerModal').style.display = 'flex';
-    setTimeout(detectarRedReal, 300);
+    setTimeout(detectarRedIPhone, 300);
 }
 
 function closeNetworkManager() {
     document.getElementById('networkManagerModal').style.display = 'none';
-}
-
-// Detectar cambios automáticamente
-if ('connection' in navigator) {
-    navigator.connection.addEventListener('change', function() {
-        if (document.getElementById('networkManagerModal').style.display === 'flex') {
-            detectarRedReal();
-        }
-    });
 }
 
 
