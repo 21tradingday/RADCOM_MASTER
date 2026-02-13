@@ -2887,7 +2887,6 @@
                 </span>
             </div>
             
-            
             <!-- MODIFICADO: CON MICRÓFONO MEJORADO -->
             <div style="display:flex; height:36px; align-items:center; padding:4px 5px; gap:4px; border-bottom:1px solid #222;">
                 <!-- BOTÓN LIMPIAR -->
@@ -2934,19 +2933,8 @@
                     <div class="stat-label">ANCHO BANDA</div>
                 </div>
             </div>
-           <!-- === BOTÓN REDES (nuevo) === -->
-<button id="btn-redes" 
-        onclick="openNetworkManager()"
-        style="position:absolute; bottom:92px; right:12px; 
-               background:linear-gradient(135deg, #00ff88, #0088ff); 
-               color:#000; border:none; border-radius:4px; 
-               padding:8px 14px; font-size:0.75rem; font-weight:bold;
-               box-shadow:0 4px 12px rgba(0,255,136,0.4);">
-    <i class="fas fa-network-wired"></i> REDES
-</button> 
         </div>
     </div>
-    
 
     <!-- Modelo base de configuración (sin cambios) -->
     <div class="modal-overlay" id="settingsModal">
@@ -3014,9 +3002,9 @@
                         <i class="fas fa-redo"></i>
                     </button>
                 </div>
-            </div>     
-                
+            </div>       
             
+                            
             <div style="margin-bottom:10px;">
                 <label style="display:block; margin-bottom:4px; color:#00ff88; font-size:0.75rem;">
                     <input type="checkbox" id="autoReconnect" checked style="margin-right:4px;">
@@ -4690,51 +4678,6 @@
         </script>
     </div>
 </div>
-
-<!-- ====================== VENTANA GESTOR DE REDES v4.0 - IPHONE COMPATIBLE ====================== -->
-<div class="modal-overlay" id="networkManagerModal" style="display:none;">
-    <div class="modal-content" style="width:560px; max-height:94vh;">
-        <button class="modal-close" onclick="closeNetworkManager()">×</button>
-        
-        <div class="modal-title">
-            <i class="fas fa-satellite-dish"></i> ESTADO DE RED
-        </div>
-
-        <!-- Estado actual de conexión -->
-        <div id="connection-status-panel" style="background:rgba(0,0,0,0.8); padding:25px; border-radius:8px; margin:20px 0; text-align:center;">
-            <div id="networkIcon" style="font-size:64px; margin-bottom:15px;">📶</div>
-            <div id="networkName" style="font-size:1.8rem; font-weight:bold; color:#00ff88;">DETECTANDO...</div>
-            <div id="networkType" style="font-size:0.9rem; color:#aaa; margin-top:10px;"></div>
-            <div id="networkInternet" style="margin-top:15px; padding:10px; border-radius:4px;"></div>
-        </div>
-
-        <!-- Información para iPhone -->
-        <div style="background:rgba(0,30,30,0.9); padding:15px; border-radius:4px; margin-bottom:15px;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <span>📱 Dispositivo:</span>
-                <span id="deviceInfo" style="color:#00ff88;"><?php echo $dispositivo; ?></span>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <span>📶 Red detectada:</span>
-                <span id="detectedType" style="color:#00ff88;">---</span>
-            </div>
-            <div style="display:flex; justify-content:space-between;">
-                <span>⚡ effectiveType:</span>
-                <span id="effectiveType" style="color:#00ff88;">---</span>
-            </div>
-        </div>
-
-        <!-- Botón de escaneo -->
-        <button onclick="detectarRedIPhone()" 
-                style="width:100%; padding:14px; background:linear-gradient(90deg,#00ff88,#0088ff); 
-                       color:#000; font-weight:bold; border:none; border-radius:4px; margin-top:10px; cursor:pointer;">
-            <i class="fas fa-search"></i> DETECTAR RED AHORA
-        </button>
-
-        <div id="status-real" style="margin-top:15px; font-size:0.7rem; text-align:center; color:#00ffea;"></div>
-    </div>
-</div>
-
 
 
 
@@ -11278,202 +11221,6 @@ function startFakeWaterfall() {
 function startRealisticWaterfall() {
     console.log("RTL-SDR conectado → Waterfall real listo");
     startFakeWaterfall();
-}
-
-
-
-// ====================== DETECCIÓN PARA IPHONE ======================
-
-// Variable global para el tipo de red
-window.currentConnectionMode = 'wifi';
-
-function detectarRedIPhone() {
-    // Elementos del DOM
-    const networkIcon = document.getElementById('networkIcon');
-    const networkName = document.getElementById('networkName');
-    const networkType = document.getElementById('networkType');
-    const networkInternet = document.getElementById('networkInternet');
-    const detectedType = document.getElementById('detectedType');
-    const effectiveType = document.getElementById('effectiveType');
-    const statusReal = document.getElementById('status-real');
-    const deviceInfo = document.getElementById('deviceInfo');
-
-    // Mostrar loading
-    networkIcon.innerHTML = '🔄';
-    networkName.innerHTML = 'DETECTANDO...';
-    networkName.style.color = '#00ff88';
-    networkType.innerHTML = 'Verificando conexión...';
-    networkInternet.innerHTML = '⏳ Comprobando...';
-    networkInternet.style.background = 'rgba(255,255,0,0.1)';
-    statusReal.innerHTML = 'Detectando red...';
-
-    // Verificar conexión básica
-    if (!navigator.onLine) {
-        networkIcon.innerHTML = '❌';
-        networkName.innerHTML = 'SIN CONEXIÓN';
-        networkName.style.color = '#ff5555';
-        networkType.innerHTML = 'No hay redes disponibles';
-        networkInternet.innerHTML = '❌ Desconectado';
-        networkInternet.style.background = 'rgba(255,0,0,0.2)';
-        detectedType.innerHTML = 'none';
-        statusReal.innerHTML = '❌ Sin conexión';
-        return;
-    }
-
-    // ===== DETECCIÓN ESPECIAL PARA IPHONE =====
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    
-    if (!connection) {
-        // iPhone no soporta la API completa, usar método alternativo
-        console.log('📱 iPhone detectado - Usando método alternativo');
-        deviceInfo.innerHTML = 'iPhone (API limitada)';
-        
-        // En iPhone solo tenemos effectiveType
-        // Pero podemos deducir por la velocidad y latencia
-        
-        // Medir latencia real
-        const startTime = Date.now();
-        fetch('https://www.google.com/favicon.ico?nocache=' + Date.now(), { 
-            mode: 'no-cors',
-            cache: 'no-store'
-        })
-        .then(() => {
-            const latency = Date.now() - startTime;
-            
-            // DETECCIÓN POR LATENCIA (funciona en iPhone)
-            let tipoRed = 'wifi';
-            let nombreRed = 'WiFi';
-            let icono = '📶';
-            
-            // Si la latencia es mayor a 100ms, probablemente es 4G
-            // Si es mayor a 200ms, probablemente es 3G
-            if (latency > 150) {
-                tipoRed = 'mobile';
-                nombreRed = 'DATOS MÓVILES';
-                icono = '📱';
-            }
-            
-            // Intentar obtener effectiveType (limitado en iPhone)
-            let efectivo = 'desconocido';
-            if (connection && connection.effectiveType) {
-                efectivo = connection.effectiveType;
-                // Si dice 4g en iPhone, es móvil seguro
-                if (efectivo.includes('4g') || efectivo.includes('3g')) {
-                    tipoRed = 'mobile';
-                    nombreRed = 'DATOS MÓVILES';
-                    icono = '📱';
-                }
-            }
-            
-            // Actualizar UI
-            networkIcon.innerHTML = icono;
-            networkName.innerHTML = nombreRed;
-            networkName.style.color = '#00ff88';
-            networkType.innerHTML = `Latencia: ${latency}ms | Velocidad estimada`;
-            networkInternet.innerHTML = '✅ CONECTADO A INTERNET';
-            networkInternet.style.background = 'rgba(0,255,0,0.1)';
-            detectedType.innerHTML = tipoRed;
-            effectiveType.innerHTML = efectivo;
-            
-            // Guardar modo
-            window.currentConnectionMode = tipoRed;
-            
-            // Configurar calidad
-            const videoSelect = document.getElementById('video-quality');
-            if (videoSelect) {
-                if (tipoRed === 'mobile') {
-                    videoSelect.value = '480';
-                    statusReal.innerHTML = '📱 MODO AHORRO - Datos móviles (iPhone)';
-                } else {
-                    videoSelect.value = '1080';
-                    statusReal.innerHTML = '📶 MODO CALIDAD - WiFi (iPhone)';
-                }
-            }
-        })
-        .catch(() => {
-            // Sin internet
-            networkName.innerHTML = 'RED LOCAL';
-            networkName.style.color = '#ffaa00';
-            networkType.innerHTML = 'Sin acceso a internet';
-            networkInternet.innerHTML = '⚠️ RED LOCAL';
-            networkInternet.style.background = 'rgba(255,165,0,0.2)';
-            detectedType.innerHTML = 'local';
-            window.currentConnectionMode = 'local';
-            statusReal.innerHTML = '⚠️ Modo local';
-        });
-        
-        return;
-    }
-
-    // ===== ANDROID/PC CON API COMPLETA =====
-    console.log('📊 Datos de conexión:', {
-        type: connection.type,
-        effectiveType: connection.effectiveType
-    });
-
-    // Mostrar datos
-    effectiveType.innerHTML = connection.effectiveType || 'desconocido';
-    deviceInfo.innerHTML = 'Android/PC (API completa)';
-
-    // Detectar tipo
-    let tipoRed = 'wifi';
-    let nombreRed = 'WiFi';
-    let icono = '📶';
-
-    if (connection.type === 'cellular') {
-        tipoRed = 'mobile';
-        nombreRed = 'DATOS MÓVILES';
-        icono = '📱';
-    } else if (connection.type === 'wifi') {
-        tipoRed = 'wifi';
-        nombreRed = 'WiFi';
-        icono = '📶';
-    } else {
-        // Fallback por effectiveType
-        const efectivo = connection.effectiveType || '';
-        if (efectivo.includes('2g') || efectivo.includes('3g')) {
-            tipoRed = 'mobile';
-            nombreRed = 'DATOS MÓVILES';
-            icono = '📱';
-        }
-    }
-
-    // Verificar internet
-    fetch('https://www.google.com/favicon.ico', { mode: 'no-cors', cache: 'no-store' })
-    .then(() => {
-        networkIcon.innerHTML = icono;
-        networkName.innerHTML = nombreRed;
-        networkName.style.color = '#00ff88';
-        networkType.innerHTML = `Velocidad: ${connection.downlink || '?'} Mbps`;
-        networkInternet.innerHTML = '✅ CONECTADO A INTERNET';
-        networkInternet.style.background = 'rgba(0,255,0,0.1)';
-        detectedType.innerHTML = tipoRed;
-        
-        window.currentConnectionMode = tipoRed;
-        
-        const videoSelect = document.getElementById('video-quality');
-        if (videoSelect) {
-            videoSelect.value = tipoRed === 'mobile' ? '480' : '1080';
-            statusReal.innerHTML = tipoRed === 'mobile' ? '📱 MODO MÓVIL' : '📶 MODO WiFi';
-        }
-    })
-    .catch(() => {
-        networkName.innerHTML = 'RED LOCAL';
-        networkName.style.color = '#ffaa00';
-        networkInternet.innerHTML = '⚠️ RED LOCAL';
-        detectedType.innerHTML = 'local';
-        window.currentConnectionMode = 'local';
-    });
-}
-
-// Abrir gestor de redes
-function openNetworkManager() {
-    document.getElementById('networkManagerModal').style.display = 'flex';
-    setTimeout(detectarRedIPhone, 300);
-}
-
-function closeNetworkManager() {
-    document.getElementById('networkManagerModal').style.display = 'none';
 }
 
 
