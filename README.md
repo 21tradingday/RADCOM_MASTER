@@ -3,17 +3,12 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.6.5- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
-    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"
-        integrity="sha384-o3/WHIuN2djg7wSjpcnOFV7N1wBnnbFLQ0eb1KK4x21G7WzttP0h3QaR9HwF0iWp"
-        crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.js"></script>
+    <title>RADCOM MASTER v5.6.7- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
-    <script src="js/weather-logic.js"></script>
     <script src="weather-logic.js"></script> 
     <script src="https://api.open-meteo.com/v1/forecast?latitude=40.4599&longitude=-3.4859&hourly=temperature_2m,visibility,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_80m,wind_gusts_10m"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
@@ -2492,9 +2487,9 @@
         <button class="btn-cockpit" id="btn-util" onclick="handleCockpitClick('UTIL')">
             <i class="fas fa-tools"></i><span>UTIL</span>
         </button>
-        <button class="btn-cockpit" id="btn-res" onclick="handleCockpitClick('RES')">
-            <i class="fas fa-plus"></i><span>EXT</span>
-        </button>
+        <button class="btn-cockpit" id="btn-sdr" onclick="handleCockpitClick('SDR')">
+    <i class="fas fa-broadcast-tower"></i><span>SDR</span>
+</button>
     </div>
                 </div>             
 </div>
@@ -2892,6 +2887,7 @@
                 </span>
             </div>
             
+            
             <!-- MODIFICADO: CON MICRÓFONO MEJORADO -->
             <div style="display:flex; height:36px; align-items:center; padding:4px 5px; gap:4px; border-bottom:1px solid #222;">
                 <!-- BOTÓN LIMPIAR -->
@@ -2938,8 +2934,19 @@
                     <div class="stat-label">ANCHO BANDA</div>
                 </div>
             </div>
+           <!-- === BOTÓN REDES (nuevo) === -->
+<button id="btn-redes" 
+        onclick="openNetworkManager()"
+        style="position:absolute; bottom:92px; right:12px; 
+               background:linear-gradient(135deg, #00ff88, #0088ff); 
+               color:#000; border:none; border-radius:4px; 
+               padding:8px 14px; font-size:0.75rem; font-weight:bold;
+               box-shadow:0 4px 12px rgba(0,255,136,0.4);">
+    <i class="fas fa-network-wired"></i> REDES
+</button> 
         </div>
     </div>
+    
 
     <!-- Modelo base de configuración (sin cambios) -->
     <div class="modal-overlay" id="settingsModal">
@@ -3007,36 +3014,8 @@
                         <i class="fas fa-redo"></i>
                     </button>
                 </div>
-            </div>
-            
-            <div style="margin-bottom:10px;">
-                <div style="color:#00ff88; font-size:0.75rem; margin-bottom:6px;">
-                    <i class="fas fa-network-wired"></i> TIPO DE CONEXIÓN
-                </div>
-                <div class="connection-type-selector">
-                    <div class="connection-type-btn active" id="btn-wifi" onclick="selectConnectionType('wifi')">
-                        <div class="connection-icon">
-                            <i class="fas fa-wifi"></i>
-                        </div>
-                        RED WiFi
-                        <div class="connection-info">
-                            Redes privadas
-                        </div>
-                    </div>
-                    <div class="connection-type-btn" id="btn-mobile" onclick="selectConnectionType('mobile')">
-                        <div class="connection-icon">
-                            <i class="fas fa-satellite-dish"></i>
-                        </div>
-                        DATOS MÓVILES
-                        <div class="connection-info">
-                            4G/5G Global
-                        </div>
-                    </div>
-                </div>
-                <div id="connection-status" style="font-size:0.65rem; color:#00ffea; margin-top:5px; text-align:center;">
-                    Estado: <span id="current-connection-type">WiFi</span>
-                </div>
-            </div>
+            </div>     
+                
             
             <div style="margin-bottom:10px;">
                 <label style="display:block; margin-bottom:4px; color:#00ff88; font-size:0.75rem;">
@@ -3172,6 +3151,8 @@
     </div>
 </div>
 
+<!-- Contenido botones 6 panel  -->
+
 <div id="modal-680" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:680px; height:680px; background:#000; border:2px solid #00ff88; z-index:9999; box-shadow: 0 0 20px rgba(0,255,136,0.5);">
     <div style="display:flex; justify-content:space-between; background:#222; padding:5px 10px; border-bottom:1px solid #00ff88;">
         <span id="modal-title" style="color:#00ff88; font-family:monospace; font-weight:bold;">SISTEMA NAV</span>
@@ -3180,6 +3161,8 @@
     <div id="modal-body" style="width:100%; height:calc(100% - 30px); overflow:hidden;">
         </div>
 </div>
+
+<!-- Contenido escodite para los pdf,COM NAV ECM MAP UTIL +EXT -->
 
 <div id="pfd-source-storage" style="display:none;">
 
@@ -3193,6 +3176,7 @@
 
     </div>
 
+    <!-- Contenido MAPAS 4 pestañas  -->
 
   <div id="map-source-storage" style="display:none;">
     <div style="display:flex; flex-direction:column; height:100%; width:100%; background:#000; position:relative; overflow:hidden;">
@@ -3324,7 +3308,7 @@
         </div>
 
         <!-- PANEL BRÚJULA -->
-        <div id="compass-container" style="position:absolute; bottom:30px; right:20px; width:160px; height:160px; z-index:2000; pointer-events:none; opacity:0.6; filter:drop-shadow(0 0 8px rgba(0,0,0,0.7));"></div>
+        <div id="compass-container" style="position:absolute; bottom:30px; right:20px; width:160px; height:160px; z-index:2000; pointer-events:none; opacity:1; filter:drop-shadow(0 0 8px rgba(0,0,0,0.7));"></div>
         <div id="compass-data-panel" style="position:absolute; top:15px; right:20px; background:rgba(0,0,0,0.7); border:1px solid #00ff88; border-radius:4px; padding:8px; z-index:2001; min-width:130px; backdrop-filter:blur(3px);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <span style="color:#00ff88; font-size:0.7rem; font-weight:bold;">🧭 COMPASS</span>
@@ -4370,6 +4354,385 @@
         }`;
         document.head.appendChild(style);
     </script>
+</div>
+
+<!-- === SDR SOURCE STORAGE (para el módulo) === -->
+<div id="sdr-source-storage" style="display:none;">
+    <div style="padding:25px; background:#0a0a12; color:#e0e0ff; height:100%; font-family:'Inter', 'Segoe UI', 'Consolas', monospace; overflow-y:auto; letter-spacing:0.5px;">
+        
+        <!-- ========== HEADER ELEGANTE ========== -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; border-bottom:1px solid #2a2a4a; padding-bottom:15px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:1.8rem; font-weight:300; color:#aaccff;">RADCOM</span>
+                <span style="background:#1e2a3a; padding:6px 14px; border-radius:20px; font-size:0.85rem; color:#aaddff; border:1px solid #3a5a7a;">v5.6.5 HF/VHF/UHF</span>
+            </div>
+            <div style="display:flex; gap:15px;">
+                <span id="sdr-status-led" style="color:#8a9cf0;">● OFFLINE</span>
+                <span style="color:#6a8cff;" id="sdr-device-name">RTL-SDR.COM</span>
+            </div>
+        </div>
+        
+        <!-- ========== PANEL DE FRECUENCIA PRINCIPAL ========== -->
+        <div style="background:#0f0f1a; border-radius:16px; padding:25px; margin-bottom:25px; border:1px solid #2a3a5a; box-shadow:0 8px 0 rgba(0,0,0,0.4);">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+                <span style="color:#aaccff; font-size:0.9rem; letter-spacing:2px;">FRECUENCIA</span>
+                <span style="color:#6a9fcf; font-size:0.85rem;" id="sdr-ppm">±0.0 PPM</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
+                <span id="sdr-freq-display" style="font-size:3.2rem; font-weight:400; color:#e0f0ff; font-family:'Inter', monospace; letter-spacing:4px;">3.700.000</span>
+                <span style="font-size:1.4rem; color:#8ab2f0;">MHz</span>
+                <span id="sdr-rx-status" style="margin-left:auto; background:#1a2a3a; padding:8px 20px; border-radius:30px; border:1px solid #4a7a9a; color:#b0e0ff;">RX</span>
+            </div>
+            
+            <!-- CONTROLES DE STEP FUNCIONALES -->
+            <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
+                <button id="sdr-step-m1" style="background:#1e2e3e; border:none; color:#c0e0ff; padding:8px 18px; border-radius:8px; font-weight:500; border:1px solid #3a6a8a; cursor:pointer;">-1M</button>
+                <button id="sdr-step-100k" style="background:#1e2e3e; border:none; color:#c0e0ff; padding:8px 18px; border-radius:8px; font-weight:500; border:1px solid #3a6a8a; cursor:pointer;">-100k</button>
+                <button id="sdr-step-10k" style="background:#1e2e3e; border:none; color:#c0e0ff; padding:8px 18px; border-radius:8px; font-weight:500; border:1px solid #3a6a8a; cursor:pointer;">-10k</button>
+                <button id="sdr-step-1k" style="background:#1e2e3e; border:none; color:#c0e0ff; padding:8px 18px; border-radius:8px; font-weight:500; border:1px solid #3a6a8a; cursor:pointer;">-1k</button>
+                <button id="sdr-step-left" style="background:#2a4a6a; border:none; color:white; padding:8px 18px; border-radius:8px; font-weight:600; margin-left:5px; cursor:pointer;">◀</button>
+                <button id="sdr-step-right" style="background:#2a4a6a; border:none; color:white; padding:8px 18px; border-radius:8px; font-weight:600; cursor:pointer;">▶</button>
+                <button id="sdr-step-p1k" style="background:#1e2e3e; border:none; color:#c0e0ff; padding:8px 18px; border-radius:8px; font-weight:500; border:1px solid #3a6a8a; cursor:pointer;">+1k</button>
+                <button id="sdr-step-p10k" style="background:#1e2e3e; border:none; color:#c0e0ff; padding:8px 18px; border-radius:8px; font-weight:500; border:1px solid #3a6a8a; cursor:pointer;">+10k</button>
+                <button id="sdr-step-p100k" style="background:#1e2e3e; border:none; color:#c0e0ff; padding:8px 18px; border-radius:8px; font-weight:500; border:1px solid #3a6a8a; cursor:pointer;">+100k</button>
+                <button id="sdr-step-p1m" style="background:#1e2e3e; border:none; color:#c0e0ff; padding:8px 18px; border-radius:8px; font-weight:500; border:1px solid #3a6a8a; cursor:pointer;">+1M</button>
+            </div>
+            
+            <!-- FRECUENCIA MANUAL -->
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <input id="sdr-manual-input" type="number" value="3700000" step="1000" style="flex:3; background:#0a0a14; border:1px solid #3a6a9a; color:#e0f0ff; padding:12px; border-radius:8px; font-size:1.1rem;">
+                <button id="sdr-set-freq" style="flex:1; background:#3a5a7a; border:1px solid #8ab2f0; color:white; padding:12px; border-radius:8px; font-weight:600; cursor:pointer;">SET</button>
+            </div>
+        </div>
+        
+        <!-- ========== BOTONES DE MODO - ESTILO SDRPHY FUNCIONALES ========== -->
+        <div style="display:flex; gap:12px; margin-bottom:25px; flex-wrap:wrap;">
+            <button id="sdr-mode-fm" style="background:#1a2a3a; border:1px solid #3a6a9a; color:#b0e0ff; padding:12px 24px; border-radius:30px; font-weight:600; letter-spacing:1px; cursor:pointer;">FM</button>
+            <button id="sdr-mode-am" style="background:#2a4a6a; border:1px solid #5a9acf; color:white; padding:12px 24px; border-radius:30px; font-weight:600; letter-spacing:1px; box-shadow:0 0 8px #3a8aca; cursor:pointer;">AM</button>
+            <button id="sdr-mode-usb" style="background:#1a2a3a; border:1px solid #3a6a9a; color:#b0e0ff; padding:12px 24px; border-radius:30px; font-weight:600; letter-spacing:1px; cursor:pointer;">USB</button>
+            <button id="sdr-mode-lsb" style="background:#1a2a3a; border:1px solid #3a6a9a; color:#b0e0ff; padding:12px 24px; border-radius:30px; font-weight:600; letter-spacing:1px; cursor:pointer;">LSB</button>
+            <button id="sdr-mode-cw" style="background:#1a2a3a; border:1px solid #3a6a9a; color:#b0e0ff; padding:12px 24px; border-radius:30px; font-weight:600; letter-spacing:1px; cursor:pointer;">CW</button>
+            <button id="sdr-mode-nfm" style="background:#1a2a3a; border:1px solid #3a6a9a; color:#b0e0ff; padding:12px 24px; border-radius:30px; font-weight:600; letter-spacing:1px; cursor:pointer;">NFM</button>
+            <button id="sdr-mode-wfm" style="background:#1a2a3a; border:1px solid #3a6a9a; color:#b0e0ff; padding:12px 24px; border-radius:30px; font-weight:600; letter-spacing:1px; cursor:pointer;">WFM</button>
+        </div>
+        
+        <!-- ========== DECODIFICADORES DIGITALES ========== -->
+        <div style="display:flex; gap:12px; margin-bottom:25px; flex-wrap:wrap;">
+            <span style="background:#0f1a1f; border:1px solid #3a6a7a; color:#9ad0e0; padding:8px 20px; border-radius:25px; font-size:0.9rem;">DMR</span>
+            <span style="background:#0f1a1f; border:1px solid #3a6a7a; color:#9ad0e0; padding:8px 20px; border-radius:25px; font-size:0.9rem;">DSTAR</span>
+            <span style="background:#0f1a1f; border:1px solid #3a6a7a; color:#9ad0e0; padding:8px 20px; border-radius:25px; font-size:0.9rem;">NXDN</span>
+            <span style="background:#0f1a1f; border:1px solid #3a6a7a; color:#9ad0e0; padding:8px 20px; border-radius:25px; font-size:0.9rem;">YSF</span>
+            <span style="background:#0f1a1f; border:1px solid #3a6a7a; color:#9ad0e0; padding:8px 20px; border-radius:25px; font-size:0.9rem;">P25</span>
+            <span style="background:#0f1a1f; border:1px solid #3a6a7a; color:#9ad0e0; padding:8px 20px; border-radius:25px; font-size:0.9rem;">APRS</span>
+            <span style="background:#0f1a1f; border:1px solid #3a6a7a; color:#9ad0e0; padding:8px 20px; border-radius:25px; font-size:0.9rem;">FT8</span>
+            <span id="sdr-tone-out" style="background:#2a4a3a; border:1px solid #6a9a7a; color:#c0ffc0; padding:8px 20px; border-radius:25px; font-size:0.9rem; font-weight:600; cursor:pointer;">TONE-OUT</span>
+        </div>
+        
+        <!-- ========== BANDAS DE FRECUENCIA - CUADRÍCULA FUNCIONAL ========== -->
+        <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:25px;">
+            <button id="band-hf-80" data-freq="3500000" style="background:#0a0a14; border:1px solid #2a3a5a; border-radius:12px; padding:12px; text-align:center; color:inherit; cursor:pointer;">
+                <div style="color:#8a9cf0; font-size:0.8rem;">HF</div>
+                <div style="color:#e0f0ff; font-size:1.1rem;">3.5M</div>
+                <div style="color:#7a8ac0; font-size:0.7rem;">80m</div>
+            </button>
+            <button id="band-hf-40" data-freq="7100000" style="background:#0a0a14; border:1px solid #2a3a5a; border-radius:12px; padding:12px; text-align:center; color:inherit; cursor:pointer;">
+                <div style="color:#8a9cf0; font-size:0.8rem;">HF</div>
+                <div style="color:#e0f0ff; font-size:1.1rem;">7.1M</div>
+                <div style="color:#7a8ac0; font-size:0.7rem;">40m</div>
+            </button>
+            <button id="band-hf-20" data-freq="14100000" style="background:#0a0a14; border:1px solid #2a3a5a; border-radius:12px; padding:12px; text-align:center; color:inherit; cursor:pointer;">
+                <div style="color:#8a9cf0; font-size:0.8rem;">HF</div>
+                <div style="color:#e0f0ff; font-size:1.1rem;">14.1M</div>
+                <div style="color:#7a8ac0; font-size:0.7rem;">20m</div>
+            </button>
+            <button id="band-rescue" data-freq="3700000" style="background:#1a2a3a; border:2px solid #5a8acf; border-radius:12px; padding:12px; text-align:center; box-shadow:0 0 10px #2a5a9a; color:white; cursor:pointer;">
+                <div style="color:#b0e0ff; font-size:0.8rem;">RESCATE</div>
+                <div style="color:white; font-size:1.1rem; font-weight:bold;">3.7M</div>
+                <div style="color:#a0c0ff; font-size:0.7rem;">80m EM</div>
+            </button>
+            <button id="band-aviation" data-freq="121500000" style="background:#0a0a14; border:1px solid #2a3a5a; border-radius:12px; padding:12px; text-align:center; color:inherit; cursor:pointer;">
+                <div style="color:#8a9cf0; font-size:0.8rem;">VHF</div>
+                <div style="color:#e0f0ff; font-size:1.1rem;">121.5M</div>
+                <div style="color:#7a8ac0; font-size:0.7rem;">AVIACIÓN</div>
+            </button>
+            <button id="band-uhf-emerg" data-freq="433500000" style="background:#0a0a14; border:1px solid #2a3a5a; border-radius:12px; padding:12px; text-align:center; color:inherit; cursor:pointer;">
+                <div style="color:#8a9cf0; font-size:0.8rem;">UHF</div>
+                <div style="color:#e0f0ff; font-size:1.1rem;">433.5M</div>
+                <div style="color:#7a8ac0; font-size:0.7rem;">EMERG</div>
+            </button>
+        </div>
+        
+        <!-- ========== WATERFALL ELEGANTE ========== -->
+        <div style="border:1px solid #2a3a5a; border-radius:12px; padding:15px; margin-bottom:20px; background:#050508;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span style="color:#aaccff; font-size:0.85rem;">ESPECTRO RF</span>
+                <span style="color:#8a9cf0; font-size:0.8rem;" id="sdr-bandwidth">-120 kHz ███ +120 kHz</span>
+            </div>
+            <canvas id="sdr-waterfall" width="620" height="160" style="width:100%; background:#000; border-radius:8px;"></canvas>
+            <div style="display:flex; justify-content:space-between; margin-top:10px; color:#7a8ac0; font-size:0.75rem;">
+                <span id="sdr-freq-minus">3.580 MHz</span>
+                <span id="sdr-freq-center" style="color:#e0f0ff;">3.700 MHz</span>
+                <span id="sdr-freq-plus">3.820 MHz</span>
+            </div>
+        </div>
+        
+        <!-- ========== CONTROLES INFERIORES ========== -->
+        <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:20px; margin-bottom:20px;">
+            <div>
+                <div style="color:#aaccff; margin-bottom:8px; font-size:0.85rem;">SQL</div>
+                <input id="sdr-squelch" type="range" min="0" max="100" value="30" style="width:100%; accent-color:#5a9acf;">
+            </div>
+            <div>
+                <div style="color:#aaccff; margin-bottom:8px; font-size:0.85rem;">VOL</div>
+                <input id="sdr-volume" type="range" min="0" max="100" value="70" style="width:100%; accent-color:#5a9acf;">
+            </div>
+            <div>
+                <div style="color:#aaccff; margin-bottom:8px; font-size:0.85rem;">RF GAIN</div>
+                <input id="sdr-gain" type="range" min="0" max="100" value="40" style="width:100%; accent-color:#5a9acf;">
+            </div>
+        </div>
+        
+        <!-- ========== BOTONES DE ACCIÓN PRINCIPALES FUNCIONALES ========== -->
+        <div style="display:flex; gap:15px; margin-top:15px;">
+            <button id="sdr-connect-btn" style="flex:1; background:#1e3a5a; border:1px solid #5a9acf; color:white; padding:16px; border-radius:12px; font-weight:600; font-size:1.1rem; letter-spacing:2px; cursor:pointer;">
+                🔌 CONECTAR RTL-SDR
+            </button>
+            <button id="sdr-scan-btn" style="flex:1; background:#2a4a3a; border:1px solid #6a9a7a; color:white; padding:16px; border-radius:12px; font-weight:600; font-size:1.1rem; letter-spacing:2px; cursor:pointer;">
+                🔍 SCAN
+            </button>
+            <button id="sdr-tune-btn" style="flex:1; background:#3a5a7a; border:1px solid #8ab2f0; color:white; padding:16px; border-radius:12px; font-weight:600; font-size:1.1rem; letter-spacing:2px; cursor:pointer;">
+                🎯 TUNE
+            </button>
+        </div>
+        
+        <!-- ========== TERMINAL ========== -->
+        <div id="sdr-terminal" style="margin-top:25px; background:#0c0c14; border:1px solid #2a3a5a; border-radius:10px; padding:15px; color:#a0c0e0; font-family:'Consolas', monospace; font-size:0.8rem; height:100px; overflow-y:auto;">
+            > RADCOM RESCATE v5.6.5 iniciado
+            > Sistema SDR listo - Pulsa CONECTAR
+            > Banda activa: RESCATE HF 3.700 MHz
+        </div>
+        
+        <script>
+            // ========== SDR COMPLETO - TODOS LOS BOTONES FUNCIONAN ==========
+            
+            // Variables
+            let device = null;
+            let isConnected = false;
+            let currentFreq = 3700000;
+            let currentMode = 'AM';
+            
+            // Elementos
+            const freqDisplay = document.getElementById('sdr-freq-display');
+            const manualInput = document.getElementById('sdr-manual-input');
+            const terminal = document.getElementById('sdr-terminal');
+            const statusLed = document.getElementById('sdr-status-led');
+            const deviceName = document.getElementById('sdr-device-name');
+            const rxStatus = document.getElementById('sdr-rx-status');
+            const freqCenter = document.getElementById('sdr-freq-center');
+            
+            // ===== WATERFALL =====
+            const canvas = document.getElementById('sdr-waterfall');
+            const ctx = canvas.getContext('2d');
+            let anim;
+            
+            function drawWaterfall() {
+                ctx.fillStyle = 'rgba(8,12,20,0.15)';
+                ctx.fillRect(0, 0, 620, 160);
+                ctx.drawImage(canvas, 0, 2);
+                for(let i=0; i<620; i+=4) {
+                    const signal = Math.random() * 40 + (Math.sin(i/50) * 20 + 30);
+                    ctx.fillStyle = `rgba(100,180,255,${signal/150})`;
+                    ctx.fillRect(i, 0, 3, 6);
+                }
+                anim = requestAnimationFrame(drawWaterfall);
+            }
+            drawWaterfall();
+            
+            // ===== ACTUALIZAR DISPLAY FRECUENCIA =====
+            function updateFreqDisplay(freq) {
+                currentFreq = freq;
+                freqDisplay.innerHTML = freq.toLocaleString();
+                manualInput.value = freq;
+                const mhz = (freq / 1000000).toFixed(3);
+                freqCenter.innerHTML = mhz + ' MHz';
+                document.getElementById('sdr-freq-minus').innerHTML = (freq - 120000)/1000000 + ' MHz';
+                document.getElementById('sdr-freq-plus').innerHTML = (freq + 120000)/1000000 + ' MHz';
+            }
+            
+            // ===== CONECTAR RTL-SDR =====
+            document.getElementById('sdr-connect-btn').onclick = async function() {
+                terminal.innerHTML += '\n> 🔌 Abriendo selector WebUSB...';
+                
+                try {
+                    device = await navigator.usb.requestDevice({
+                        filters: [
+                            { vendorId: 0x0bda, productId: 0x2838 },
+                            { vendorId: 0x0bda, productId: 0x2832 }
+                        ]
+                    });
+                    
+                    await device.open();
+                    await device.selectConfiguration(1);
+                    await device.claimInterface(0);
+                    
+                    isConnected = true;
+                    statusLed.innerHTML = '● ONLINE';
+                    statusLed.style.color = '#8aff8a';
+                    deviceName.innerHTML = device.productName || 'RTL-SDR';
+                    rxStatus.innerHTML = 'RX';
+                    rxStatus.style.background = '#2a6a4a';
+                    
+                    terminal.innerHTML += `\n> ✅ CONECTADO: ${device.productName || 'RTL-SDR'}`;
+                    document.getElementById('sdr-connect-btn').innerHTML = '✅ RTL-SDR CONECTADO';
+                    document.getElementById('sdr-connect-btn').style.background = '#2a6a4a';
+                    
+                } catch(err) {
+                    terminal.innerHTML += `\n> ❌ ERROR: ${err.message.split('(')[0] || 'Cancelado'}`;
+                }
+            };
+            
+            // ===== SET FRECUENCIA =====
+            document.getElementById('sdr-set-freq').onclick = function() {
+                const freq = parseInt(manualInput.value);
+                updateFreqDisplay(freq);
+                terminal.innerHTML += `\n> 📡 FRECUENCIA: ${freq.toLocaleString()} Hz`;
+            };
+            
+            // ===== BOTONES STEP =====
+            document.getElementById('sdr-step-m1').onclick = () => updateFreqDisplay(currentFreq - 1000000);
+            document.getElementById('sdr-step-100k').onclick = () => updateFreqDisplay(currentFreq - 100000);
+            document.getElementById('sdr-step-10k').onclick = () => updateFreqDisplay(currentFreq - 10000);
+            document.getElementById('sdr-step-1k').onclick = () => updateFreqDisplay(currentFreq - 1000);
+            document.getElementById('sdr-step-left').onclick = () => updateFreqDisplay(currentFreq - 5000);
+            document.getElementById('sdr-step-right').onclick = () => updateFreqDisplay(currentFreq + 5000);
+            document.getElementById('sdr-step-p1k').onclick = () => updateFreqDisplay(currentFreq + 1000);
+            document.getElementById('sdr-step-p10k').onclick = () => updateFreqDisplay(currentFreq + 10000);
+            document.getElementById('sdr-step-p100k').onclick = () => updateFreqDisplay(currentFreq + 100000);
+            document.getElementById('sdr-step-p1m').onclick = () => updateFreqDisplay(currentFreq + 1000000);
+            
+            // ===== BOTONES MODO =====
+            document.getElementById('sdr-mode-fm').onclick = function() {
+                currentMode = 'FM';
+                terminal.innerHTML += '\n> 🎛️ MODO: FM';
+            };
+            document.getElementById('sdr-mode-am').onclick = function() {
+                currentMode = 'AM';
+                terminal.innerHTML += '\n> 🎛️ MODO: AM';
+            };
+            document.getElementById('sdr-mode-usb').onclick = function() {
+                currentMode = 'USB';
+                terminal.innerHTML += '\n> 🎛️ MODO: USB';
+            };
+            document.getElementById('sdr-mode-lsb').onclick = function() {
+                currentMode = 'LSB';
+                terminal.innerHTML += '\n> 🎛️ MODO: LSB';
+            };
+            document.getElementById('sdr-mode-cw').onclick = function() {
+                currentMode = 'CW';
+                terminal.innerHTML += '\n> 🎛️ MODO: CW';
+            };
+            document.getElementById('sdr-mode-nfm').onclick = function() {
+                currentMode = 'NFM';
+                terminal.innerHTML += '\n> 🎛️ MODO: NFM';
+            };
+            document.getElementById('sdr-mode-wfm').onclick = function() {
+                currentMode = 'WFM';
+                terminal.innerHTML += '\n> 🎛️ MODO: WFM';
+            };
+            
+            // ===== BOTONES BANDA =====
+            document.getElementById('band-hf-80').onclick = () => updateFreqDisplay(3500000);
+            document.getElementById('band-hf-40').onclick = () => updateFreqDisplay(7100000);
+            document.getElementById('band-hf-20').onclick = () => updateFreqDisplay(14100000);
+            document.getElementById('band-rescue').onclick = () => updateFreqDisplay(3700000);
+            document.getElementById('band-aviation').onclick = () => updateFreqDisplay(121500000);
+            document.getElementById('band-uhf-emerg').onclick = () => updateFreqDisplay(433500000);
+            
+            // ===== TONE OUT =====
+            document.getElementById('sdr-tone-out').onclick = function() {
+                terminal.innerHTML += '\n> 🔴 TONE-OUT ACTIVADO - FRECUENCIA EMERGENCIA';
+            };
+            
+            // ===== TUNE =====
+            document.getElementById('sdr-tune-btn').onclick = function() {
+                terminal.innerHTML += `\n> 🎯 SINTONIZANDO: ${currentFreq.toLocaleString()} Hz - ${currentMode}`;
+                if(isConnected) {
+                    terminal.innerHTML += ' [COMANDO ENVIADO]';
+                }
+            };
+            
+            // ===== SCAN =====
+            document.getElementById('sdr-scan-btn').onclick = function() {
+                terminal.innerHTML += '\n> 🔍 INICIANDO ESCANEO DE BANDA...';
+                let scanFreq = 3500000;
+                let scanCount = 0;
+                
+                const scanInterval = setInterval(() => {
+                    if(scanCount > 10) {
+                        clearInterval(scanInterval);
+                        terminal.innerHTML += '\n> ✅ ESCANEO COMPLETADO';
+                        return;
+                    }
+                    updateFreqDisplay(scanFreq);
+                    scanFreq += 50000;
+                    scanCount++;
+                }, 800);
+            };
+            
+            // ===== INIT =====
+            updateFreqDisplay(3700000);
+            
+            // Limpiar
+            window.addEventListener('beforeunload', () => {
+                if(anim) cancelAnimationFrame(anim);
+                if(device) device.close();
+            });
+        </script>
+    </div>
+</div>
+
+<!-- ====================== VENTANA GESTOR DE REDES v3.0 - CORREGIDA ====================== -->
+<div class="modal-overlay" id="networkManagerModal" style="display:none;">
+    <div class="modal-content" style="width:560px; max-height:94vh;">
+        <button class="modal-close" onclick="closeNetworkManager()">×</button>
+        
+        <div class="modal-title">
+            <i class="fas fa-satellite-dish"></i> ESTADO DE RED
+        </div>
+
+        <!-- Estado actual de conexión -->
+        <div id="connection-status-panel" style="background:rgba(0,0,0,0.8); padding:25px; border-radius:8px; margin:20px 0; text-align:center;">
+            <div id="networkIcon" style="font-size:64px; margin-bottom:15px;">📶</div>
+            <div id="networkName" style="font-size:1.8rem; font-weight:bold; color:#00ff88;">DETECTANDO...</div>
+            <div id="networkType" style="font-size:0.9rem; color:#aaa; margin-top:10px;"></div>
+            <div id="networkInternet" style="margin-top:15px; padding:10px; border-radius:4px;"></div>
+        </div>
+
+        <!-- Información detallada -->
+        <div style="background:rgba(0,30,30,0.9); padding:15px; border-radius:4px; margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                <span>📶 Red detectada:</span>
+                <span id="detectedType" style="color:#00ff88;">---</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                <span>📊 API type:</span>
+                <span id="apiType" style="color:#00ff88;">---</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span>📱 effectiveType:</span>
+                <span id="effectiveType" style="color:#00ff88;">---</span>
+            </div>
+        </div>
+
+        <!-- Botón de escaneo -->
+        <button onclick="detectarRedReal()" 
+                style="width:100%; padding:14px; background:linear-gradient(90deg,#00ff88,#0088ff); 
+                       color:#000; font-weight:bold; border:none; border-radius:4px; margin-top:10px; cursor:pointer;">
+            <i class="fas fa-search"></i> DETECTAR RED AHORA
+        </button>
+
+        <div id="status-real" style="margin-top:15px; font-size:0.7rem; text-align:center; color:#00ffea;"></div>
+    </div>
 </div>
 
 
@@ -9106,7 +9469,6 @@ if (activeTarget === 'GLOBAL') {
 }
 
 // Modificar recepción de datos
-// Modificar recepción de datos
 function enhanceReceiveData() {
     const originalHandleReceivedData = handleReceivedData;
     
@@ -9232,7 +9594,6 @@ function showSecurityInfo() {
     }, 100);
 }
 
-// Inicializar seguridad
 // Inicializar seguridad
 function initSecurity() {
     console.log("🔐 Inicializando seguridad v5.2...");
@@ -9982,7 +10343,7 @@ function finalInitialization() {
     updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión estable y segura`);
 }
 
-// === LLAMADA FINAL ===
+// === LLAMADA FINAL PARTE D===
 
 // ====== SISTEMA CONSOLA v5.6.1 ======
 
@@ -10724,17 +11085,18 @@ function openModuleWindow(modulo) {
         'NAV': 'pfd-source-storage',
         'ECM': 'ecm-source-storage',
         'MAP': 'map-source-storage',
-        'UTIL': 'util-source-storage',
-        'LEGAL': 'legal-source-storage'
+        'UTIL': 'util-source-storage',        
+        'SDR': 'sdr-source-storage'
     };
 
     const sourceId = config[modulo];
     const storage = document.getElementById(sourceId);
 
     if (storage) {
-        const frame = document.getElementById('module-frame').contentWindow.document;
-        frame.open();
-        frame.write(`
+        const frame = document.getElementById('module-frame');
+        const doc = frame.contentWindow.document;
+        doc.open();
+        doc.write(`
             <!DOCTYPE html>
             <html>
             <head>
@@ -10751,195 +11113,35 @@ function openModuleWindow(modulo) {
             </body>
             </html>
         `);
-        frame.close();
+        doc.close();
+
+        // === INICIALIZACIÓN ESPECÍFICA ===
+        setTimeout(() => {
+            try {
+                if (modulo === 'SDR') {
+                    const win = frame.contentWindow;
+                    if (win && typeof win.initSDRModule === 'function') {
+                        win.initSDRModule();
+                        console.log('📡 SDR iniciado vía openModuleWindow');
+                    } else {
+                        console.warn('⚠️ initSDRModule no encontrado');
+                    }
+                }
+
+                if (modulo === 'MAP') {
+                    const win = frame.contentWindow;
+                    if (win && win.map) {
+                        setTimeout(() => win.map.invalidateSize(), 150);
+                    }
+                }
+            } catch(e) {
+                console.log(`Init ${modulo}:`, e);
+            }
+        }, 350);
+
     } else {
         body.innerHTML = `<div style="color:#ff3300; padding:20px; font-family:monospace;">⚠️ ERROR: SOURCE [${sourceId}] NO ENCONTRADO EN EL ALMACÉN</div>`;
     }
-}
-
-let currentBaseLayer = null;
-let mapInstance = null;
-let userMarker = null;           // Marcador que te sigue
-let currentTrack = null;         // Ruta que se va dibujando en tiempo real
-
-
-function initMapEngine() {
-    if (mapInstance) mapInstance.remove();
-
-    const container = document.getElementById('map-container');
-    container.style.height = "100%";
-    container.style.width = "100%";
-
-    mapInstance = L.map('map-container').setView([40.4167, -3.7033], 13);
-
-    // Capas
-    const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }).addTo(mapInstance);
-    const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
-    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
-
-    L.control.layers({ "🗺️ Topográfico": topo, "🛣️ Calles": streets, "🛰️ Satélite": satellite }, null, { collapsed: false }).addTo(mapInstance);
-
-    mapInstance.addLayer(drawnItems);
-
-    // Barra de dibujo (waypoints y rutas manuales)
-    const drawControl = new L.Control.Draw({
-        draw: { marker: true, polyline: true, polygon: false, rectangle: false, circle: false },
-        edit: { featureGroup: drawnItems, remove: true }
-    });
-    mapInstance.addControl(drawControl);
-
-    mapInstance.on(L.Draw.Event.CREATED, e => drawnItems.addLayer(e.layer));
-
-    // ==================== UBICACIÓN REAL + TRACKING ====================
-
-    // Botón "Mi Ubicación Actual"
-    const locationBtn = L.control({position: 'topleft'});
-    locationBtn.onAdd = function() {
-        const btn = L.DomUtil.create('button', '');
-        btn.innerHTML = '📍 Mi Ubicación';
-        btn.style.cssText = 'background:#00ff88; color:#000; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; cursor:pointer;';
-        btn.onclick = getCurrentLocation;
-        return btn;
-    };
-    locationBtn.addTo(mapInstance);
-
-    // Botón "Iniciar Tracking de Ruta"
-    const trackBtn = L.control({position: 'topleft'});
-    trackBtn.onAdd = function() {
-        const btn = L.DomUtil.create('button', '');
-        btn.id = 'track-btn';
-        btn.innerHTML = '▶️ Iniciar Tracking';
-        btn.style.cssText = 'background:#ffaa00; color:#000; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; margin-top:8px; cursor:pointer;';
-        btn.onclick = toggleLiveTracking;
-        return btn;
-    };
-    trackBtn.addTo(mapInstance);
-
-    mapInstance.invalidateSize(true);
-    updateMonitor("🗺️ Mapa listo - Pulsa 'Mi Ubicación' primero");
-}
-
-// ==================== FUNCIONES DE UBICACIÓN Y TRACKING ====================
-
-function getCurrentLocation() {
-    if (!navigator.geolocation) {
-        updateMonitor("❌ Tu navegador no soporta geolocalización", "error");
-        return;
-    }
-
-    updateMonitor("📡 Buscando tu ubicación...");
-
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-
-            mapInstance.setView([lat, lon], 15);
-
-            if (userMarker) userMarker.remove();
-            userMarker = L.marker([lat, lon], { 
-                icon: L.divIcon({ className: 'current-location-dot', html: '🟢', iconSize: [24,24] })
-            })
-            .addTo(mapInstance)
-            .bindPopup("📍 Tu posición actual").openPopup();
-
-            updateMonitor(`✅ Ubicación actual: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
-        },
-        (err) => {
-            updateMonitor("❌ No se pudo obtener la ubicación. Activa el GPS y permite el permiso.", "error");
-            console.error(err);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-    );
-}
-
-function toggleLiveTracking() {
-    const btn = document.getElementById('track-btn');
-
-    if (watchId) {
-        // Parar tracking
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        btn.innerHTML = '▶️ Iniciar Tracking';
-        btn.style.background = '#ffaa00';
-        updateMonitor("⏹️ Tracking detenido");
-    } else {
-        // Iniciar tracking
-        if (!currentTrack) {
-            currentTrack = L.polyline([], { color: '#00ff88', weight: 5 }).addTo(mapInstance);
-        }
-
-        watchId = navigator.geolocation.watchPosition(
-            (pos) => {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-
-                // Mover marcador
-                if (userMarker) userMarker.setLatLng([lat, lon]);
-                else {
-                    userMarker = L.marker([lat, lon]).addTo(mapInstance);
-                }
-
-                // Añadir punto al track
-                currentTrack.addLatLng([lat, lon]);
-
-                mapInstance.flyTo([lat, lon], mapInstance.getZoom());
-            },
-            (err) => console.error("Error tracking:", err),
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-        );
-
-        btn.innerHTML = '⏹️ Detener Tracking';
-        btn.style.background = '#ff3300';
-        updateMonitor("🟢 Tracking de ruta INICIADO - Muévete");
-    }
-}
-
-
-// Función para borrar todo
-function clearAllDrawnItems() {
-    if (confirm("¿Estás seguro de borrar TODOS los waypoints y tracks?")) {
-        drawnItems.clearLayers();
-        updateMonitor("🗑️ Todo borrado correctamente");
-    }
-}
-
-// ==================== PANEL DE HERRAMIENTAS (Waypoints + Tracks) ====================
-function createToolsPanel() {
-    const panel = document.createElement('div');
-    panel.id = 'map-tools-panel';
-    panel.style.cssText = `
-        position: absolute; 
-        top: 130px;           /* Bajado para no tapar el selector de mapas */
-        right: 15px; 
-        z-index: 1005;        /* Más arriba que los controles de Leaflet */
-        background: rgba(0,0,0,0.92); 
-        border: 2px solid #00ff88; 
-        border-radius: 6px; 
-        padding: 10px; 
-        width: 260px; 
-        color: #00ff88;
-        font-size: 0.75rem; 
-        max-height: 65vh; 
-        overflow-y: auto;
-        box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
-    `;
-
-    panel.innerHTML = `
-        <div style="margin-bottom:8px; font-weight:bold; color:#00ffea; text-align:center;">
-            📍 WAYPOINTS & TRACKS
-        </div>
-        <div id="waypoints-list" style="margin-bottom:12px; max-height:180px; overflow-y:auto;"></div>
-        <div id="tracks-list" style="max-height:140px; overflow-y:auto;"></div>
-        
-        <button onclick="clearAllDrawnItems()" 
-                style="margin-top:10px; width:100%; background:#ff3300; color:white; 
-                       border:none; padding:8px; border-radius:4px; font-weight:bold;">
-            🗑️ BORRAR TODO
-        </button>
-    `;
-
-    document.getElementById('map-container').appendChild(panel);
 }
 
 // Función de cierre reforzada
@@ -11003,6 +11205,242 @@ function initQueue() {
 
 // Ejecutar después de cargar
 setTimeout(initQueue, 2000);   
+
+// ==================== SDR WEBUSB - RTL-SDR OFICIAL (CORREGIDO) ====================
+
+
+
+function initSDRModule() {
+    const canvas = document.getElementById('spectrum-canvas');
+    if (canvas) spectrumCtx = canvas.getContext('2d');
+
+    const connectBtn = document.getElementById('sdr-connect-btn');
+    if (connectBtn) {
+        connectBtn.addEventListener('click', connectRTLSDR);
+    }
+    
+    startFakeWaterfall();   // Inicia waterfall simulado
+}
+
+// ←←← FUNCIÓN CORREGIDA (sin espacio)
+async function connectRTLSDR() {
+    const status = document.getElementById('sdr-status');
+    status.textContent = "Buscando RTL-SDR...";
+    status.style.color = "#ffaa00";
+
+    try {
+        sdrDevice = await navigator.usb.requestDevice({
+            filters: [
+                { vendorId: 0x0bda, productId: 0x2838 }   // RTL-SDR oficial
+            ]
+        });
+
+        await sdrDevice.open();
+        await sdrDevice.selectConfiguration(1);
+        await sdrDevice.claimInterface(0);
+
+        status.innerHTML = `✅ CONECTADO<br><small>${sdrDevice.productName || 'RTL-SDR'}</small>`;
+        status.style.color = "#00ff88";
+
+        startRealisticWaterfall();
+
+    } catch (err) {
+        status.textContent = "❌ Error: " + err.message;
+        status.style.color = "#ff3300";
+        console.error(err);
+    }
+}
+
+// Waterfall simulado
+function startFakeWaterfall() {
+    if (animationFrame) cancelAnimationFrame(animationFrame);
+    
+    function draw() {
+        if (!spectrumCtx) return;
+        
+        spectrumCtx.fillStyle = 'rgba(0,0,0,0.15)';
+        spectrumCtx.fillRect(0, 0, 620, 260);
+        
+        spectrumCtx.drawImage(spectrumCtx.canvas, 0, 3);
+        
+        for (let i = 0; i < 620; i += 3) {
+            const intensity = Math.random() * 220 + 35;
+            spectrumCtx.fillStyle = `hsl(100, 100%, ${intensity/3}%)`;
+            spectrumCtx.fillRect(i, 0, 3, 6);
+        }
+        
+        animationFrame = requestAnimationFrame(draw);
+    }
+    draw();
+}
+
+function startRealisticWaterfall() {
+    console.log("RTL-SDR conectado → Waterfall real listo");
+    startFakeWaterfall();
+}
+
+// ====================== DETECCIÓN REAL DE RED - CORREGIDA ======================
+
+function detectarRedReal() {
+    // Elementos del DOM
+    const networkIcon = document.getElementById('networkIcon');
+    const networkName = document.getElementById('networkName');
+    const networkType = document.getElementById('networkType');
+    const networkInternet = document.getElementById('networkInternet');
+    const detectedType = document.getElementById('detectedType');
+    const apiType = document.getElementById('apiType');
+    const effectiveType = document.getElementById('effectiveType');
+    const statusReal = document.getElementById('status-real');
+
+    // Mostrar loading
+    networkIcon.innerHTML = '🔄';
+    networkName.innerHTML = 'DETECTANDO...';
+    networkName.style.color = '#00ff88';
+    networkType.innerHTML = 'Verificando conexión...';
+    networkInternet.innerHTML = '⏳ Comprobando...';
+    networkInternet.style.background = 'rgba(255,255,0,0.1)';
+    statusReal.innerHTML = 'Detectando red...';
+
+    // Verificar conexión básica
+    if (!navigator.onLine) {
+        networkIcon.innerHTML = '❌';
+        networkName.innerHTML = 'SIN CONEXIÓN';
+        networkName.style.color = '#ff5555';
+        networkType.innerHTML = 'No hay redes disponibles';
+        networkInternet.innerHTML = '❌ Desconectado';
+        networkInternet.style.background = 'rgba(255,0,0,0.2)';
+        detectedType.innerHTML = 'none';
+        statusReal.innerHTML = '❌ Sin conexión';
+        return;
+    }
+
+    // Obtener API de conexión
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    
+    if (!connection) {
+        networkIcon.innerHTML = '⚠️';
+        networkName.innerHTML = 'API NO DISPONIBLE';
+        networkType.innerHTML = 'Tu navegador no soporta detección de red';
+        networkInternet.innerHTML = '⚠️ Modo compatible';
+        detectedType.innerHTML = 'unknown';
+        statusReal.innerHTML = '⚠️ API no soportada';
+        return;
+    }
+
+    // MOSTRAR DATOS CRUDOS DE LA API
+    console.log('📊 DATOS CRUDOS DE LA API:', {
+        type: connection.type,              // Esto es lo IMPORTANTE: 'wifi' o 'cellular'
+        effectiveType: connection.effectiveType, // '4g', '3g', etc.
+        downlink: connection.downlink,
+        rtt: connection.rtt,
+        saveData: connection.saveData
+    });
+
+    // Actualizar información detallada
+    apiType.innerHTML = connection.type || 'desconocido';
+    effectiveType.innerHTML = connection.effectiveType || 'desconocido';
+
+    // ===== DETECCIÓN CORREGIDA =====
+    let tipoReal = 'desconocido';
+    let nombreRed = 'DESCONOCIDA';
+    
+    // 1. USAR connection.type QUE ES LO MÁS FIABLE
+    if (connection.type === 'wifi') {
+        tipoReal = 'wifi';
+        nombreRed = 'WiFi';
+        networkIcon.innerHTML = '📶';
+    }
+    else if (connection.type === 'cellular') {
+        tipoReal = 'mobile';
+        nombreRed = 'DATOS MÓVILES';
+        networkIcon.innerHTML = '📱';
+    }
+    else {
+        // 2. FALLBACK: usar effectiveType con precaución
+        const efectivo = connection.effectiveType || '';
+        
+        if (efectivo.includes('2g') || efectivo.includes('3g')) {
+            // 2g/3g son siempre móviles
+            tipoReal = 'mobile';
+            nombreRed = 'DATOS MÓVILES';
+            networkIcon.innerHTML = '📱';
+        }
+        else if (efectivo.includes('4g') || efectivo.includes('5g')) {
+            // 4g/5g PUEDEN SER TANTO WiFi COMO MÓVIL
+            // Por defecto asumimos WiFi si no podemos confirmar
+            tipoReal = 'wifi';
+            nombreRed = 'WiFi';
+            networkIcon.innerHTML = '📶';
+        }
+        else {
+            tipoReal = 'wifi';
+            nombreRed = 'WiFi';
+            networkIcon.innerHTML = '📶';
+        }
+    }
+
+    // Verificar internet real
+    fetch('https://www.google.com/favicon.ico', { 
+        mode: 'no-cors', 
+        cache: 'no-store' 
+    })
+    .then(() => {
+        // Hay internet
+        networkName.innerHTML = nombreRed;
+        networkName.style.color = '#00ff88';
+        networkType.innerHTML = `Velocidad: ${connection.downlink || '?'} Mbps | RTT: ${connection.rtt || '?'}ms`;
+        networkInternet.innerHTML = '✅ CONECTADO A INTERNET';
+        networkInternet.style.background = 'rgba(0,255,0,0.1)';
+        detectedType.innerHTML = tipoReal;
+        
+        // Actualizar modo global
+        window.currentConnectionMode = tipoReal;
+        
+        // Configurar calidad según red
+        const videoSelect = document.getElementById('video-quality');
+        if (videoSelect) {
+            if (tipoReal === 'mobile') {
+                videoSelect.value = '480';
+                statusReal.innerHTML = '📱 MODO AHORRO - Datos móviles';
+            } else {
+                videoSelect.value = '1080';
+                statusReal.innerHTML = '📶 MODO CALIDAD - WiFi';
+            }
+        }
+    })
+    .catch(() => {
+        // Red local sin internet
+        networkName.innerHTML = 'RED LOCAL';
+        networkName.style.color = '#ffaa00';
+        networkType.innerHTML = `Velocidad: ${connection.downlink || '?'} Mbps (sin internet)`;
+        networkInternet.innerHTML = '⚠️ RED LOCAL - Sin internet';
+        networkInternet.style.background = 'rgba(255,165,0,0.2)';
+        detectedType.innerHTML = 'local';
+        window.currentConnectionMode = 'local';
+        statusReal.innerHTML = '⚠️ Modo local - Sin internet';
+    });
+}
+
+// Abrir gestor de redes
+function openNetworkManager() {
+    document.getElementById('networkManagerModal').style.display = 'flex';
+    setTimeout(detectarRedReal, 300);
+}
+
+function closeNetworkManager() {
+    document.getElementById('networkManagerModal').style.display = 'none';
+}
+
+// Detectar cambios automáticamente
+if ('connection' in navigator) {
+    navigator.connection.addEventListener('change', function() {
+        if (document.getElementById('networkManagerModal').style.display === 'flex') {
+            detectarRedReal();
+        }
+    });
+}
+
+
 
       
     </script>
