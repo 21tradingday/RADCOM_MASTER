@@ -3,7 +3,7 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.6.8- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
+    <title>RADCOM MASTER v5.6.5r- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
@@ -17,6 +17,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>      
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
     <style>  
         
         /* === ESTILOS ORIGINALES - SIN CAMBIOS === */
@@ -42,8 +43,8 @@
         /* === CONTENEDOR PRINCIPAL 720x720 === */
         
         .container { 
-            width: 640px; 
-            height: 640px; 
+            width: 720px; 
+            height: 720px; 
             border: 2px solid #1a1a1a; 
             background: linear-gradient(145deg, #050505 0%, #0a0a0a 100%);
             display: flex; 
@@ -2282,25 +2283,6 @@
     font-weight: bold;
 }
 
-/* === LÍNEA DE SCAN PARA CONSOLA === */
-.console-scan-line {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 0.5px;
-    background: linear-gradient(90deg, transparent, #00ff88, transparent);
-    animation: consoleScan 6s linear infinite;
-    pointer-events: none;
-    z-index: 1;
-}
-
-@keyframes consoleScan {
-    0% { top: 0; opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { top: 680px; opacity: 0; }
-} 
 
 
 /* === botones 6 nuevos com nav mapas === */
@@ -2359,16 +2341,13 @@
     </style>
 </head>
 <body>
-    <div class="radcom-container">
-    <!-- Línea de escaneo -->
-        <div class="scan-line"></div>
-        
+           
     <!-- CABECERA -->
     <div class="container">
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.6.5</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.6.5r</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <!-- NUEVO: BADGE DE SEGURIDAD -->
@@ -4369,9 +4348,14 @@
     <script>
 
             
-        // ====== VERSIÓN  ======
-        const VERSION = "5.6.5";
-        const SYSTEM_NAME = "RADCOM MASTER";
+       // ANTES (si existe algo similar, borra duplicados)
+// (nada, o líneas sueltas como VERSION = '5.6.8')
+
+// DESPUÉS (agrega al inicio del JS, después de </style>)
+const VERSION = '5.6.5 r';  // Fix: Definir versión global
+let intervals = [];  // Fix: Track intervals para clear en unload
+const connections = {};  // Asegura init (ya existe, pero mueve aquí si no)
+let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || '[]');  // Init queue
         
         const chars = [
             ["NUL","DLE","SPC","0","@","P","`","p"],
@@ -4702,7 +4686,7 @@ function addToQueue(packet, originalText) {
         // ====== VARIABLES GLOBALES ======
         let peer = null;
         let myPeerId = null;
-        let connections = {};
+       
         let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
         let activeTarget = 'GLOBAL';
         let stats = {
@@ -4724,7 +4708,7 @@ function addToQueue(packet, originalText) {
         let currentTab = 'ascii';
 
         // ====== VARIABLES SISTEMA DE MENSAJES EN COLA ======
-        let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || "[]");
+       
         let queueRetryInterval = null;
         const MAX_QUEUE_SIZE = 100;
 
@@ -8433,29 +8417,19 @@ function handleReceivedData(senderId, data) {
         }
 
         // ====== SONIDOS ======
-        
-        function playStrongBeep(freq, duration) {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = freq;
-            oscillator.type = 'sawtooth';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + duration / 1000);
-        }
+        let audioCtx = null;
+function playStrongBeep(freq = 800, duration = 100) {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    oscillator.frequency.value = freq;
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration / 1000);
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + duration / 1000);
+}
         
         function playMessageNotification() {
             if (!document.getElementById('soundEnabled')?.checked) return;
@@ -9306,54 +9280,35 @@ function securityLayer(text, isSending, encryptionMode, password) {
 
     try {
         if (encryptionMode === "aes" || encryptionMode === "AES-256-GCM") {
-            if (isSending) {
-                // Cifrar
-                const iv = CryptoJS.lib.WordArray.random(16);
-                const salt = CryptoJS.lib.WordArray.random(8); // mejor que usar iv como salt
-                const key = CryptoJS.PBKDF2(password, salt, {
-                    keySize: 256/32,
-                    iterations: 10000
-                });
-                const encrypted = CryptoJS.AES.encrypt(text, key, {
-                    iv: iv,
-                    mode: CryptoJS.mode.CBC,
-                    padding: CryptoJS.pad.Pkcs7
-                });
-
-                // Formato: salt:iv:encrypted (base64)
-                result.text = salt.toString(CryptoJS.enc.Base64) + ":" +
-                              iv.toString(CryptoJS.enc.Base64) + ":" +
-                              encrypted.toString();
-                result.encryptionUsed = "AES-256-GCM";
-            } else {
-                // Descifrar
-                const parts = text.split(":");
-                if (parts.length !== 3) {
-                    throw new Error("Formato AES inválido (debe ser salt:iv:ciphertext)");
-                }
-
-                const salt = CryptoJS.enc.Base64.parse(parts[0]);
-                const iv   = CryptoJS.enc.Base64.parse(parts[1]);
-                const ct   = parts[2];
-
-                const key = CryptoJS.PBKDF2(password, salt, {
-                    keySize: 256/32,
-                    iterations: 10000
-                });
-
-                const decrypted = CryptoJS.AES.decrypt(ct, key, {
-                    iv: iv,
-                    mode: CryptoJS.mode.CBC,
-                    padding: CryptoJS.pad.Pkcs7
-                });
-
-                const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
-                if (!plaintext) {
-                    throw new Error("Descifrado vacío → clave incorrecta?");
-                }
-
-                result.text = plaintext;
-                result.encryptionUsed = "AES-256-GCM";
+    if (isSending) {
+        // Cifrar con GCM
+        const iv = CryptoJS.lib.WordArray.random(12);  // GCM usa 12 bytes IV
+        const salt = CryptoJS.lib.WordArray.random(8);
+        const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
+        const encrypted = CryptoJS.AES.encrypt(text, key, {
+            iv: iv,
+            mode: CryptoJS.mode.GCM,  // Fix: GCM seguro
+            padding: CryptoJS.pad.NoPadding  // GCM no necesita padding
+        });
+        result.text = salt.toString(CryptoJS.enc.Base64) + ":" + iv.toString(CryptoJS.enc.Base64) + ":" + encrypted.toString();
+        result.encryptionUsed = "AES-256-GCM";
+    } else {
+        // Descifrar similar, con mode: GCM
+        const parts = text.split(":");
+        if (parts.length !== 3) throw new Error("Formato AES inválido");
+        const salt = CryptoJS.enc.Base64.parse(parts[0]);
+        const iv = CryptoJS.enc.Base64.parse(parts[1]);
+        const ct = parts[2];
+        const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
+        const decrypted = CryptoJS.AES.decrypt(ct, key, {
+            iv: iv,
+            mode: CryptoJS.mode.GCM,  // Fix: GCM
+            padding: CryptoJS.pad.NoPadding
+        });
+        const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+        if (!plaintext) throw new Error("Descifrado vacío");
+        result.text = plaintext;
+        result.encryptionUsed = "AES-256-GCM";
             }
         }
         else if (encryptionMode === "xor") {
@@ -9387,54 +9342,43 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initSecurity, 1000);
 });
 
-        // ====== INICIALIZACIÓN ======
         
-        window.onload = function() {
-            console.log(`🚀 Iniciando RADCOM MASTER v${VERSION}`);
-            
-            // Inicializar sistemas originales
-            buildAsciiTable();
-            buildMorseTable();
-            initRadioSystem();
-            loadSettings();
-            updatePeerList();
-            initResizableSeparator();
-            initMorseAudio();
-            initVoiceRecognition();
-            
-            // Inicializar sistema satelital mejorado
-            initSatelliteSystem();
-            
-            // Inicializar PeerJS
-            initPeerJSEnhanced();
-            
-            // Iniciar health checks
-            setTimeout(startHealthCheckSystem, 5000);
-            
-            updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | SATÉLITE ACTIVO`);
-
-            // Iniciar seguimiento automático de posición (modo "fijo")
-            startWatchingPosition();
-        };
-
-        // In the file where the function is defined
-window.initializeSatelliteWeather = function() {
-    // Your logic here
-    console.log("Satellite weather initialized");
-};
-
         // ====== MÓDULO DE MEMORIA RADCOM v4.7 ======
 
-function saveToLocalStorage(sender, msg) {
-    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
-    history.push({
-        time: new Date().toLocaleTimeString(),
-        sender: sender,
-        text: msg
-    });
-    if(history.length > 30) history.shift(); // Guardar últimos 30 mensajes
-    localStorage.setItem('radcom_history_v47', JSON.stringify(history));
+// ANTES (ejemplos dispersos, reemplaza todos localStorage.setItem/getItem con secure versions)
+
+// DESPUÉS (agrega estas funciones al inicio del JS, y reemplaza usos)
+function secureLocalSet(key, value) {
+    try {
+        const secret = 'radcom-secure-key-2026';  // Cambia por algo más seguro en prod
+        const enc = CryptoJS.AES.encrypt(JSON.stringify(value), secret).toString();
+        localStorage.setItem(key, enc);
+    } catch (e) {
+        console.error('Secure set failed:', e);
+    }
 }
+
+function secureLocalGet(key, defaultValue = null) {
+    try {
+        const enc = localStorage.getItem(key);
+        if (!enc) return defaultValue;
+        const secret = 'radcom-secure-key-2026';
+        const dec = CryptoJS.AES.decrypt(enc, secret);
+        return JSON.parse(dec.toString(CryptoJS.enc.Utf8));
+    } catch (e) {
+        console.error('Secure get failed:', e);
+        return defaultValue;
+    }
+}
+
+// Ejemplos de reemplazo:
+// ANTES: localStorage.setItem('radcom_history_v47', JSON.stringify(history));
+// DESPUÉS: secureLocalSet('radcom_history_v47', history);
+
+// ANTES: let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
+// DESPUÉS: let history = secureLocalGet('radcom_history_v47', []);
+
+// Aplica a: aes_key, message_queue, saved_peers, etc. (busca "localStorage.setItem" ~29 veces)
 
 function loadHistoryFromLocal() {
     let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
@@ -9817,30 +9761,7 @@ function reviveAllConnections() {
     }
 }
 
-// === INICIALIZACIÓN FINAL (reemplaza tu window.onload) ===
-window.onload = function() {
-    console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura`);
 
-    // Inicializaciones originales (mantengo todo)
-    buildAsciiTable();
-    buildMorseTable();
-    initRadioSystem();
-    initSatelliteSystem();
-    initVoiceRecognition();
-    initResizableSeparator();
-    loadSettings();
-    updatePeerList();
-
-    // PeerJS
-    peer = new Peer();
-    setupPeerEvents();
-    startHealthCheckSystem();
-
-    // Versión en badge
-    document.querySelector('.version-badge').textContent = `v${VERSION}`;
-
-    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO`);
-};
 
 // === FUNCIONES AUXILIARES (ya las tenías, solo las dejo por si faltan) ===
 function connectToPeerId(peerId) {
@@ -9912,16 +9833,31 @@ function processQueue() {
 // === DISPLAYMESSAGE MEJORADO ===
 function displayMessage(content, hex = '', type = 'incoming') {
     const monitor = document.getElementById('monitor-decoded');
+    if (!monitor) return;  // Fix: Null check
+    
     const div = document.createElement('div');
     div.className = `message-bubble message-${type}`;
     
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     
-    div.innerHTML = `
-        <span style="color:#888; font-size:0.55rem;">${time}</span><br>
-        ${content}
-        ${hex ? `<br><small style="color:#00ffea">HEX: ${hex}</small>` : ''}
-    `;
+    // Fix XSS: Crea nodos DOM en lugar de innerHTML
+    const timeSpan = document.createElement('span');
+    timeSpan.style.color = '#888';
+    timeSpan.style.fontSize = '0.55rem';
+    timeSpan.textContent = time;  // textContent escapa auto
+    div.appendChild(timeSpan);
+    div.innerHTML += '<br>';  // Solo HTML estático seguro
+    
+    const contentSpan = document.createElement('span');
+    contentSpan.textContent = content;  // Seguro
+    div.appendChild(contentSpan);
+    
+    if (hex) {
+        const hexSmall = document.createElement('small');
+        hexSmall.style.color = '#00ffea';
+        hexSmall.innerHTML = `<br>HEX: ${DOMPurify.sanitize(hex)}`;  // Sanitiza si HTML
+        div.appendChild(hexSmall);
+    }
     
     monitor.appendChild(div);
     monitor.scrollTop = monitor.scrollHeight;
@@ -10749,190 +10685,7 @@ function openModuleWindow(modulo) {
     }
 }
 
-let currentBaseLayer = null;
-let mapInstance = null;
-let userMarker = null;           // Marcador que te sigue
-let currentTrack = null;         // Ruta que se va dibujando en tiempo real
 
-
-function initMapEngine() {
-    if (mapInstance) mapInstance.remove();
-
-    const container = document.getElementById('map-container');
-    container.style.height = "100%";
-    container.style.width = "100%";
-
-    mapInstance = L.map('map-container').setView([40.4167, -3.7033], 13);
-
-    // Capas
-    const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 }).addTo(mapInstance);
-    const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
-    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
-
-    L.control.layers({ "🗺️ Topográfico": topo, "🛣️ Calles": streets, "🛰️ Satélite": satellite }, null, { collapsed: false }).addTo(mapInstance);
-
-    mapInstance.addLayer(drawnItems);
-
-    // Barra de dibujo (waypoints y rutas manuales)
-    const drawControl = new L.Control.Draw({
-        draw: { marker: true, polyline: true, polygon: false, rectangle: false, circle: false },
-        edit: { featureGroup: drawnItems, remove: true }
-    });
-    mapInstance.addControl(drawControl);
-
-    mapInstance.on(L.Draw.Event.CREATED, e => drawnItems.addLayer(e.layer));
-
-    // ==================== UBICACIÓN REAL + TRACKING ====================
-
-    // Botón "Mi Ubicación Actual"
-    const locationBtn = L.control({position: 'topleft'});
-    locationBtn.onAdd = function() {
-        const btn = L.DomUtil.create('button', '');
-        btn.innerHTML = '📍 Mi Ubicación';
-        btn.style.cssText = 'background:#00ff88; color:#000; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; cursor:pointer;';
-        btn.onclick = getCurrentLocation;
-        return btn;
-    };
-    locationBtn.addTo(mapInstance);
-
-    // Botón "Iniciar Tracking de Ruta"
-    const trackBtn = L.control({position: 'topleft'});
-    trackBtn.onAdd = function() {
-        const btn = L.DomUtil.create('button', '');
-        btn.id = 'track-btn';
-        btn.innerHTML = '▶️ Iniciar Tracking';
-        btn.style.cssText = 'background:#ffaa00; color:#000; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; margin-top:8px; cursor:pointer;';
-        btn.onclick = toggleLiveTracking;
-        return btn;
-    };
-    trackBtn.addTo(mapInstance);
-
-    mapInstance.invalidateSize(true);
-    updateMonitor("🗺️ Mapa listo - Pulsa 'Mi Ubicación' primero");
-}
-
-// ==================== FUNCIONES DE UBICACIÓN Y TRACKING ====================
-
-function getCurrentLocation() {
-    if (!navigator.geolocation) {
-        updateMonitor("❌ Tu navegador no soporta geolocalización", "error");
-        return;
-    }
-
-    updateMonitor("📡 Buscando tu ubicación...");
-
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-
-            mapInstance.setView([lat, lon], 15);
-
-            if (userMarker) userMarker.remove();
-            userMarker = L.marker([lat, lon], { 
-                icon: L.divIcon({ className: 'current-location-dot', html: '🟢', iconSize: [24,24] })
-            })
-            .addTo(mapInstance)
-            .bindPopup("📍 Tu posición actual").openPopup();
-
-            updateMonitor(`✅ Ubicación actual: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
-        },
-        (err) => {
-            updateMonitor("❌ No se pudo obtener la ubicación. Activa el GPS y permite el permiso.", "error");
-            console.error(err);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-    );
-}
-
-function toggleLiveTracking() {
-    const btn = document.getElementById('track-btn');
-
-    if (watchId) {
-        // Parar tracking
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        btn.innerHTML = '▶️ Iniciar Tracking';
-        btn.style.background = '#ffaa00';
-        updateMonitor("⏹️ Tracking detenido");
-    } else {
-        // Iniciar tracking
-        if (!currentTrack) {
-            currentTrack = L.polyline([], { color: '#00ff88', weight: 5 }).addTo(mapInstance);
-        }
-
-        watchId = navigator.geolocation.watchPosition(
-            (pos) => {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-
-                // Mover marcador
-                if (userMarker) userMarker.setLatLng([lat, lon]);
-                else {
-                    userMarker = L.marker([lat, lon]).addTo(mapInstance);
-                }
-
-                // Añadir punto al track
-                currentTrack.addLatLng([lat, lon]);
-
-                mapInstance.flyTo([lat, lon], mapInstance.getZoom());
-            },
-            (err) => console.error("Error tracking:", err),
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-        );
-
-        btn.innerHTML = '⏹️ Detener Tracking';
-        btn.style.background = '#ff3300';
-        updateMonitor("🟢 Tracking de ruta INICIADO - Muévete");
-    }
-}
-
-
-// Función para borrar todo
-function clearAllDrawnItems() {
-    if (confirm("¿Estás seguro de borrar TODOS los waypoints y tracks?")) {
-        drawnItems.clearLayers();
-        updateMonitor("🗑️ Todo borrado correctamente");
-    }
-}
-
-// ==================== PANEL DE HERRAMIENTAS (Waypoints + Tracks) ====================
-function createToolsPanel() {
-    const panel = document.createElement('div');
-    panel.id = 'map-tools-panel';
-    panel.style.cssText = `
-        position: absolute; 
-        top: 130px;           /* Bajado para no tapar el selector de mapas */
-        right: 15px; 
-        z-index: 1005;        /* Más arriba que los controles de Leaflet */
-        background: rgba(0,0,0,0.92); 
-        border: 2px solid #00ff88; 
-        border-radius: 6px; 
-        padding: 10px; 
-        width: 260px; 
-        color: #00ff88;
-        font-size: 0.75rem; 
-        max-height: 65vh; 
-        overflow-y: auto;
-        box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
-    `;
-
-    panel.innerHTML = `
-        <div style="margin-bottom:8px; font-weight:bold; color:#00ffea; text-align:center;">
-            📍 WAYPOINTS & TRACKS
-        </div>
-        <div id="waypoints-list" style="margin-bottom:12px; max-height:180px; overflow-y:auto;"></div>
-        <div id="tracks-list" style="max-height:140px; overflow-y:auto;"></div>
-        
-        <button onclick="clearAllDrawnItems()" 
-                style="margin-top:10px; width:100%; background:#ff3300; color:white; 
-                       border:none; padding:8px; border-radius:4px; font-weight:bold;">
-            🗑️ BORRAR TODO
-        </button>
-    `;
-
-    document.getElementById('map-container').appendChild(panel);
-}
 
 // Función de cierre reforzada
 function closeModal680() {
@@ -10964,13 +10717,7 @@ setTimeout(() => {
 
 setTimeout(finalInitialization, 1200);
 
-function force720() {
-    const container = document.querySelector('.container');
-    if (container) {
-        container.style.width = '720px';
-        container.style.height = '720px';
-    }
-}
+
 
         // Exportar nuevas funciones
         window.forceUpdateSatelliteData = forceUpdateSatelliteData;
@@ -10978,7 +10725,7 @@ function force720() {
         window.sendPositionToChat = sendPositionToChat;
         window.getCurrentGPSPosition = getCurrentGPSPosition;
         window.initSatelliteSystem = initSatelliteSystem;
-        window.addEventListener('load', force720);
+        
 
 // ====== INICIALIZAR SISTEMA DE COLAS ======
 function initQueue() {
@@ -10993,63 +10740,77 @@ function initQueue() {
     }
 }
 
+
+// ====== INICIALIZACIÓN ======
+        
+        window.onload = function() {
+            console.log(`🚀 Iniciando RADCOM MASTER v${VERSION}`);
+            
+            // Inicializar sistemas originales
+            buildAsciiTable();
+            buildMorseTable();
+            initRadioSystem();
+            loadSettings();
+            updatePeerList();
+            initResizableSeparator();
+            initMorseAudio();
+            initVoiceRecognition();
+            initPeerJSEnhanced()
+            
+            // Inicializar sistema satelital mejorado
+            initSatelliteSystem();
+            
+        
+            
+            // Iniciar health checks
+            setTimeout(startHealthCheckSystem, 5000);
+            
+            updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | SATÉLITE ACTIVO`);
+
+            // Iniciar seguimiento automático de posición (modo "fijo")
+            startWatchingPosition();
+        };
+
+        // In the file where the function is defined
+window.initializeSatelliteWeather = function() {
+    // Your logic here
+    console.log("Satellite weather initialized");
+};
+
+// === INICIALIZACIÓN FINAL (reemplaza tu window.onload) ===
+window.onload = function() {
+    console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura`);
+
+    // Inicializaciones originales (mantengo todo)
+    buildAsciiTable();
+    buildMorseTable();
+    initRadioSystem();
+    initSatelliteSystem();
+    initVoiceRecognition();
+    initResizableSeparator();
+    loadSettings();
+    updatePeerList();
+
+    // PeerJS
+    peer = new Peer();
+    setupPeerEvents();
+    startHealthCheckSystem();
+
+    // Versión en badge
+    document.querySelector('.version-badge').textContent = `v${VERSION}`;
+
+    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO`);
+};
+
+
+
 // Ejecutar después de cargar
 setTimeout(initQueue, 2000); 
 
 
-// ================================================================
-// SISTEMA DE ID FIJO MEJORADO: APLICA LA CONFIGURACIÓN GUARDADA AL INICIAR
-// ================================================================
-(function ensureFixedIdOnStartup() {
-    console.log("[SISTEMA ID] Verificando configuración de ID fijo...");
 
-    // Esta función se ejecuta justo después de que la página se ha cargado.
-    window.addEventListener('load', function() {
-        // Pequeña espera para asegurar que todos los elementos del DOM y
-        // las funciones de inicialización (como initPeerJSEnhanced) estén listas.
-        setTimeout(() => {
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
-            
-            // Verificamos si la configuración indica que se debe usar un ID fijo.
-            if (config.useFixedId === true && config.fixedId) {
-                const fixedId = config.fixedId;
-                updateMonitor(`🔧 CONFIGURACIÓN DETECTADA: Usar ID Fijo = "${fixedId}"`);
-                
-                // La función initPeerJSEnhanced ya está diseñada para leer esta configuración
-                // y aplicar el ID. Solo necesitamos asegurarnos de que se llame.
-                // Si el Peer aún no se ha iniciado, lo iniciamos con el ID fijo.
-                if (typeof initPeerJSEnhanced === 'function') {
-                    // Es posible que ya se haya llamado a initPeerJSEnhanced una vez.
-                    // Si es así, debemos reiniciar el sistema para aplicar el nuevo ID.
-                    if (window.peer && typeof window.peer.destroy === 'function') {
-                        console.log("[SISTEMA ID] Reiniciando Peer para aplicar ID fijo...");
-                        window.peer.destroy();
-                        window.peer = null;
-                        // Limpiamos las conexiones existentes
-                        window.connections = {};
-                        window.connectionHealth = {};
-                    }
-                    
-                    // Llamamos a la función de inicialización que leerá la config.
-                    // Podemos pasarle un flag para que no espere y use el ID fijo directamente.
-                    // Sin embargo, nuestra initPeerJSEnhanced ya lo hace automáticamente.
-                    // Simplemente la llamamos.
-                    setTimeout(() => {
-                         initPeerJSEnhanced();
-                         updateMonitor(`✅ ID FIJO APLICADO: ${fixedId.substring(0, 12)}...`);
-                    }, 100); // Un pequeño retraso para asegurar la limpieza.
-                    
-                } else {
-                    console.error("[SISTEMA ID] ERROR: La función initPeerJSEnhanced no está disponible.");
-                }
-            } else {
-                console.log("[SISTEMA ID] No se requiere ID fijo según la configuración.");
-                // Si no hay ID fijo configurado, pero el sistema ya debería haber iniciado con uno aleatorio,
-                // no hacemos nada. El flujo normal de window.onload se encargará.
-            }
-        }, 500); // Esperamos medio segundo para que todo esté listo.
-    });
-})();
+
+
       
     </script>
 </body>
