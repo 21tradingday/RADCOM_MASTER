@@ -524,6 +524,7 @@
             font-size: 0.6rem;
         }
 
+        /* === Original Todo anterio === */
         /* === PIE DE PÁGINA MEJORADO === */
         
         .footer-pro { 
@@ -1523,9 +1524,7 @@
 
         .static-active {
             opacity: 0.3;
-        }
-
-        
+        }        
 
         /* === NUEVOS ESTILOS PARA SATÉLITE v4.7.2 === */
       
@@ -1832,11 +1831,7 @@
     background: #33ff99 !important;
 }
 
-/* Firefox global */
-* {
-    scrollbar-width: thin !important;
-    scrollbar-color: #00ff88 rgba(10, 10, 10, 0.6) !important;
-}
+
 
 /* === SEGURIDAD REAL v5.1 === */
 .security-badge {
@@ -1867,32 +1862,7 @@
 .security-xor { color: #ffaa00 !important; }
 .security-none { color: #ff3300 !important; }
 
-/* === ANIMACIONES DE SEGURIDAD === */
-        .scan-line {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 0.5px;
-            background: linear-gradient(90deg, transparent, #00ff88, transparent);
-            animation: scan 5s linear infinite;
-            pointer-events: none;
-            z-index: 5;
-        }
 
-        @keyframes scan {
-            0% { top: 0; opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { top: 100%; opacity: 0; }
-        }
-
-         /* === RESPONSIVE === */
-        @media (max-height: 750px) {
-            .radcom-container {
-                transform: scale(1);
-            }
-        }
 
         /* === NUEVOS ESTILOS PARA BOTÓN CONSOLA v5.6.1 === */
 .console-btn {
@@ -2514,7 +2484,8 @@
                                     style="font-size:0.45rem; padding:1px 3px;">
                                 <i class="fas fa-times"></i> LIMPIAR
                             </button>
-                        </div>                                    
+                        </div>  
+
                         <div class="tab-container">
                             <button class="tab-button active" data-tab="ascii" onclick="switchTab('ascii')">ASCII</button>
                             <button class="tab-button" data-tab="morse" onclick="switchTab('morse')">CQ Morse</button>
@@ -7002,6 +6973,56 @@ function forceUpdateSatelliteData() {
             return text.toUpperCase().split('').map(char => morseCodes[char] || char).join(' ');
         }
 
+        function textToPhonetic(text) {
+            return text.toUpperCase().split('').map(char => phoneticAlphabetFull[char]?.word || char).join(' ');
+        }
+
+        function prepareMessageToSend(message, mode, encryption, key) {
+            let processedMessage = message;
+            let hexPreview = '';
+            
+            if (mode === 'hex') {
+                const hex = message.replace(/\s/g, '');
+                if (hex.length % 2 !== 0) {
+                    throw new Error('HEX debe tener longitud par');
+                }
+                processedMessage = '';
+                for (let i = 0; i < hex.length; i += 2) {
+                    processedMessage += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+                }
+            } else if (mode === 'binary') {
+                const binary = message.replace(/\s/g, '');
+                if (binary.length % 8 !== 0) {
+                    throw new Error('Binario debe ser múltiplo de 8');
+                }
+                processedMessage = '';
+                for (let i = 0; i < binary.length; i += 8) {
+                    processedMessage += String.fromCharCode(parseInt(binary.substr(i, 8), 2));
+                }
+            }
+            
+            let encryptedMessage = processedMessage;
+            if (encryption === 'xor' || encryption === 'aes') {
+                encryptedMessage = xorEncrypt(processedMessage, key);
+                
+                for (let i = 0; i < Math.min(encryptedMessage.length, 3); i++) {
+                    hexPreview += encryptedMessage.charCodeAt(i).toString(16).padStart(2, '0');
+                }
+                if (encryptedMessage.length > 3) hexPreview += '...';
+            }
+            
+            return {
+                type: 'message',
+                message: encryptedMessage,
+                original: message,
+                mode: mode,
+                encryption: encryption,
+                timestamp: Date.now(),
+                sender: myPeerId,
+                hexPreview: hexPreview
+            };
+        }
+
         // ====== FUNCIÓN PARA MOSTRAR TRADUCCIÓN MORSE ======
 function updateMorseTranslation(text) {
     const translationBox = document.getElementById('morse-translation');
@@ -7140,6 +7161,8 @@ function decodeMorse(morseCode) {
     };
 }
 
+// ====== FUNCIONES DE cifrado original 4.7.1 ======
+
         function xorEncrypt(text, key) {
             let result = '';
             for (let i = 0; i < text.length; i++) {
@@ -7188,41 +7211,7 @@ function decodeMorse(morseCode) {
 
         // ====== FUNCIONES DE CONEXIÓN ======
 
-        function setupPeerEvents() {
-            peer.on('open', (id) => {
-                myPeerId = id;
-                localStorage.setItem('radcom_master_id_v4', id);
-                
-                document.getElementById('display-id').innerHTML = 
-                    `<span style="color:#00ff88">ID: ${id.substring(0, 10)}...</span>`;
-                
-                const typeName = currentConnectionType === 'wifi' ? 'WiFi' : 'Datos Móviles';
-                updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | ${typeName} | ID: ${id.substring(0, 8)}`);
-                
-                savedIds.forEach(peerId => {
-                    if (peerId !== id) {
-                        setTimeout(() => connectToPeerId(peerId), 100);
-                    }
-                });
-                
-                setInterval(updateUptime, 1000);
-                updateStats();
-            });
-            
-            peer.on('connection', (conn) => {
-                console.log("📞 Conexión entrante de:", conn.peer);
-                handleIncomingConnection(conn);
-            });
-            
-            peer.on('error', (err) => {
-    if (err.type === 'peer-unavailable') {
-        updateMonitor(`⚠️ Peer non-existent or offline`, "warning");
-    } else {
-        console.error("PeerJS Error:", err);
-        updateMonitor(`⚠️ ERROR: ${err.type}`, "error");
-    }
-});
-        }
+        
 
         function setupConnection(conn, type) {
             const peerId = conn.peer;
@@ -7346,20 +7335,20 @@ function decodeMorse(morseCode) {
         }
 
         function connectToPeer() {
-            const input = document.getElementById('peer-id-input');
-            const peerId = input.value.trim();
-            
-            if (!peerId) {
-                updateMonitor("⚠️ INGRESA UN ID VÁLIDO", "error");
-                playStrongBeep(300, 200);
-                return;
-            }
-            
-            input.value = '';
-            saveId(peerId);
-            connectToPeerId(peerId);
-        }
-
+    const input = document.getElementById('peer-id-input');
+    let peerId = input.value.trim();
+    
+    // VALIDACIÓN: solo letras, números y guiones, máx 20 caracteres
+    if (!peerId || !/^[a-zA-Z0-9\-]{1,20}$/.test(peerId)) {
+        document.getElementById('monitor-raw').innerHTML = 
+            '<span style="color:#ff3300">⚠️ ID INVÁLIDO (solo letras, números y guiones)</span>';
+        return;
+    }
+    
+    input.value = '';
+    saveId(peerId);
+    attemptConnection(peerId);
+}
         function handleIncomingConnection(conn) {
             console.log("🔄 Procesando conexión entrante:", conn.peer);
             setupConnection(conn, 'incoming');
@@ -8329,12 +8318,22 @@ function handleReceivedData(senderId, data) {
         // ====== FUNCIONES AUXILIARES MEJORADAS ======
         
         function saveId(id) {
-            if (!savedIds.includes(id) && id !== myPeerId) {
-                savedIds.push(id);
-                localStorage.setItem('radcom_peers_v4', JSON.stringify(savedIds));
-                updatePeerList();
-            }
-        }
+    // Convertir a string y validar
+    const idStr = String(id).trim();
+    
+    // Rechazar si es muy largo o tiene caracteres raros
+    if (idStr.length > 30 || !/^[a-zA-Z0-9\-]+$/.test(idStr)) {
+        console.log("ID rechazado (formato inválido):", idStr.substring(0,20));
+        return false;
+    }
+    
+    if (!savedIds.includes(idStr)) {
+        savedIds.push(idStr);
+        localStorage.setItem('radcom_peers', JSON.stringify(savedIds));
+        updatePeerList();
+    }
+    return true;
+}
 
         function executeRemoveId(id) {
             if (!confirm(`¿Eliminar ${id.substring(0, 8)} del historial?`)) {
@@ -8417,19 +8416,29 @@ function handleReceivedData(senderId, data) {
         }
 
         // ====== SONIDOS ======
-        let audioCtx = null;
-function playStrongBeep(freq = 800, duration = 100) {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    oscillator.frequency.value = freq;
-    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration / 1000);
-    oscillator.start(audioCtx.currentTime);
-    oscillator.stop(audioCtx.currentTime + duration / 1000);
-}
+
+        function playStrongBeep(freq, duration) {
+            if (!document.getElementById('soundEnabled')?.checked) return;
+            
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = freq;
+            oscillator.type = 'sawtooth';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration / 1000);
+        }
         
         function playMessageNotification() {
             if (!document.getElementById('soundEnabled')?.checked) return;
@@ -8463,29 +8472,20 @@ function playStrongBeep(freq = 800, duration = 100) {
         // ====== FUNCIONES RESTANTES ======
         
         function generateKey() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let key = '';
-    for (let i = 0; i < 12; i++) {
-        key += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    
-    const keyInput = document.getElementById('key');
-    if (keyInput) {
-        keyInput.value = key;
-        keyInput.type = 'text';
-        
-        // CRÍTICO: Notificar al sistema que la clave ha cambiado
-        keyInput.dispatchEvent(new Event('change'));
-        keyInput.dispatchEvent(new Event('input'));
-        
-        setTimeout(() => {
-            keyInput.type = 'password';
-        }, 2000);
-    }
-    
-    updateMonitor("🔑 NUEVA CLAVE MAESTRA GENERADA");
-    return key;
-}
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let key = '';
+            for (let i = 0; i < 12; i++) {
+                key += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('key').value = key;
+            document.getElementById('key').type = 'text';
+            
+            setTimeout(() => {
+                document.getElementById('key').type = 'password';
+            }, 2000);
+            
+            return key;
+        }
 
         function copyID() {
             if (!myPeerId) {
@@ -8915,6 +8915,9 @@ function playStrongBeep(freq = 800, duration = 100) {
                 monitorContainer.style.height = savedHeight + 'px';
             }
         }
+
+ // ====== Codigo hasta aqui original 4.7.1 ======
+
 
 // Variables de seguridad
 let securityConfig = {
@@ -9912,6 +9915,11 @@ function finalInitialization() {
 
 // === LLAMADA FINAL ===
 
+
+
+
+
+
 // ====== SISTEMA CONSOLA v5.6.1 ======
 
 let currentConsoleTab = 'CMD';
@@ -10634,6 +10642,9 @@ function handleCockpitClick(modulo) {
 }
 
 
+        // ====== Mapa modulo ======
+
+
 function openModuleWindow(modulo) {
     const modal = document.getElementById('modal-680');
     const body = document.getElementById('modal-body');
@@ -10710,6 +10721,8 @@ function closeModal680() {
 }
 
 // Inicializar consola cuando se carga la página
+
+
 setTimeout(() => {
     console.log("🚀 RADCOM CONSOLE v5.6.1 ready");
 }, 1000);
@@ -10745,6 +10758,18 @@ function initQueue() {
         
         window.onload = function() {
             console.log(`🚀 Iniciando RADCOM MASTER v${VERSION}`);
+
+            try {
+        const peers = JSON.parse(localStorage.getItem('radcom_peers') || '[]');
+        const validPeers = peers.filter(id => 
+            typeof id === 'string' && id.length < 30 && /^[a-zA-Z0-9\-]+$/.test(id)
+        );
+        localStorage.setItem('radcom_peers', JSON.stringify(validPeers));
+        savedIds = validPeers;
+    } catch (e) {
+        localStorage.removeItem('radcom_peers');
+        savedIds = [];
+    }
             
             // Inicializar sistemas originales
             buildAsciiTable();
@@ -10780,6 +10805,18 @@ window.initializeSatelliteWeather = function() {
 // === INICIALIZACIÓN FINAL (reemplaza tu window.onload) ===
 window.onload = function() {
     console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura`);
+
+    try {
+        const peers = JSON.parse(localStorage.getItem('radcom_peers') || '[]');
+        const validPeers = peers.filter(id => 
+            typeof id === 'string' && id.length < 30 && /^[a-zA-Z0-9\-]+$/.test(id)
+        );
+        localStorage.setItem('radcom_peers', JSON.stringify(validPeers));
+        savedIds = validPeers;
+    } catch (e) {
+        localStorage.removeItem('radcom_peers');
+        savedIds = [];
+    }
 
     // Inicializaciones originales (mantengo todo)
     buildAsciiTable();
