@@ -10738,6 +10738,8 @@ setTimeout(finalInitialization, 1200);
         window.sendPositionToChat = sendPositionToChat;
         window.getCurrentGPSPosition = getCurrentGPSPosition;
         window.initSatelliteSystem = initSatelliteSystem;
+                window.addEventListener('load', force720);
+
         
 
 // ====== INICIALIZAR SISTEMA DE COLAS ======
@@ -10843,6 +10845,14 @@ window.onload = function() {
 
 // Ejecutar después de cargar
 setTimeout(initQueue, 2000); 
+
+function force720() {
+    const container = document.querySelector('.container');
+    if (container) {
+        container.style.width = '720px';
+        container.style.height = '720px';
+    }
+}
 
 
 
