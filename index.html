@@ -3,28 +3,28 @@
 <head>   
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.6.5r- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM</title>
+    <title>RADCOM MASTER v5.7.0- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-<!-- Cliente HTTP correcto para Open-Meteo (NO es openmeteo) -->
-<script src="https://cdn.jsdelivr.net/npm/openmeteo​@7.2.0"></script> 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
-<!-- Importación correcta como módulo (necesitarás type="module" en tu script principal) -->
-<script type="importmap">
-  {
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <!-- Cliente HTTP correcto para Open-Meteo (NO es openmeteo) -->
+    <script src="https://cdn.jsdelivr.net/npm/openmeteo​@7.2.0"></script> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
+    <!-- Importación correcta como módulo (necesitarás type="module" en tu script principal) -->
+    <script type="importmap">
+     {
     "imports": {
       "@noble/ed25519": "https://cdn.jsdelivr.net/npm/@noble/ed25519@2.1.0/+esm"
-    }
-  }
-</script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>      
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
+      }
+     }
+    </script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>      
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.7/purify.min.js"></script>
     <style>  
         
         /* === ESTILOS ORIGINALES - SIN CAMBIOS === */
@@ -254,6 +254,72 @@
         .del-btn:hover { 
             background: #ff3300; 
             color: white;
+        }
+
+        /* === NUEVOS ESTILOS PARA BOTÓN VOIP === */
+        .voip-btn {
+            background: none;
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 4px;
+            transition: all 0.2s ease;
+            z-index: 2;
+            position: relative;
+            flex-shrink: 0;
+        }
+        
+        .voip-btn:hover {
+            background: #00ff88;
+            color: #000;
+            transform: scale(1.1);
+            box-shadow: 0 0 8px #00ff88;
+        }
+        
+        .voip-btn.active {
+            background: #ff3300;
+            border-color: #ff3300;
+            color: white;
+            animation: pulseVoip 1s infinite;
+        }
+        
+        .voip-btn.in-call {
+            background: #ff3300;
+            border-color: #ff3300;
+            color: white;
+            animation: pulseVoip 1.5s infinite;
+        }
+        
+        @keyframes pulseVoip {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .voip-btn.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: #666;
+            color: #666;
+        }
+        
+        .voip-btn.disabled:hover {
+            background: none;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .peer-actions {
+            display: flex;
+            align-items: center;
+            gap: 2px;
         }
 
         /* === ÁREA DE CONTENIDO === */
@@ -529,6 +595,14 @@
             font-style: italic;
             color: #888;
             font-size: 0.6rem;
+        }
+
+        /* Mensajes VoIP */
+        .message-voip {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0, 136, 255, 0.1));
+            border-left: 2px solid #00ff88;
+            text-align: center;
+            font-weight: bold;
         }
 
         /* === Original Todo anterio === */
@@ -2324,7 +2398,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.6.5r</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.7.0</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <!-- NUEVO: BADGE DE SEGURIDAD -->
@@ -2820,8 +2894,8 @@
                 
                 <select id="encryptionMode" title="Encriptación">
                     <option value="xor">XOR Simple</option>
-                    <option value="aes" >AES-256-GCM</option>
-                    <option value="none"selected>Sin encriptación</option>
+                    <option value="aes" selected>AES-256-GCM</option>
+                    <option value="none">Sin encriptación</option>
                 </select>
                 
                 <div style="position:relative; flex:1;">
@@ -4323,12 +4397,12 @@
 
     <script>
 // =============================================
-// RADCOM MASTER v5.6.5r - SISTEMA DE COMUNICACIÓN SEGURA
-// SCRIPT COMPLETAMENTE REORGANIZADO
+// RADCOM MASTER v5.7.0 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
+// SCRIPT COMPLETAMENTE REORGANIZADO CON VoIP
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
-const VERSION = '5.6.5r';
+const VERSION = '5.7.0';
 let peer = null;
 let myPeerId = null;
 let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
@@ -4339,6 +4413,13 @@ let connections = {};
 let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || '[]');
 let queueRetryInterval = null;
 const MAX_QUEUE_SIZE = 100;
+
+// Variables VoIP
+let voipCalls = {};
+let voipAudioContext = null;
+let voipMediaStream = null;
+let voipActiveCall = null;
+let voipIncomingCall = null;
 
 // Variables de estado
 let connectionHealth = {};
@@ -4941,6 +5022,27 @@ function setupConnection(conn, type) {
             return;
         }
         
+        // Manejar llamadas VoIP
+        if (data.type === 'voip_offer') {
+            handleVoIPOffer(peerId, data);
+            return;
+        }
+        
+        if (data.type === 'voip_answer') {
+            handleVoIPAnswer(peerId, data);
+            return;
+        }
+        
+        if (data.type === 'voip_ice_candidate') {
+            handleVoIPICECandidate(peerId, data);
+            return;
+        }
+        
+        if (data.type === 'voip_end') {
+            handleVoIPEnd(peerId);
+            return;
+        }
+        
         try {
             handleReceivedData(peerId, data);
         } catch (error) {
@@ -4954,6 +5056,14 @@ function setupConnection(conn, type) {
         updatePeerList();
         updateConnectedCount();
         updateMonitor(`🔒 DESCONECTADO: ${peerId.substring(0, 8)}`);
+        
+        // Finalizar llamada VoIP si estaba activa
+        if (voipActiveCall === peerId) {
+            endVoIPCall();
+        }
+        if (voipIncomingCall === peerId) {
+            rejectVoIPCall(peerId);
+        }
         
         if (document.getElementById('autoReconnect')?.checked) {
             setTimeout(() => {
@@ -5101,6 +5211,14 @@ function executeRemoveId(id) {
     savedIds = savedIds.filter(savedId => savedId !== id);
     localStorage.setItem('radcom_peers_v4', JSON.stringify(savedIds));
     
+    // Finalizar llamada si estaba activa
+    if (voipActiveCall === id) {
+        endVoIPCall();
+    }
+    if (voipIncomingCall === id) {
+        rejectVoIPCall(id);
+    }
+    
     if (connections[id]) {
         if (connections[id].conn) {
             connections[id].conn.close();
@@ -5150,14 +5268,31 @@ function updatePeerList() {
         
         const displayStyle = (status === 'offline' && !showOffline) ? 'display: none;' : '';
         
+        // Determinar clase del botón VoIP
+        let voipBtnClass = 'voip-btn';
+        let voipIcon = 'fa-phone';
+        let voipTitle = 'Iniciar llamada VoIP';
+        
+        if (voipActiveCall === id) {
+            voipBtnClass += ' in-call';
+            voipIcon = 'fa-phone-slash';
+            voipTitle = 'Finalizar llamada';
+        } else if (voipIncomingCall === id) {
+            voipBtnClass += ' active';
+            voipIcon = 'fa-phone-alt';
+            voipTitle = 'Llamada entrante';
+        } else if (status !== 'online') {
+            voipBtnClass += ' disabled';
+            voipTitle = 'No disponible (offline)';
+        }
+        
         html += `
             <div class="peer-item ${activeTarget === id ? 'active' : ''}" 
                  data-peer-id="${id}"
                  data-status="${status}"
                  data-health="${health}"
-                 onclick="selectPeer('${id}')"
                  style="${displayStyle}">
-                <div class="peer-info">
+                <div class="peer-info" onclick="selectPeer('${id}')">
                     <span class="status-dot ${statusClass}"></span>
                     <div style="display:flex; flex-direction:column;">
                         <span style="font-weight:bold;">${id.substring(0, 8)}</span>
@@ -5167,7 +5302,13 @@ function updatePeerList() {
                         </span>
                     </div>
                 </div>
-                <span class="del-btn" onclick="event.stopPropagation(); executeRemoveId('${id}')">×</span>
+                <div class="peer-actions">
+                    <button class="${voipBtnClass}" onclick="event.stopPropagation(); toggleVoIPCall('${id}')" 
+                            title="${voipTitle}">
+                        <i class="fas ${voipIcon}"></i>
+                    </button>
+                    <span class="del-btn" onclick="event.stopPropagation(); executeRemoveId('${id}')">×</span>
+                </div>
             </div>
         `;
     });
@@ -5458,6 +5599,14 @@ function refreshAllConnections() {
     updateMonitor("🔄 REFRESCANDO CONEXIONES...", "info");
     playStrongBeep(1000, 200);
     
+    // Finalizar llamadas activas
+    if (voipActiveCall) {
+        endVoIPCall();
+    }
+    if (voipIncomingCall) {
+        rejectVoIPCall(voipIncomingCall);
+    }
+    
     const currentPeers = [...savedIds];
     
     Object.keys(connections).forEach(peerId => {
@@ -5472,6 +5621,9 @@ function refreshAllConnections() {
     
     connections = {};
     connectionHealth = {};
+    voipCalls = {};
+    voipActiveCall = null;
+    voipIncomingCall = null;
     
     updatePeerList();
     updateConnectedCount();
@@ -5607,6 +5759,372 @@ function verificarYReparar() {
     }
     
     return ok;
+}
+
+// =============================================
+// FUNCIONES VoIP (NUEVAS)
+// =============================================
+
+function initVoIPAudio() {
+    if (!voipAudioContext) {
+        try {
+            voipAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log("✅ VoIP AudioContext inicializado");
+        } catch (error) {
+            console.error("❌ Error inicializando VoIP AudioContext:", error);
+        }
+    }
+    return voipAudioContext;
+}
+
+async function toggleVoIPCall(peerId) {
+    if (voipActiveCall === peerId) {
+        // Finalizar llamada activa
+        endVoIPCall();
+        return;
+    }
+    
+    if (voipIncomingCall === peerId) {
+        // Aceptar llamada entrante
+        acceptVoIPCall(peerId);
+        return;
+    }
+    
+    if (voipActiveCall) {
+        updateMonitor(`⚠️ Ya hay una llamada activa con ${voipActiveCall.substring(0, 8)}`, "warning");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    if (!connections[peerId] || connections[peerId].status !== 'online') {
+        updateMonitor(`⚠️ ${peerId.substring(0, 8)} no está conectado`, "warning");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    try {
+        updateMonitor(`📞 Iniciando llamada VoIP con ${peerId.substring(0, 8)}...`, "info");
+        playStrongBeep(800, 100);
+        
+        // Solicitar acceso al micrófono
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        voipMediaStream = stream;
+        
+        // Inicializar audio context si es necesario
+        initVoIPAudio();
+        
+        // Crear nueva conexión VoIP
+        const callId = `voip_${Date.now()}`;
+        voipCalls[peerId] = {
+            id: callId,
+            peerConnection: new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            }),
+            stream: stream,
+            status: 'initiating'
+        };
+        
+        // Añadir pistas de audio a la conexión
+        stream.getTracks().forEach(track => {
+            voipCalls[peerId].peerConnection.addTrack(track, stream);
+        });
+        
+        // Crear oferta
+        const offer = await voipCalls[peerId].peerConnection.createOffer();
+        await voipCalls[peerId].peerConnection.setLocalDescription(offer);
+        
+        // Enviar oferta al peer
+        connections[peerId].conn.send({
+            type: 'voip_offer',
+            offer: offer,
+            caller: myPeerId,
+            callId: callId
+        });
+        
+        voipActiveCall = peerId;
+        updatePeerList();
+        
+        updateMonitor(`📞 Llamada iniciada con ${peerId.substring(0, 8)} - Esperando respuesta...`, "info");
+        
+        // Manejar eventos ICE
+        voipCalls[peerId].peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                connections[peerId].conn.send({
+                    type: 'voip_ice_candidate',
+                    candidate: event.candidate,
+                    callId: callId,
+                    for: peerId
+                });
+            }
+        };
+        
+        // Manejar recepción de pistas remotas
+        voipCalls[peerId].peerConnection.ontrack = (event) => {
+            console.log("📡 Recibiendo pista de audio remota");
+            const remoteAudio = new Audio();
+            remoteAudio.srcObject = event.streams[0];
+            remoteAudio.autoplay = true;
+            remoteAudio.play().catch(e => console.log("Error reproduciendo audio:", e));
+            
+            // Mostrar indicador en el chat
+            displayMessage(`📞 Llamada VoIP con ${peerId.substring(0, 8)} - Audio activo`, '', 'voip');
+        };
+        
+        // Manejar cierre de conexión
+        voipCalls[peerId].peerConnection.onconnectionstatechange = () => {
+            console.log(`VoIP connection state: ${voipCalls[peerId].peerConnection.connectionState}`);
+            if (voipCalls[peerId].peerConnection.connectionState === 'disconnected' ||
+                voipCalls[peerId].peerConnection.connectionState === 'failed') {
+                if (voipActiveCall === peerId) {
+                    endVoIPCall();
+                }
+            }
+        };
+        
+    } catch (error) {
+        console.error("❌ Error iniciando llamada VoIP:", error);
+        updateMonitor(`❌ Error iniciando llamada: ${error.message}`, "error");
+        playStrongBeep(300, 200);
+        
+        // Limpiar recursos
+        if (voipMediaStream) {
+            voipMediaStream.getTracks().forEach(track => track.stop());
+            voipMediaStream = null;
+        }
+        delete voipCalls[peerId];
+        voipActiveCall = null;
+        updatePeerList();
+    }
+}
+
+function handleVoIPOffer(senderId, data) {
+    if (voipActiveCall) {
+        // Ya hay una llamada activa, rechazar
+        connections[senderId].conn.send({
+            type: 'voip_end',
+            reason: 'busy',
+            callId: data.callId
+        });
+        updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)} rechazada (ocupado)`, "warning");
+        return;
+    }
+    
+    updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)}...`, "info");
+    playStrongBeep(1000, 200);
+    
+    // Mostrar notificación en chat
+    displayMessage(`📞 LLAMADA VoIP ENTRANTE de ${senderId.substring(0, 8)}`, '', 'voip');
+    
+    // Guardar información de la llamada entrante
+    voipIncomingCall = senderId;
+    voipCalls[senderId] = {
+        id: data.callId,
+        offer: data.offer,
+        status: 'incoming'
+    };
+    
+    updatePeerList();
+    
+    // Preguntar al usuario si quiere aceptar la llamada
+    if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
+        acceptVoIPCall(senderId);
+    } else {
+        rejectVoIPCall(senderId);
+    }
+}
+
+async function acceptVoIPCall(peerId) {
+    if (!voipCalls[peerId]) {
+        console.error("No hay llamada pendiente de", peerId);
+        return;
+    }
+    
+    try {
+        updateMonitor(`📞 Aceptando llamada de ${peerId.substring(0, 8)}...`, "info");
+        
+        // Solicitar acceso al micrófono
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        voipMediaStream = stream;
+        
+        // Inicializar audio context
+        initVoIPAudio();
+        
+        // Crear conexión peer
+        voipCalls[peerId].peerConnection = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        });
+        
+        // Añadir pistas locales
+        stream.getTracks().forEach(track => {
+            voipCalls[peerId].peerConnection.addTrack(track, stream);
+        });
+        
+        // Establecer descripción remota con la oferta
+        await voipCalls[peerId].peerConnection.setRemoteDescription(
+            new RTCSessionDescription(voipCalls[peerId].offer)
+        );
+        
+        // Crear respuesta
+        const answer = await voipCalls[peerId].peerConnection.createAnswer();
+        await voipCalls[peerId].peerConnection.setLocalDescription(answer);
+        
+        // Enviar respuesta
+        connections[peerId].conn.send({
+            type: 'voip_answer',
+            answer: answer,
+            callId: voipCalls[peerId].id,
+            for: peerId
+        });
+        
+        voipActiveCall = peerId;
+        voipIncomingCall = null;
+        voipCalls[peerId].status = 'active';
+        updatePeerList();
+        
+        updateMonitor(`📞 Llamada aceptada con ${peerId.substring(0, 8)}`, "info");
+        displayMessage(`📞 Llamada VoIP aceptada - Conversación con ${peerId.substring(0, 8)}`, '', 'voip');
+        
+        // Manejar eventos ICE
+        voipCalls[peerId].peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                connections[peerId].conn.send({
+                    type: 'voip_ice_candidate',
+                    candidate: event.candidate,
+                    callId: voipCalls[peerId].id,
+                    for: peerId
+                });
+            }
+        };
+        
+        // Manejar recepción de pistas remotas
+        voipCalls[peerId].peerConnection.ontrack = (event) => {
+            console.log("📡 Recibiendo pista de audio remota");
+            const remoteAudio = new Audio();
+            remoteAudio.srcObject = event.streams[0];
+            remoteAudio.autoplay = true;
+            remoteAudio.play().catch(e => console.log("Error reproduciendo audio:", e));
+        };
+        
+        // Manejar cierre de conexión
+        voipCalls[peerId].peerConnection.onconnectionstatechange = () => {
+            console.log(`VoIP connection state: ${voipCalls[peerId].peerConnection.connectionState}`);
+            if (voipCalls[peerId].peerConnection.connectionState === 'disconnected' ||
+                voipCalls[peerId].peerConnection.connectionState === 'failed') {
+                if (voipActiveCall === peerId) {
+                    endVoIPCall();
+                }
+            }
+        };
+        
+    } catch (error) {
+        console.error("❌ Error aceptando llamada:", error);
+        updateMonitor(`❌ Error aceptando llamada: ${error.message}`, "error");
+        rejectVoIPCall(peerId);
+    }
+}
+
+function rejectVoIPCall(peerId) {
+    if (!voipCalls[peerId]) return;
+    
+    connections[peerId].conn.send({
+        type: 'voip_end',
+        reason: 'rejected',
+        callId: voipCalls[peerId].id
+    });
+    
+    delete voipCalls[peerId];
+    if (voipIncomingCall === peerId) {
+        voipIncomingCall = null;
+    }
+    
+    updateMonitor(`📞 Llamada de ${peerId.substring(0, 8)} rechazada`, "info");
+    updatePeerList();
+}
+
+function handleVoIPAnswer(senderId, data) {
+    if (!voipCalls[senderId] || !voipCalls[senderId].peerConnection) {
+        console.error("No hay llamada activa con", senderId);
+        return;
+    }
+    
+    try {
+        voipCalls[senderId].peerConnection.setRemoteDescription(
+            new RTCSessionDescription(data.answer)
+        );
+        voipCalls[senderId].status = 'active';
+        updateMonitor(`📞 Llamada establecida con ${senderId.substring(0, 8)}`, "info");
+        displayMessage(`📞 Llamada VoIP establecida - Conversación con ${senderId.substring(0, 8)}`, '', 'voip');
+    } catch (error) {
+        console.error("❌ Error manejando respuesta VoIP:", error);
+    }
+}
+
+function handleVoIPICECandidate(senderId, data) {
+    if (!voipCalls[senderId] || !voipCalls[senderId].peerConnection) {
+        console.error("No hay llamada activa con", senderId, "para candidato ICE");
+        return;
+    }
+    
+    try {
+        voipCalls[senderId].peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+    } catch (error) {
+        console.error("❌ Error añadiendo candidato ICE:", error);
+    }
+}
+
+function handleVoIPEnd(senderId) {
+    if (voipActiveCall === senderId) {
+        endVoIPCall();
+    } else if (voipIncomingCall === senderId) {
+        rejectVoIPCall(senderId);
+    }
+    
+    updateMonitor(`📞 Llamada con ${senderId.substring(0, 8)} finalizada`, "info");
+    displayMessage(`📞 Llamada VoIP finalizada con ${senderId.substring(0, 8)}`, '', 'voip');
+}
+
+function endVoIPCall() {
+    if (voipActiveCall) {
+        const peerId = voipActiveCall;
+        
+        // Notificar al otro extremo
+        if (connections[peerId] && connections[peerId].conn) {
+            try {
+                connections[peerId].conn.send({
+                    type: 'voip_end',
+                    reason: 'ended',
+                    callId: voipCalls[peerId]?.id
+                });
+            } catch (error) {
+                console.error("Error notificando fin de llamada:", error);
+            }
+        }
+        
+        // Cerrar conexión peer
+        if (voipCalls[peerId] && voipCalls[peerId].peerConnection) {
+            voipCalls[peerId].peerConnection.close();
+        }
+        
+        // Detener pistas de audio
+        if (voipMediaStream) {
+            voipMediaStream.getTracks().forEach(track => track.stop());
+            voipMediaStream = null;
+        }
+        
+        delete voipCalls[peerId];
+        voipActiveCall = null;
+        
+        updatePeerList();
+        updateMonitor(`📞 Llamada finalizada`, "info");
+        displayMessage(`📞 Llamada VoIP finalizada`, '', 'voip');
+        playStrongBeep(600, 100);
+    }
 }
 
 // =============================================
@@ -6626,7 +7144,7 @@ function displayMessage(content, hex, type) {
     
     messageDiv.innerHTML = `
         <div style="margin-bottom:1px;">
-            <span style="color:#${type === 'outgoing' ? '0088ff' : type === 'incoming' ? 'ff3300' : '00ff88'}">
+            <span style="color:#${type === 'outgoing' ? '0088ff' : type === 'incoming' ? 'ff3300' : type === 'voip' ? '00ff88' : '00ff88'}">
                 ${time}
             </span>
         </div>
@@ -8515,7 +9033,7 @@ function finalInitialization() {
         }
     }, 25000);
     
-    updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión estable y segura`);
+    updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión estable y segura con VoIP`);
 }
 
 // =============================================
@@ -8692,6 +9210,7 @@ function showSystemStatus() {
         `Version: ${VERSION}`,
         `ID: ${myPeerId ? myPeerId.substring(0, 20) + '...' : 'Not set'}`,
         `Connections: ${onlineCount} online`,
+        `VoIP: ${voipActiveCall ? `Active with ${voipActiveCall.substring(0, 8)}` : 'Inactive'}`,
         `Messages: ${stats.messages} sent/received`,
         `Data TX: ${formatBytes(stats.tx)}`,
         `Data RX: ${formatBytes(stats.rx)}`,
@@ -8710,7 +9229,8 @@ function showSystemStatus() {
 function showConnections() {
     const connectionsList = Object.keys(connections).map(id => {
         const conn = connections[id];
-        return `${id.substring(0, 12)}... | ${conn.status} | ${conn.type} | ${conn.health}`;
+        const voipStatus = voipActiveCall === id ? 'VoIP ACTIVE' : (voipIncomingCall === id ? 'VoIP INCOMING' : '');
+        return `${id.substring(0, 12)}... | ${conn.status} | ${conn.type} | ${conn.health} ${voipStatus ? '| ' + voipStatus : ''}`;
     });
     
     appendToCMDConsole('=== ACTIVE CONNECTIONS ===');
@@ -8731,7 +9251,16 @@ function runSystemTest() {
         { name: 'LocalStorage', test: () => typeof localStorage !== 'undefined' },
         { name: 'WebRTC', test: () => !!window.RTCPeerConnection },
         { name: 'GPS Support', test: () => !!navigator.geolocation },
-        { name: 'Voice Recognition', test: () => !!window.SpeechRecognition || !!window.webkitSpeechRecognition }
+        { name: 'Voice Recognition', test: () => !!window.SpeechRecognition || !!window.webkitSpeechRecognition },
+        { name: 'Microphone Access', test: async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+                return true;
+            } catch {
+                return false;
+            }
+        }}
     ];
     
     let passed = 0;
@@ -9348,6 +9877,7 @@ document.addEventListener('visibilitychange', function() {
     } else {
         updateMonitor("⏸️ APP EN SEGUNDO PLANO");
         stopWatchingPosition();
+        // No finalizar llamadas VoIP al pasar a segundo plano
     }
 });
 
@@ -9369,7 +9899,7 @@ window.handleReceivedData = function(senderId, data) {
 // =============================================
 
 window.onload = function() {
-    console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura`);
+    console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura con VoIP`);
 
     try {
         const peers = JSON.parse(localStorage.getItem('radcom_peers') || '[]');
@@ -9402,7 +9932,7 @@ window.onload = function() {
     const versionBadge = document.querySelector('.version-badge');
     if (versionBadge) versionBadge.textContent = `v${VERSION}`;
 
-    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO`);
+    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO | VoIP ACTIVADO`);
     
     // Inicializar seguridad
     setTimeout(initSecurity, 1000);
@@ -9476,6 +10006,9 @@ window.clearDecoder = clearDecoder;
 window.showSecurityInfo = showSecurityInfo;
 window.handleCockpitClick = handleCockpitClick;
 window.closeModal680 = closeModal680;
+// Funciones VoIP
+window.toggleVoIPCall = toggleVoIPCall;
+window.endVoIPCall = endVoIPCall;
 </script>
 </body>
 </html>
