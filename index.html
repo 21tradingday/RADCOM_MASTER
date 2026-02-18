@@ -7,7 +7,6 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/openmeteo@0.3.0"></script>
-    <script src="weather-logic.js"></script> 
     <script src="https://api.open-meteo.com/v1/forecast?latitude=40.4599&longitude=-3.4859&hourly=temperature_2m,visibility,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_80m,wind_gusts_10m"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
@@ -4314,116 +4313,235 @@
     </script>
 </div>
 
-
-
     <script>
-
-            
-       // ANTES (si existe algo similar, borra duplicados)
-// (nada, o líneas sueltas como VERSION = '5.6.8')
-
-// DESPUÉS (agrega al inicio del JS, después de </style>)
-const VERSION = '5.6.5 r';  // Fix: Definir versión global
-let intervals = [];  // Fix: Track intervals para clear en unload
-const connections = {};  // Asegura init (ya existe, pero mueve aquí si no)
-let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || '[]');  // Init queue
-        
-        const chars = [
-            ["NUL","DLE","SPC","0","@","P","`","p"],
-            ["SOH","DC1","!","1","A","Q","a","q"],
-            ["STX","DC2","\"","2","B","R","b","r"],
-            ["ETX","DC3","#","3","C","S","c","s"],
-            ["EOT","DC4","$","4","D","T","d","t"],
-            ["ENQ","NAK","%","5","E","U","e","u"],
-            ["ACK","SYN","&","6","F","V","f","v"],
-            ["BEL","ETB","'","7","G","W","g","w"],
-            ["BS","CAN","(","8","H","X","h","x"],
-            ["HT","EM",")","9","I","Y","i","y"],
-            ["LF","SUB","*",":","J","Z","j","z"],
-            ["VT","ESC","+",";","K","[","k","{"],
-            ["FF","FS",",","<","L","\\","l","|"],
-            ["CR","GS","-","=","M","]","m","}"],
-            ["SO","RS",".",">","N","^","n","~"],
-            ["SI","US","/","?","O","_","o","DEL"]
-        ];
-
-        const morseCodes = {
-            'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....',
-            'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.',
-            'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
-            'Y': '-.--', 'Z': '--..',
-            '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....',
-            '6': '-....', '7': '--...', '8': '---..', '9': '----.',
-            '.': '.-.-.-', ',': '--..--', '?': '..--..', '/': '-..-.', ' ': '/'
-        };
-
-        // =============================================
-// PARTE A - CAPA DE SEGURIDAD v5.3 (Web Crypto + ECDH)
+// =============================================
+// RADCOM MASTER v5.6.5r - SISTEMA DE COMUNICACIÓN SEGURA
+// SCRIPT COMPLETAMENTE REORGANIZADO
 // =============================================
 
-let peerKeys = {}; // Almacenamiento por peerId: { sharedKey, ecdhPrivate, handshakeDone }
+// ====== VARIABLES GLOBALES ======
+const VERSION = '5.6.5r';
+let peer = null;
+let myPeerId = null;
+let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
+let activeTarget = 'GLOBAL';
+let audioContext = null;
+let currentConnectionType = 'wifi';
+let connections = {};
+let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || '[]');
+let queueRetryInterval = null;
+const MAX_QUEUE_SIZE = 100;
 
-// === HELPERS WEB CRYPTO ===
-async function generateECDHKeyPair() {
-    return await crypto.subtle.generateKey(
-        { name: "ECDH", namedCurve: "P-256" },
-        true,
-        ["deriveKey"]
-    );
+// Variables de estado
+let connectionHealth = {};
+let showOffline = false;
+let fastRecovery = true;
+let aggressiveRevive = true;
+let isBackground = false;
+let revivingInProgress = false;
+let currentTab = 'ascii';
+
+// Variables para Morse
+let morseSpeed = 'normal';
+let morseAudioContext = null;
+let isPlayingMorse = false;
+
+// Variables para reconocimiento de voz
+let recognition = null;
+let recognizing = false;
+
+// Variables para consola
+let currentConsoleTab = 'CMD';
+let hexEditorContent = '';
+
+// Sistema de ID
+const ID_SYSTEM = {
+    currentId: null,
+    defaultPrefix: 'RADCOM-',
+    useFixedId: true,
+    fixedId: null
+};
+
+// Estadísticas
+let stats = {
+    messages: 0,
+    tx: 0,
+    rx: 0,
+    startTime: Date.now()
+};
+
+// Sistema de radio
+let currentBand = 'VHF';
+let currentFrequency = 142.850;
+let currentUnit = 'MHz';
+let currentHFBand = null;
+let currentChannelType = 'pmr';
+let currentPMRType = 8;
+let currentChannel = 1;
+let radioAudioContext = null;
+
+// Sistema satelital
+const satelliteSystem = {
+    latitude: null,
+    longitude: null,
+    altitude: null,
+    accuracy: null,
+    weatherData: null,
+    lastUpdate: null,
+    lastKnownPosition: null,
+    refreshInterval: null,
+    apiConnected: false
+};
+
+// ====== DATOS ESTÁTICOS ======
+const chars = [
+    ["NUL","DLE","SPC","0","@","P","`","p"],
+    ["SOH","DC1","!","1","A","Q","a","q"],
+    ["STX","DC2","\"","2","B","R","b","r"],
+    ["ETX","DC3","#","3","C","S","c","s"],
+    ["EOT","DC4","$","4","D","T","d","t"],
+    ["ENQ","NAK","%","5","E","U","e","u"],
+    ["ACK","SYN","&","6","F","V","f","v"],
+    ["BEL","ETB","'","7","G","W","g","w"],
+    ["BS","CAN","(","8","H","X","h","x"],
+    ["HT","EM",")","9","I","Y","i","y"],
+    ["LF","SUB","*",":","J","Z","j","z"],
+    ["VT","ESC","+",";","K","[","k","{"],
+    ["FF","FS",",","<","L","\\","l","|"],
+    ["CR","GS","-","=","M","]","m","}"],
+    ["SO","RS",".",">","N","^","n","~"],
+    ["SI","US","/","?","O","_","o","DEL"]
+];
+
+const morseCodes = {
+    'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....',
+    'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.',
+    'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
+    'Y': '-.--', 'Z': '--..',
+    '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....',
+    '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+    '.': '.-.-.-', ',': '--..--', '?': '..--..', '/': '-..-.', ' ': '/'
+};
+
+const radioBands = {
+    'UHF': { min: 300, max: 3000, unit: 'MHz', default: 433.000 },
+    'VHF': { min: 30, max: 300, unit: 'MHz', default: 142.850 },
+    'AEREA': { min: 108, max: 137, unit: 'MHz', default: 121.500 },
+    'MARINA': { min: 156, max: 162, unit: 'MHz', default: 156.800 },
+    'HF': { min: 3, max: 30, unit: 'MHz', default: 14.300 },
+    'EMERG': { min: 0, max: 0, unit: 'MHz', default: 121.500 }
+};
+
+const hfBands = {
+    '10m': { range: '28.0-29.7 MHz', desc: 'Propagación diurna excelente' },
+    '15m': { range: '21.0-21.45 MHz', desc: 'Banda DX internacional' },
+    '20m': { range: '14.0-14.35 MHz', desc: 'Banda DX principal' },
+    '40m': { range: '7.0-7.3 MHz', desc: 'Regional/noche' },
+    '80m': { range: '3.5-4.0 MHz', desc: 'Local/noche' },
+    '160m': { range: '1.8-2.0 MHz', desc: 'Local larga distancia' },
+    '320m': { range: '0.9-1.0 MHz', desc: 'Experimental LF' },
+    '640m': { range: '0.47-0.49 MHz', desc: 'Experimental VLF' }
+};
+
+const pmrChannels = {
+    8: { 1: 446.00625, 2: 446.01875, 3: 446.03125, 4: 446.04375, 5: 446.05625, 6: 446.06875, 7: 446.08125, 8: 446.09375 },
+    16: { 1: 446.00625, 2: 446.01875, 3: 446.03125, 4: 446.04375, 5: 446.05625, 6: 446.06875, 7: 446.08125, 8: 446.09375,
+          9: 446.10625, 10: 446.11875, 11: 446.13125, 12: 446.14375, 13: 446.15625, 14: 446.16875, 15: 446.18125, 16: 446.19375 },
+    32: { 1: 446.00625, 2: 446.009375, 3: 446.0125, 4: 446.015625, 5: 446.01875, 6: 446.021875, 7: 446.025, 8: 446.028125,
+          9: 446.03125, 10: 446.034375, 11: 446.0375, 12: 446.040625, 13: 446.04375, 14: 446.046875, 15: 446.05, 16: 446.053125,
+          17: 446.05625, 18: 446.059375, 19: 446.0625, 20: 446.065625, 21: 446.06875, 22: 446.071875, 23: 446.075, 24: 446.078125,
+          25: 446.08125, 26: 446.084375, 27: 446.0875, 28: 446.090625, 29: 446.09375, 30: 446.096875, 31: 446.1, 32: 446.103125 }
+};
+
+const cbChannels = {
+    1: 26.965, 2: 26.975, 3: 26.985, 4: 27.005, 5: 27.015, 6: 27.025, 7: 27.035, 8: 27.055,
+    9: 27.065, 10: 27.075, 11: 27.085, 12: 27.105, 13: 27.115, 14: 27.125, 15: 27.135, 16: 27.155,
+    17: 27.165, 18: 27.175, 19: 27.185, 20: 27.205, 21: 27.215, 22: 27.225, 23: 27.255, 24: 27.235,
+    25: 27.245, 26: 27.265, 27: 27.275, 28: 27.285, 29: 27.295, 30: 27.305, 31: 27.315, 32: 27.325,
+    33: 27.335, 34: 27.345, 35: 27.355, 36: 27.365, 37: 27.375, 38: 27.385, 39: 27.395, 40: 27.405
+};
+
+const emergencyFrequencies = {
+    'UHF': [{ freq: '433.000', purpose: 'Emergencia general UHF' }, { freq: '446.000', purpose: 'PMR446 Canal 1' }],
+    'VHF': [{ freq: '146.520', purpose: 'Simplex nacional (EEUU)' }, { freq: '145.500', purpose: 'Emergencia VHF' }],
+    'AEREA': [{ freq: '121.500', purpose: 'Emergencia aeronáutica' }, { freq: '123.100', purpose: 'Ayuda aeronáutica' }],
+    'MARINA': [{ freq: '156.800', purpose: 'Canal 16 - Emergencia' }, { freq: '156.300', purpose: 'Canal 6 - Auxilio' }],
+    'HF': [{ freq: '14.300', purpose: 'Emergencia HF global' }, { freq: '7.296', purpose: 'Red de emergencia' }],
+    'EMERG': [{ freq: '121.500', purpose: 'Emergencia aeronáutica' }, { freq: '156.800', purpose: 'Emergencia marítima' }, { freq: '27.185', purpose: 'Canal 19 CB - Emergencia' }]
+};
+
+const phoneticAlphabetFull = {
+    'A': { word: 'ALFA', pronunciation: 'AL - FAH' },
+    'B': { word: 'BRAVO', pronunciation: 'BRAH - VOH' },
+    'C': { word: 'CHARLIE', pronunciation: 'CHAR - LEE' },
+    'D': { word: 'DELTA', pronunciation: 'DELL - TAH' },
+    'E': { word: 'ECHO', pronunciation: 'ECK - OH' },
+    'F': { word: 'FOXTROT', pronunciation: 'FOKS - TROT' },
+    'G': { word: 'GOLF', pronunciation: 'GOLF' },
+    'H': { word: 'HOTEL', pronunciation: 'HOH - TEL' },
+    'I': { word: 'INDIA', pronunciation: 'IN - DEE - AH' },
+    'J': { word: 'JULIETT', pronunciation: 'JEW - LEE - ETT' },
+    'K': { word: 'KILO', pronunciation: 'KEY - LOH' },
+    'L': { word: 'LIMA', pronunciation: 'LEE - MAH' },
+    'M': { word: 'MIKE', pronunciation: 'MIKE' },
+    'N': { word: 'NOVEMBER', pronunciation: 'NO - VEM - BER' },
+    'O': { word: 'OSCAR', pronunciation: 'OSS - CAH' },
+    'P': { word: 'PAPA', pronunciation: 'PAH - PAH' },
+    'Q': { word: 'QUEBEC', pronunciation: 'KEH - BECK' },
+    'R': { word: 'ROMEO', pronunciation: 'ROW - ME - OH' },
+    'S': { word: 'SIERRA', pronunciation: 'SEE - AIR - RAH' },
+    'T': { word: 'TANGO', pronunciation: 'TANG - GO' },
+    'U': { word: 'UNIFORM', pronunciation: 'YOU - NEE - FORM' },
+    'V': { word: 'VICTOR', pronunciation: 'VIK - TAH' },
+    'W': { word: 'WHISKEY', pronunciation: 'WISS - KEY' },
+    'X': { word: 'X-RAY', pronunciation: 'ECKS - RAY' },
+    'Y': { word: 'YANKEE', pronunciation: 'YANG - KEY' },
+    'Z': { word: 'ZULU', pronunciation: 'ZOO - LOO' },
+    '0': { word: 'ZERO', pronunciation: 'ZE-RO' },
+    '1': { word: 'ONE', pronunciation: 'WUN' },
+    '2': { word: 'TWO', pronunciation: 'TOO' },
+    '3': { word: 'THREE', pronunciation: 'TREE' },
+    '4': { word: 'FOUR', pronunciation: 'FOW-ER' },
+    '5': { word: 'FIVE', pronunciation: 'FIFE' },
+    '6': { word: 'SIX', pronunciation: 'SIX' },
+    '7': { word: 'SEVEN', pronunciation: 'SEV-EN' },
+    '8': { word: 'EIGHT', pronunciation: 'AIT' },
+    '9': { word: 'NINE', pronunciation: 'NIN-ER' }
+};
+
+// =============================================
+// FUNCIONES DE SEGURIDAD Y CRIPTOGRAFÍA
+// =============================================
+
+// Almacenamiento seguro en localStorage
+function secureLocalSet(key, value) {
+    try {
+        const secret = 'radcom-secure-key-2026';
+        const enc = CryptoJS.AES.encrypt(JSON.stringify(value), secret).toString();
+        localStorage.setItem(key, enc);
+    } catch (e) {
+        console.error('Secure set failed:', e);
+    }
 }
 
-async function importPublicKey(rawPublicKey) {
-    return await crypto.subtle.importKey(
-        "raw",
-        rawPublicKey,
-        { name: "ECDH", namedCurve: "P-256" },
-        false,
-        []
-    );
+function secureLocalGet(key, defaultValue = null) {
+    try {
+        const enc = localStorage.getItem(key);
+        if (!enc) return defaultValue;
+        const secret = 'radcom-secure-key-2026';
+        const dec = CryptoJS.AES.decrypt(enc, secret);
+        return JSON.parse(dec.toString(CryptoJS.enc.Utf8));
+    } catch (e) {
+        console.error('Secure get failed:', e);
+        return defaultValue;
+    }
 }
 
-async function deriveSharedKey(privateKey, publicKey) {
-    return await crypto.subtle.deriveKey(
-        { name: "ECDH", public: publicKey },
-        privateKey,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["encrypt", "decrypt"]
-    );
-}
-
-async function encryptAESGCM(plaintext, key) {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encoder = new TextEncoder();
-    const encrypted = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv: iv },
-        key,
-        encoder.encode(plaintext)
-    );
-    return {
-        iv: Array.from(iv),
-        ciphertext: Array.from(new Uint8Array(encrypted))
-    };
-}
-
-async function decryptAESGCM(encryptedData, key) {
-    const iv = new Uint8Array(encryptedData.iv);
-    const ciphertext = new Uint8Array(encryptedData.ciphertext);
-    const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: iv },
-        key,
-        ciphertext
-    );
-    return new TextDecoder().decode(decrypted);
-}
-
-// === XOR y CBC legacy (para compatibilidad) ===
+// Funciones XOR (legacy)
 function xorEncrypt(text, key) {
     let result = '';
     for (let i = 0; i < text.length; i++) {
-        result += String.fromCharCode(
-            text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
-        );
+        result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
     }
     return result;
 }
@@ -4432,4500 +4550,7 @@ function xorDecrypt(text, key) {
     return xorEncrypt(text, key);
 }
 
-// === CAPA DE SEGURIDAD UNIFICADA ===
-async function securityLayer(text, isSending, encryptionMode = "aes-gcm-ecdh", password = "") {
-    const result = {
-        payload: null,
-        encryptionUsed: encryptionMode.toUpperCase(),
-        error: null
-    };
-
-    if (!text) {
-        result.error = "Texto vacío";
-        return result;
-    }
-
-    const keyInput = password || document.getElementById('key')?.value || "ATOM80";
-
-    try {
-        if (encryptionMode === "none") {
-            result.payload = text;
-            result.encryptionUsed = "NONE";
-        } 
-        
-        else if (encryptionMode === "xor") {
-            result.payload = isSending ? xorEncrypt(text, keyInput) : xorDecrypt(text, keyInput);
-        } 
-        
-        else if (encryptionMode === "aes-cbc") {
-            // Legacy - mantengo compatibilidad con tus versiones anteriores
-            result.payload = isSending ? xorEncrypt(text, keyInput) : xorDecrypt(text, keyInput);
-            result.encryptionUsed = "AES-CBC (legacy)";
-        } 
-        
-        else if (encryptionMode === "aes-gcm-ecdh") {
-            // === MODO MODERNO POR DEFECTO ===
-            const targetId = activeTarget === 'GLOBAL' ? null : activeTarget;
-            
-            if (!targetId) {
-                result.payload = text; // GLOBAL sin ECDH
-                return result;
-            }
-
-            let sharedKey = peerKeys[targetId]?.sharedKey;
-
-            if (!sharedKey) {
-                // Iniciar handshake ECDH automáticamente
-                const pair = await generateECDHKeyPair();
-                peerKeys[targetId] = {
-                    ecdhPrivate: pair.privateKey,
-                    handshakeDone: false
-                };
-
-                const publicRaw = await crypto.subtle.exportKey("raw", pair.publicKey);
-
-                if (connections[targetId]?.conn?.open) {
-                    connections[targetId].conn.send({
-                        type: "ecdh_init",
-                        publicKey: Array.from(new Uint8Array(publicRaw))
-                    });
-                }
-
-                result.payload = "[INICIANDO CANAL SEGUR0 ECDH...]";
-                result.encryptionUsed = "ECDH_HANDSHAKE";
-                return result;
-            }
-
-            // Ya tenemos clave compartida
-            if (isSending) {
-                result.payload = await encryptAESGCM(text, sharedKey);
-            } else {
-                result.payload = await decryptAESGCM(text, sharedKey);
-            }
-        }
-    } catch (err) {
-        result.error = err.message;
-        result.payload = isSending ? text : "[ERROR DE DESCIFRADO]";
-    }
-
-    return result;
-}
-
-// =============================================
-// PARTE B - SISTEMA DE MENSAJERÍA UNIFICADO v5.4
-// =============================================
-
-async function prepareAndSecureMessage(rawText, mode = 'text') {
-    const encryptionMode = document.getElementById('encryptionMode').value || 'aes-gcm-ecdh';
-    const key = document.getElementById('key').value || 'ATOM80';
-
-    let processedText = rawText.trim();
-
-    // === MORSE DUAL (mantengo tu funcionalidad original) ===
-    if (mode === 'morse') {
-        const isMorseInput = /^[\.\-\s\/]+$/.test(processedText);
-        if (!isMorseInput) {
-            processedText = textToMorse(processedText);   // tu función original
-        }
-        updateMorseTranslation(rawText); // tu función de traducción
-    } else if (mode === 'phonetic') {
-        processedText = textToPhonetic(processedText); // tu función original
-    }
-
-    // === USAR LA NUEVA CAPA DE SEGURIDAD ===
-    const secured = await securityLayer(processedText, true, encryptionMode, key);
-
-    return {
-        type: 'message',
-        payload: secured.payload,
-        mode: mode,
-        encryption: secured.encryptionUsed,
-        timestamp: Date.now(),
-        sender: myPeerId,
-        originalText: rawText,           // para mostrar localmente
-        error: secured.error
-    };
-}
-
-// === ENVÍO PRINCIPAL (reemplaza tu sendWithQueue) ===
-async function sendWithQueue() {
-    const input = document.getElementById('inputMsg');
-    const rawText = input.value.trim();
-    
-    if (!rawText) {
-        updateMonitor("⚠️ MENSAJE VACÍO", "error");
-        playStrongBeep(300, 200);
-        return;
-    }
-
-    const mode = document.getElementById('inputMode').value;
-    const packet = await prepareAndSecureMessage(rawText, mode);
-
-    if (packet.error) {
-        updateMonitor(`⚠️ Error de seguridad: ${packet.error}`, "error");
-        return;
-    }
-
-    let sentCount = 0;
-
-    if (activeTarget === 'GLOBAL') {
-        for (const peerId in connections) {
-            if (connections[peerId]?.conn?.open) {
-                connections[peerId].conn.send(packet);
-                sentCount++;
-            }
-        }
-    } else if (connections[activeTarget]?.conn?.open) {
-        connections[activeTarget].conn.send(packet);
-        sentCount = 1;
-    }
-
-    if (sentCount > 0) {
-        // Mostrar mensaje original (no cifrado) al usuario
-        displayMessage(`YO: ${rawText}`, '', 'outgoing');
-        input.value = '';
-        stats.tx += rawText.length;
-        stats.messages++;
-        updateStats();
-        updateMonitor(`📤 ENVIADO (${packet.encryption}) a ${sentCount} destino(s)`);
-        playStrongBeep(700, 100);
-    } else {
-        // Cola offline (tu sistema original)
-        addToQueue(packet, rawText);
-        displayMessage(`⏳ YO (EN COLA): ${rawText}`, '', 'outgoing');
-        input.value = '';
-        updateMonitor(`💾 MENSAJE GUARDADO EN COLA (${messageQueue.length})`);
-    }
-
-    // Limpiar tabla resaltada
-    document.querySelectorAll('#ansiTable td.highlighted').forEach(td => td.classList.remove('highlighted'));
-}
-
-// === RECEPCIÓN UNIFICADA (reemplaza todas las versiones antiguas) ===
-async function handleReceivedData(senderId, data) {
-    if (!data || data.type !== 'message') return;
-
-    connectionHealth[senderId] = connectionHealth[senderId] || {};
-    connectionHealth[senderId].lastActivity = Date.now();
-
-    let displayText = data.payload;
-
-    // === PROCESAR SEGÚN TIPO DE ENCRIPTACIÓN ===
-    if (data.encryption === 'ECDH_HANDSHAKE' || data.encryption === 'aes-gcm-ecdh') {
-        // Ya lo maneja securityLayer + handshake en Parte A
-        const secured = await securityLayer(data.payload, false, data.encryption);
-        displayText = secured.payload || data.payload;
-    } 
-    else if (data.encryption === 'XOR' || data.encryption.includes('legacy')) {
-        displayText = xorDecrypt(data.payload, document.getElementById('key').value || 'ATOM80');
-    } 
-    else if (data.encryption === 'NONE') {
-        displayText = data.payload;
-    }
-
-    // === MOSTRAR MENSAJE ===
-    const displayName = senderId.substring(0, 8);
-    displayMessage(`${displayName}: ${displayText}`, '', 'incoming');
-
-    stats.rx += (data.payload ? JSON.stringify(data.payload).length : 0);
-    stats.messages++;
-    updateStats();
-
-    updateMonitor(`📥 ${displayName} [${data.encryption}]`);
-    playMessageNotification();
-}
-
-// === COLA (mantengo tu sistema original, solo lo limpio) ===
-function addToQueue(packet, originalText) {
-    if (messageQueue.length >= 100) messageQueue.shift();
-
-    messageQueue.push({
-        id: Date.now(),
-        packet: packet,
-        original: originalText,
-        target: activeTarget,
-        timestamp: Date.now(),
-        attempts: 0
-    });
-
-    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
-    updateQueueCounter();
-}
-
-// Actualiza tu processQueue y deliverOnConnect si quieres, pero con esta versión ya funciona mejor.
-
-        // ====== VARIABLES GLOBALES ======
-        let peer = null;
-        let myPeerId = null;
-       
-        let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
-        let activeTarget = 'GLOBAL';
-        let stats = {
-            messages: 0,
-            tx: 0,
-            rx: 0,
-            startTime: Date.now()
-        };
-        let audioContext = null;
-        let currentConnectionType = 'wifi';
-       
-        // ====== VARIABLES MEJORADAS ======
-        let connectionHealth = {};
-        let showOffline = false;
-        let fastRecovery = true;
-        let aggressiveRevive = true;
-        let isBackground = false;
-        let revivingInProgress = false;
-        let currentTab = 'ascii';
-
-        // ====== VARIABLES SISTEMA DE MENSAJES EN COLA ======
-       
-        let queueRetryInterval = null;
-        const MAX_QUEUE_SIZE = 100;
-
-        // ====== VARIABLES PARA MORSE ======
-        let morseSpeed = 'normal';
-        let morseAudioContext = null;
-        let isPlayingMorse = false;
-
-        // ====== VARIABLES PARA RECONOCIMIENTO DE VOZ v4.7 MEJORADO ======
-        let recognition = null;
-        let recognizing = false;
-
-        // ====== SISTEMA DE ID FIJOS MEJORADO ======
-        const ID_SYSTEM = {
-            currentId: null,
-            defaultPrefix: 'RADCOM-',
-            useFixedId: true,
-            fixedId: null
-        };
-
-        // ====== SISTEMA DE RADIO v4.5 (ORIGINAL MEJORADO) ======
-        let currentBand = 'VHF';
-        let currentFrequency = 142.850;
-        let currentUnit = 'MHz';
-        let currentHFBand = null;
-        let currentChannelType = 'pmr'; // 'pmr' o 'cb'
-        let currentPMRType = 8; // 8, 16, 32
-        let currentChannel = 1; // Canal actual
-        let radioAudioContext = null;
-
-        // Definición de bandas y frecuencias
-        const radioBands = {
-            'UHF': { min: 300, max: 3000, unit: 'MHz', default: 433.000 },
-            'VHF': { min: 30, max: 300, unit: 'MHz', default: 142.850 },
-            'AEREA': { min: 108, max: 137, unit: 'MHz', default: 121.500 },
-            'MARINA': { min: 156, max: 162, unit: 'MHz', default: 156.800 },
-            'HF': { min: 3, max: 30, unit: 'MHz', default: 14.300 },
-            'EMERG': { min: 0, max: 0, unit: 'MHz', default: 121.500 }
-        };
-
-        // Sub-bandas HF con descripciones
-        const hfBands = {
-            '10m': { range: '28.0-29.7 MHz', desc: 'Propagación diurna excelente' },
-            '15m': { range: '21.0-21.45 MHz', desc: 'Banda DX internacional' },
-            '20m': { range: '14.0-14.35 MHz', desc: 'Banda DX principal' },
-            '40m': { range: '7.0-7.3 MHz', desc: 'Regional/noche' },
-            '80m': { range: '3.5-4.0 MHz', desc: 'Local/noche' },
-            '160m': { range: '1.8-2.0 MHz', desc: 'Local larga distancia' },
-            '320m': { range: '0.9-1.0 MHz', desc: 'Experimental LF' },
-            '640m': { range: '0.47-0.49 MHz', desc: 'Experimental VLF' }
-        };
-
-        // Canales PMR446
-        const pmrChannels = {
-            8: {
-                1: 446.00625, 2: 446.01875, 3: 446.03125, 4: 446.04375,
-                5: 446.05625, 6: 446.06875, 7: 446.08125, 8: 446.09375
-            },
-            16: {
-                1: 446.00625, 2: 446.01875, 3: 446.03125, 4: 446.04375,
-                5: 446.05625, 6: 446.06875, 7: 446.08125, 8: 446.09375,
-                9: 446.10625, 10: 446.11875, 11: 446.13125, 12: 446.14375,
-                13: 446.15625, 14: 446.16875, 15: 446.18125, 16: 446.19375
-            },
-            32: {
-                1: 446.00625, 2: 446.009375, 3: 446.0125, 4: 446.015625,
-                5: 446.01875, 6: 446.021875, 7: 446.025, 8: 446.028125,
-                9: 446.03125, 10: 446.034375, 11: 446.0375, 12: 446.040625,
-                13: 446.04375, 14: 446.046875, 15: 446.05, 16: 446.053125,
-                17: 446.05625, 18: 446.059375, 19: 446.0625, 20: 446.065625,
-                21: 446.06875, 22: 446.071875, 23: 446.075, 24: 446.078125,
-                25: 446.08125, 26: 446.084375, 27: 446.0875, 28: 446.090625,
-                29: 446.09375, 30: 446.096875, 31: 446.1, 32: 446.103125
-            }
-        };
-
-        // Canales CB (40 canales)
-        const cbChannels = {
-            1: 26.965, 2: 26.975, 3: 26.985, 4: 27.005, 5: 27.015,
-            6: 27.025, 7: 27.035, 8: 27.055, 9: 27.065, 10: 27.075,
-            11: 27.085, 12: 27.105, 13: 27.115, 14: 27.125, 15: 27.135,
-            16: 27.155, 17: 27.165, 18: 27.175, 19: 27.185, 20: 27.205,
-            21: 27.215, 22: 27.225, 23: 27.255, 24: 27.235, 25: 27.245,
-            26: 27.265, 27: 27.275, 28: 27.285, 29: 27.295, 30: 27.305,
-            31: 27.315, 32: 27.325, 33: 27.335, 34: 27.345, 35: 27.355,
-            36: 27.365, 37: 27.375, 38: 27.385, 39: 27.395, 40: 27.405
-        };
-
-        // Frecuencias de emergencia por banda
-        const emergencyFrequencies = {
-            'UHF': [
-                { freq: '433.000', purpose: 'Emergencia general UHF' },
-                { freq: '446.000', purpose: 'PMR446 Canal 1' }
-            ],
-            'VHF': [
-                { freq: '146.520', purpose: 'Simplex nacional (EEUU)' },
-                { freq: '145.500', purpose: 'Emergencia VHF' }
-            ],
-            'AEREA': [
-                { freq: '121.500', purpose: 'Emergencia aeronáutica' },
-                { freq: '123.100', purpose: 'Ayuda aeronáutica' }
-            ],
-            'MARINA': [
-                { freq: '156.800', purpose: 'Canal 16 - Emergencia' },
-                { freq: '156.300', purpose: 'Canal 6 - Auxilio' }
-            ],
-            'HF': [
-                { freq: '14.300', purpose: 'Emergencia HF global' },
-                { freq: '7.296', purpose: 'Red de emergencia' }
-            ],
-            'EMERG': [
-                { freq: '121.500', purpose: 'Emergencia aeronáutica' },
-                { freq: '156.800', purpose: 'Emergencia marítima' },
-                { freq: '27.185', purpose: 'Canal 19 CB - Emergencia' }
-            ]
-        };
-
-        // Alfabeto fonético completo
-        const phoneticAlphabetFull = {
-            'A': { word: 'ALFA', pronunciation: 'AL - FAH' },
-            'B': { word: 'BRAVO', pronunciation: 'BRAH - VOH' },
-            'C': { word: 'CHARLIE', pronunciation: 'CHAR - LEE' },
-            'D': { word: 'DELTA', pronunciation: 'DELL - TAH' },
-            'E': { word: 'ECHO', pronunciation: 'ECK - OH' },
-            'F': { word: 'FOXTROT', pronunciation: 'FOKS - TROT' },
-            'G': { word: 'GOLF', pronunciation: 'GOLF' },
-            'H': { word: 'HOTEL', pronunciation: 'HOH - TEL' },
-            'I': { word: 'INDIA', pronunciation: 'IN - DEE - AH' },
-            'J': { word: 'JULIETT', pronunciation: 'JEW - LEE - ETT' },
-            'K': { word: 'KILO', pronunciation: 'KEY - LOH' },
-            'L': { word: 'LIMA', pronunciation: 'LEE - MAH' },
-            'M': { word: 'MIKE', pronunciation: 'MIKE' },
-            'N': { word: 'NOVEMBER', pronunciation: 'NO - VEM - BER' },
-            'O': { word: 'OSCAR', pronunciation: 'OSS - CAH' },
-            'P': { word: 'PAPA', pronunciation: 'PAH - PAH' },
-            'Q': { word: 'QUEBEC', pronunciation: 'KEH - BECK' },
-            'R': { word: 'ROMEO', pronunciation: 'ROW - ME - OH' },
-            'S': { word: 'SIERRA', pronunciation: 'SEE - AIR - RAH' },
-            'T': { word: 'TANGO', pronunciation: 'TANG - GO' },
-            'U': { word: 'UNIFORM', pronunciation: 'YOU - NEE - FORM' },
-            'V': { word: 'VICTOR', pronunciation: 'VIK - TAH' },
-            'W': { word: 'WHISKEY', pronunciation: 'WISS - KEY' },
-            'X': { word: 'X-RAY', pronunciation: 'ECKS - RAY' },
-            'Y': { word: 'YANKEE', pronunciation: 'YANG - KEY' },
-            'Z': { word: 'ZULU', pronunciation: 'ZOO - LOO' },
-            '0': { word: 'ZERO', pronunciation: 'ZE-RO' },
-            '1': { word: 'ONE', pronunciation: 'WUN' },
-            '2': { word: 'TWO', pronunciation: 'TOO' },
-            '3': { word: 'THREE', pronunciation: 'TREE' },
-            '4': { word: 'FOUR', pronunciation: 'FOW-ER' },
-            '5': { word: 'FIVE', pronunciation: 'FIFE' },
-            '6': { word: 'SIX', pronunciation: 'SIX' },
-            '7': { word: 'SEVEN', pronunciation: 'SEV-EN' },
-            '8': { word: 'EIGHT', pronunciation: 'AIT' },
-            '9': { word: 'NINE', pronunciation: 'NIN-ER' }
-        };
-
-        // ======== RECONOCIMIENTO DE VOZ v4.7 (CON ENVÍO AUTOMÁTICO) ========
-
-        function initVoiceRecognition() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                updateMonitor("Reconocimiento de voz no soportado en este navegador.", "warning");
-                return;
-            }
-            
-            recognition = new SpeechRecognition();
-            recognition.lang = "es-ES";
-            recognition.continuous = false;
-            recognition.interimResults = false; // Solo resultados finales
-            recognition.maxAlternatives = 1;
-
-            recognition.onstart = () => {
-                recognizing = true;
-                const micBtn = document.getElementById("micBtn");
-                const status = document.getElementById("mic-status");
-                if (micBtn) micBtn.classList.add("listening");
-                if (status) {
-                    status.textContent = "ESCUCHANDO...";
-                    status.classList.add("active");
-                }
-                updateMonitor("🎤 MODO VOZ ACTIVADO - HABLA AHORA", "info");
-                playStrongBeep(800, 100);
-            };
-
-            recognition.onresult = (event) => {
-                const input = document.getElementById("inputMsg");
-                if (!input) return;
-                
-                const transcript = event.results[0][0].transcript.trim();
-                
-                if (transcript) {
-                    // Mostrar el texto reconocido en el campo de entrada
-                    input.value = transcript;
-                    
-                    // Actualizar vistas previas
-                    validateInput();
-                    realTimePreview();
-                    realTimeTableHighlight();
-                    
-                    updateMonitor(`🎤 Reconocido: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`, "info");
-                    playStrongBeep(600, 50);
-                    
-                    // ENVÍO AUTOMÁTICO DESPUÉS DE 1.5 SEGUNDOS
-                    setTimeout(() => {
-                        if (input.value.trim() && !recognizing) {
-                            updateMonitor("⚡ ENVIANDO MENSAJE DE VOZ...", "info");
-                            
-                            // Pequeña pausa para mostrar el mensaje
-                            setTimeout(() => {
-                                const mode = document.getElementById('inputMode').value;
-                                
-                                // Verificar conexiones antes de enviar
-                                const onlineCount = Object.keys(connections).filter(id => 
-                                    connections[id]?.status === 'online').length;
-                                
-                                if (onlineCount === 0) {
-                                    updateMonitor("⚠️ No hay conexiones activas para enviar", "warning");
-                                    playStrongBeep(300, 200);
-                                    return;
-                                }
-                                
-                                // Enviar según el modo
-                                if (mode === 'phonetic') {
-                                    sendRadioMessage();
-                                } else {
-                                    sendMessage();
-                                }
-                                
-                                // Restablecer el campo de entrada
-                                input.value = "";
-                                
-                            }, 300);
-                        }
-                    }, 1500);
-                }
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Error de reconocimiento de voz:", event.error);
-                
-                if (event.error === 'no-speech') {
-                    updateMonitor("🎤 No se detectó voz. Intenta de nuevo.", "warning");
-                } else if (event.error === 'audio-capture') {
-                    updateMonitor("🎤 No se pudo acceder al micrófono.", "error");
-                } else if (event.error === 'not-allowed') {
-                    updateMonitor("🎤 Permiso de micrófono denegado.", "error");
-                } else {
-                    updateMonitor(`🎤 Error de voz: ${event.error}`, "error");
-                }
-                
-                resetVoiceUI();
-            };
-
-            recognition.onend = () => {
-                resetVoiceUI();
-            };
-        }
-
-        // Función auxiliar para restablecer la UI de voz
-        function resetVoiceUI() {
-            recognizing = false;
-            const micBtn = document.getElementById("micBtn");
-            const status = document.getElementById("mic-status");
-            if (micBtn) micBtn.classList.remove("listening");
-            if (status) {
-                status.textContent = "Voz OFF";
-                status.classList.remove("active");
-            }
-        }
-
-        function toggleVoiceInput() {
-            // Si ya está activo, detenerlo
-            if (recognizing) {
-                try {
-                    recognition.stop();
-                    updateMonitor("🎤 Modo voz desactivado", "info");
-                } catch(e) {
-                    console.log("Reconocimiento ya detenido");
-                }
-                return;
-            }
-            
-            // Inicializar si es necesario
-            if (!recognition) {
-                initVoiceRecognition();
-                if (!recognition) {
-                    updateMonitor("❌ No se pudo inicializar reconocimiento de voz", "error");
-                    return;
-                }
-            }
-            
-            // Limpiar campo de entrada antes de empezar
-            const input = document.getElementById("inputMsg");
-            if (input) {
-                input.value = "";
-            }
-            
-            // Intentar iniciar el reconocimiento
-            try {
-                recognition.start();
-            } catch(e) {
-                console.error("Error al iniciar reconocimiento:", e);
-                updateMonitor("❌ Error al acceder al micrófono. Verifica permisos.", "error");
-                resetVoiceUI();
-            }
-        }
-
-        // ====== FUNCIONES DE SISTEMA DE ID ======
-        
-        function generateHardwareBasedId() {
-            const sources = [
-                navigator.userAgent,
-                navigator.language,
-                screen.width + 'x' + screen.height,
-                new Date().getTimezoneOffset(),
-                localStorage.getItem('radcom_hardware_id')
-            ];
-            
-            if (!localStorage.getItem('radcom_hardware_id')) {
-                const hardwareId = 'HW-' + 
-                    Math.random().toString(36).substring(2, 10) + 
-                    '-' + 
-                    Date.now().toString(36);
-                localStorage.setItem('radcom_hardware_id', hardwareId);
-                sources[4] = hardwareId;
-            }
-            
-            let hash = 0;
-            const str = sources.join('|');
-            for (let i = 0; i < str.length; i++) {
-                const char = str.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            
-            return `RADCOM-${Math.abs(hash).toString(36).toUpperCase().substring(0, 8)}-V4`;
-        }
-
-        function generateRobustPeerId() {
-            const timestamp = Date.now().toString(36);
-            const random = Math.random().toString(36).substring(2, 8);
-            return `RADCOM-${timestamp}-${random}`.toUpperCase();
-        }
-
-        function getOrCreateFixedId() {
-            let fixedId = localStorage.getItem('radcom_fixed_id_v4');
-            
-            if (!fixedId) {
-                fixedId = generateHardwareBasedId();
-                localStorage.setItem('radcom_fixed_id_v4', fixedId);
-            }
-            
-            return fixedId;
-        }
-
-        function initPeerJSEnhanced() {
-            updateMonitor("📡 INICIALIZANDO SISTEMA DE ID FIJOS...");
-            
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
-            ID_SYSTEM.useFixedId = config.useFixedId !== false;
-            ID_SYSTEM.fixedId = config.fixedId || getOrCreateFixedId();
-            
-            let peerId;
-            
-            if (ID_SYSTEM.useFixedId && ID_SYSTEM.fixedId) {
-                peerId = ID_SYSTEM.fixedId;
-                updateMonitor(`🔧 USANDO ID FIJADO: ${peerId.substring(0, 20)}...`);
-            } else {
-                peerId = generateRobustPeerId();
-                updateMonitor(`🎲 USANDO ID ALEATORIO: ${peerId.substring(0, 20)}...`);
-            }
-            
-            ID_SYSTEM.currentId = peerId;
-            localStorage.setItem('radcom_current_id', peerId);
-            
-            document.getElementById('currentIdDisplay').textContent = peerId;
-            
-            try {
-                const iceConfig = {
-                    config: {
-                        iceServers: [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:stun1.l.google.com:19302' }
-                        ]
-                    },
-                    debug: 0
-                };
-                
-                if (currentConnectionType === 'mobile') {
-                    iceConfig.config.iceServers = [
-                        { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:stun3.l.google.com:19302' },
-                        { urls: 'stun:stun4.l.google.com:19302' }
-                    ];
-                }
-                
-                peer = new Peer(peerId, iceConfig);
-                setupPeerEvents();
-                updateMonitor(`✅ ID REGISTRADO: ${peerId.substring(0, 20)}...`);
-                
-            } catch (error) {
-                console.error("Error inicializando PeerJS:", error);
-                
-                if (ID_SYSTEM.useFixedId) {
-                    updateMonitor("⚠️ ID FIJADO OCUPADO. USANDO ID ALEATORIO...", "warning");
-                    
-                    peerId = generateRobustPeerId();
-                    ID_SYSTEM.useFixedId = false;
-                    ID_SYSTEM.fixedId = null;
-                    
-                    const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
-                    config.useFixedId = false;
-                    config.fixedId = null;
-                    localStorage.setItem('radcom_config_v4', JSON.stringify(config));
-                    
-                    setTimeout(() => {
-                        if (peer) peer.destroy();
-                        setTimeout(() => initPeerJSEnhanced(), 1000);
-                    }, 500);
-                }
-            }
-        }
-
-        // ====== FUNCIONES BÁSICAS ======
-        
-        function buildAsciiTable() {
-            const table = document.getElementById('ansiTable');
-            let html = "<thead><tr><th class=\"row-idx\">V\\H</th>";
-            
-            for (let i = 0; i < 8; i++) {
-                html += `<th>${i.toString(16).toUpperCase()}</th>`;
-            }
-            html += "</tr></thead><tbody>";
-            
-            for (let row = 0; row < 16; row++) {
-                const rowHex = row.toString(16).toUpperCase();
-                html += `<tr><td class="row-idx">${rowHex}</td>`;
-                
-                for (let col = 0; col < 8; col++) {
-                    const displayChar = chars[row][col];
-                    const asciiCode = (col << 4) | row;
-                    const hexCode = asciiCode.toString(16).toUpperCase().padStart(2, '0');
-                    
-                    html += `<td data-row="${row}" data-col="${col}" data-ascii="${asciiCode}" 
-                             data-hex="${hexCode}" data-char="${displayChar}" 
-                             onclick="selectTableChar(this)"
-                             title="${displayChar} | HEX: ${hexCode} | DEC: ${asciiCode}">
-                             ${displayChar}
-                             </td>`;
-                }
-                html += "</tr>";
-            }
-            
-            html += "</tbody>";
-            table.innerHTML = html;
-        }
-
-        function buildMorseTable() {
-            const table = document.getElementById('morseTable');
-            let html = "<thead><tr><th>CARÁCTER</th><th>CÓDIGO MORSE</th><th>EJEMPLO FONÉTICO</th><th>PROBAR</th></tr></thead><tbody>";
-            
-            for (let charCode = 65; charCode <= 90; charCode++) {
-                const char = String.fromCharCode(charCode);
-                const morse = morseCodes[char];
-                const phonetic = phoneticAlphabetFull[char]?.word || char;
-                
-                html += `
-                    <tr>
-                        <td class="morse-char" onclick="selectMorseChar('${char}')">${char}</td>
-                        <td class="morse-code" onclick="selectMorseCode('${morse}')">${morse}</td>
-                        <td class="phonetic-example">${phonetic}</td>
-                        <td>
-                            <button class="play-morse-btn" onclick="playMorseCharSound('${char}')" 
-                                    title="Probar sonido Morse para ${char}">
-                                <i class="fas fa-volume-up"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }
-            
-            for (let i = 0; i <= 9; i++) {
-                const char = i.toString();
-                const morse = morseCodes[char];
-                const phonetic = phoneticAlphabetFull[char]?.word || char;
-                
-                html += `
-                    <tr>
-                        <td class="morse-char" onclick="selectMorseChar('${char}')">${char}</td>
-                        <td class="morse-code" onclick="selectMorseCode('${morse}')">${morse}</td>
-                        <td class="phonetic-example">${phonetic}</td>
-                        <td>
-                            <button class="play-morse-btn" onclick="playMorseCharSound('${char}')" 
-                                    title="Probar sonido Morse para ${char}">
-                                <i class="fas fa-volume-up"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }
-            
-            const specialChars = ['.', ',', '?', '/', ' '];
-            specialChars.forEach(char => {
-                const morse = morseCodes[char];
-                const displayChar = char === ' ' ? 'ESPACIO' : char;
-                
-                html += `
-                    <tr>
-                        <td class="morse-char" onclick="selectMorseChar('${char}')">${displayChar}</td>
-                        <td class="morse-code" onclick="selectMorseCode('${morse}')">${morse}</td>
-                        <td class="phonetic-example">---</td>
-                        <td>
-                            <button class="play-morse-btn" onclick="playMorseCharSound('${char}')" 
-                                    title="Probar sonido Morse para ${displayChar}">
-                                <i class="fas fa-volume-up"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += "</tbody>";
-            table.innerHTML = html;
-        }
-
-        function buildSatelliteTable() {
-            // La tabla se construye directamente en el HTML
-            console.log("🛰️ Tabla satelital construida");
-            initializeSatelliteWeather();
-        }
-
-        function switchTab(tab) {
-            currentTab = tab;
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`.tab-button[data-tab="${tab}"]`).classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(`${tab}-table`).classList.add('active');
-
-            const modeSelect = document.getElementById('inputMode');
-            if (tab === 'ascii') {
-                if (modeSelect.value === 'morse' || modeSelect.value === 'phonetic' || modeSelect.value === 'satellite') {
-                    modeSelect.value = 'text';
-                }
-            } else if (tab === 'morse') {
-                modeSelect.value = 'morse';
-            } else if (tab === 'radio') {
-                modeSelect.value = 'phonetic';
-                if (typeof initRadioSystem === 'function') {
-                    setTimeout(initRadioSystem, 100);
-                }
-            } else if (tab === 'satellite') {
-                modeSelect.value = 'satellite';
-                initializeSatelliteWeather();
-            }
-            validateInputMode();
-        }
-
-        function switchTabFromMode() {
-            const mode = document.getElementById('inputMode').value;
-            if (mode === 'text' || mode === 'hex' || mode === 'binary') {
-                switchTab('ascii');
-            } else if (mode === 'morse') {
-                switchTab('morse');
-            } else if (mode === 'phonetic') {
-                switchTab('radio');
-            } else if (mode === 'satellite') {
-                switchTab('satellite');
-            }
-        }
-
-        function selectTableChar(cell) {
-            document.querySelectorAll('#ansiTable td.selected').forEach(td => {
-                td.classList.remove('selected');
-            });
-            
-            cell.classList.add('selected');
-            
-            const row = parseInt(cell.getAttribute('data-row'));
-            const col = parseInt(cell.getAttribute('data-col'));
-            const asciiCode = parseInt(cell.getAttribute('data-ascii'));
-            const hexCode = cell.getAttribute('data-hex');
-            const displayChar = cell.getAttribute('data-char');
-            
-            updateCharPreview(row, col, asciiCode, hexCode, displayChar);
-            
-            const input = document.getElementById('inputMsg');
-            const inputMode = document.getElementById('inputMode').value;
-            
-            if (displayChar === "SPC") {
-                if (inputMode === 'hex') {
-                    input.value += "20 ";
-                } else if (inputMode === 'binary') {
-                    input.value += "00100000 ";
-                } else {
-                    input.value += " ";
-                }
-            } else if (displayChar === "DEL") {
-                if (inputMode === 'hex') {
-                    input.value += "7F ";
-                } else if (inputMode === 'binary') {
-                    input.value += "01111111 ";
-                } else {
-                    input.value += "\x7F";
-                }
-            } else if (col <= 1) {
-                if (inputMode === 'hex') {
-                    input.value += hexCode + " ";
-                } else if (inputMode === 'binary') {
-                    const binary = asciiCode.toString(2).padStart(8, '0');
-                    input.value += binary + " ";
-                } else {
-                    if (asciiCode === 9) input.value += "\t";
-                    else if (asciiCode === 10) input.value += "\n";
-                    else if (asciiCode === 13) input.value += "\r";
-                    else if (asciiCode === 27) input.value += "\x1B";
-                    else input.value += `[${displayChar}]`;
-                }
-            } else if (displayChar.length === 1) {
-                if (inputMode === 'hex') {
-                    input.value += hexCode + " ";
-                } else if (inputMode === 'binary') {
-                    const binary = asciiCode.toString(2).padStart(8, '0');
-                    input.value += binary + " ";
-                } else {
-                    input.value += displayChar;
-                }
-            }
-            
-            input.focus();
-            playStrongBeep(600, 50);
-        }
-
-        // ====== FUNCIONES DE MORSE ======
-        
-        function selectMorseChar(char) {
-            const input = document.getElementById('inputMsg');
-            const inputMode = document.getElementById('inputMode').value;
-            
-            input.value += char;
-            input.focus();
-            
-            if (inputMode === 'morse' && document.getElementById('soundEnabled')?.checked) {
-                playMorseCharSound(char);
-            } else {
-                playStrongBeep(600, 50);
-            }
-        }
-        
-        function selectMorseCode(code) {
-            const input = document.getElementById('inputMsg');
-            const inputMode = document.getElementById('inputMode').value;
-            
-            if (inputMode === 'morse') {
-                input.value += code + ' ';
-            } else {
-                const char = getCharFromMorse(code);
-                if (char) {
-                    input.value += char;
-                } else {
-                    input.value += code;
-                }
-            }
-            
-            input.focus();
-            
-            if (inputMode === 'morse') {
-                playMorseCodeSound(code);
-            } else {
-                playStrongBeep(600, 50);
-            }
-        }
-        
-        function getCharFromMorse(morseCode) {
-            for (const [char, code] of Object.entries(morseCodes)) {
-                if (code === morseCode) {
-                    return char;
-                }
-            }
-            return null;
-        }
-        
-        function updateCharPreview(vertical, horizontal, ascii, hex, char) {
-            document.getElementById('current-char').textContent = char;
-            document.getElementById('current-hex').textContent = hex;
-            document.getElementById('current-dec').textContent = ascii;
-            document.getElementById('current-bin').textContent = ascii.toString(2).padStart(8, '0');
-            document.getElementById('current-pos').textContent = 
-                `V:${vertical.toString(16).toUpperCase()} H:${horizontal.toString(16).toUpperCase()}`;
-        }
-
-        function clearTableSelection() {
-            document.querySelectorAll('#ansiTable td.selected').forEach(td => {
-                td.classList.remove('selected');
-            });
-            
-            document.getElementById('current-char').textContent = '-';
-            document.getElementById('current-hex').textContent = '--';
-            document.getElementById('current-dec').textContent = '---';
-            document.getElementById('current-bin').textContent = '--------';
-            document.getElementById('current-pos').textContent = 'V:-- H:--';
-            
-            document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
-                td.classList.remove('highlighted');
-            });
-        }
-
-        // ====== FUNCIONES DE SONIDO MORSE ======
-        
-        function initMorseAudio() {
-            if (!morseAudioContext) {
-                try {
-                    morseAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-                } catch (error) {
-                    console.error("Error inicializando audio Morse:", error);
-                }
-            }
-        }
-        
-        function playMorseCharSound(char) {
-            if (isPlayingMorse) return;
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            const morseCode = morseCodes[char];
-            if (morseCode) {
-                playMorseCodeSound(morseCode);
-            }
-        }
-        
-        function playMorseCodeSound(code) {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            initMorseAudio();
-            if (!morseAudioContext || isPlayingMorse) return;
-            
-            isPlayingMorse = true;
-            let time = morseAudioContext.currentTime;
-            
-            let dotDuration, dashDuration, symbolGap;
-            
-            switch (morseSpeed) {
-                case 'slow':
-                    dotDuration = 0.2;
-                    dashDuration = 0.6;
-                    symbolGap = 0.15;
-                    break;
-                case 'fast':
-                    dotDuration = 0.1;
-                    dashDuration = 0.3;
-                    symbolGap = 0.08;
-                    break;
-                default:
-                    dotDuration = 0.15;
-                    dashDuration = 0.45;
-                    symbolGap = 0.1;
-            }
-            
-            for (let i = 0; i < code.length; i++) {
-                const symbol = code[i];
-                
-                if (symbol === '.' || symbol === '-') {
-                    const duration = symbol === '.' ? dotDuration : dashDuration;
-                    
-                    const oscillator = morseAudioContext.createOscillator();
-                    const gainNode = morseAudioContext.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(morseAudioContext.destination);
-                    
-                    oscillator.frequency.value = 700;
-                    oscillator.type = 'sine';
-                    
-                    gainNode.gain.setValueAtTime(0, time);
-                    gainNode.gain.linearRampToValueAtTime(0.3, time + 0.01);
-                    gainNode.gain.setValueAtTime(0.3, time + duration - 0.01);
-                    gainNode.gain.linearRampToValueAtTime(0, time + duration);
-                    
-                    oscillator.start(time);
-                    oscillator.stop(time + duration);
-                    
-                    time += duration + symbolGap;
-                }
-            }
-            
-            setTimeout(() => {
-                isPlayingMorse = false;
-            }, (time - morseAudioContext.currentTime) * 1000 + 100);
-        }
-        
-        function setMorseSpeed(speed) {
-            morseSpeed = speed;
-            
-            document.querySelectorAll('.speed-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelector(`.speed-btn[onclick="setMorseSpeed('${speed}')"]`).classList.add('active');
-            
-            updateMonitor(`⚡ Velocidad Morse: ${speed.toUpperCase()}`);
-            playStrongBeep(800, 50);
-        }
-        
-        function playMorsePreview() {
-            const input = document.getElementById('inputMsg');
-            const text = input.value.trim();
-            
-            if (!text) {
-                updateMonitor("⚠️ Escribe algo para probar el sonido Morse", "warning");
-                playStrongBeep(300, 100);
-                return;
-            }
-            
-            if (!document.getElementById('soundEnabled')?.checked) {
-                updateMonitor("🔇 Sonido desactivado en configuración", "warning");
-                return;
-            }
-            
-            updateMonitor(`🔊 Probando Morse: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`);
-            
-            const words = text.toUpperCase().split(' ');
-            
-            let totalDelay = 0;
-            words.forEach((word, wordIndex) => {
-                for (let i = 0; i < word.length; i++) {
-                    const char = word[i];
-                    const morseCode = morseCodes[char];
-                    
-                    if (morseCode) {
-                        setTimeout(() => {
-                            playMorseCodeSound(morseCode);
-                        }, totalDelay);
-                        
-                        const dotDuration = morseSpeed === 'slow' ? 200 : morseSpeed === 'fast' ? 100 : 150;
-                        const dashDuration = morseSpeed === 'slow' ? 600 : morseSpeed === 'fast' ? 300 : 450;
-                        const symbolGap = morseSpeed === 'slow' ? 150 : morseSpeed === 'fast' ? 80 : 100;
-                        const letterGap = morseSpeed === 'slow' ? 400 : morseSpeed === 'fast' ? 200 : 300;
-                        
-                        let charDuration = 0;
-                        for (let j = 0; j < morseCode.length; j++) {
-                            if (morseCode[j] === '.') charDuration += dotDuration + symbolGap;
-                            else if (morseCode[j] === '-') charDuration += dashDuration + symbolGap;
-                        }
-                        
-                        totalDelay += charDuration + letterGap;
-                    }
-                }
-                
-                if (wordIndex < words.length - 1) {
-                    totalDelay += morseSpeed === 'slow' ? 1200 : morseSpeed === 'fast' ? 600 : 900;
-                }
-            });
-            
-            playStrongBeep(1000, 100);
-        }
-
-        // ====== SISTEMA DE RADIO v4.5 ORIGINAL MEJORADO ======
-
-        function buildRadioTable() {
-            const grid = document.getElementById('phonetic-grid');
-            let html = '';
-            
-            Object.keys(phoneticAlphabetFull).forEach(char => {
-                const data = phoneticAlphabetFull[char];
-                html += `
-                    <div class="phonetic-item" onclick="selectPhoneticCharRadio('${char}')" 
-                         title="${char}: ${data.word} (${data.pronunciation})">
-                        <div class="phonetic-char">${char}</div>
-                        <div class="phonetic-word">${data.word}</div>
-                        <div class="phonetic-pronunciation">${data.pronunciation}</div>
-                    </div>
-                `;
-            });
-            
-            grid.innerHTML = html;
-            
-            updateFrequencyDisplay();
-            updateEmergencyFrequencies();
-            buildPMRChannels();
-            buildCBChannels();
-            
-            const freqInput = document.getElementById('radio-frequency-input');
-            const unitSelect = document.getElementById('radio-unit');
-            
-            freqInput.addEventListener('input', validateFrequency);
-            freqInput.addEventListener('change', updateFrequencyFromInput);
-            unitSelect.addEventListener('change', updateUnit);
-        }
-
-        function validateFrequency() {
-            const input = document.getElementById('radio-frequency-input');
-            const value = input.value.replace(',', '.');
-            
-            if (!/^[\d.]*$/.test(value)) {
-                input.value = value.replace(/[^\d.]/g, '');
-            }
-            
-            const parts = value.split('.');
-            if (parts.length > 1 && parts[1].length > 3) {
-                input.value = parts[0] + '.' + parts[1].substring(0, 3);
-            }
-        }
-
-        function updateFrequencyFromInput() {
-            const input = document.getElementById('radio-frequency-input');
-            let value = parseFloat(input.value.replace(',', '.'));
-            
-            if (isNaN(value)) {
-                value = radioBands[currentBand].default;
-                input.value = value.toFixed(3);
-            }
-            
-            currentFrequency = value;
-            updateFrequencyDisplay();
-            updateChannelDisplay();
-            playRadioBeep(800, 50);
-        }
-
-        function updateUnit() {
-            const unitSelect = document.getElementById('radio-unit');
-            currentUnit = unitSelect.value;
-            
-            if (currentUnit === 'KHz' && currentFrequency > 1000) {
-                currentFrequency = currentFrequency / 1000;
-            } else if (currentUnit === 'MHz' && currentFrequency < 1) {
-                currentFrequency = currentFrequency * 1000;
-            }
-            
-            updateFrequencyDisplay();
-            updateChannelDisplay();
-        }
-
-        function tuneFrequency(step) {
-            currentFrequency += step;
-            
-            const band = radioBands[currentBand];
-            if (band) {
-                if (currentFrequency < band.min) currentFrequency = band.min;
-                if (currentFrequency > band.max) currentFrequency = band.max;
-            }
-            
-            updateFrequencyDisplay();
-            updateChannelDisplay();
-            playRadioBeep(600 + Math.abs(step) * 100, 30);
-            
-            document.getElementById('radio-frequency-input').value = currentFrequency.toFixed(3);
-        }
-
-        function selectBand(band) {
-            currentBand = band;
-            currentHFBand = null;
-            
-            document.querySelectorAll('.band-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelector(`.band-btn[data-band="${band}"]`).classList.add('active');
-            
-            const hfContainer = document.getElementById('hf-sub-bands');
-            if (band === 'HF') {
-                hfContainer.style.display = 'block';
-                selectHFBand('10m');
-            } else {
-                hfContainer.style.display = 'none';
-                document.querySelectorAll('.hf-band-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-            }
-            
-            if (radioBands[band]) {
-                currentFrequency = radioBands[band].default;
-                currentUnit = radioBands[band].unit;
-                
-                document.getElementById('radio-unit').value = currentUnit;
-                document.getElementById('radio-frequency-input').value = currentFrequency.toFixed(3);
-                
-                updateFrequencyDisplay();
-                updateEmergencyFrequencies();
-                updateChannelDisplay();
-                
-                playBandChangeSound(band);
-            }
-        }
-
-        function selectHFBand(hfBand) {
-            currentHFBand = hfBand;
-            
-            document.querySelectorAll('.hf-band-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelector(`.hf-band-btn[data-hf="${hfBand}"]`).classList.add('active');
-            
-            if (hfBands[hfBand]) {
-                const range = hfBands[hfBand].range.split('-')[0];
-                const freq = parseFloat(range);
-                if (!isNaN(freq)) {
-                    currentFrequency = freq;
-                    document.getElementById('radio-frequency-input').value = currentFrequency.toFixed(3);
-                    updateFrequencyDisplay();
-                    updateChannelDisplay();
-                }
-            }
-            
-            playRadioBeep(700, 40);
-        }
-
-        function selectChannelType(type) {
-            currentChannelType = type;
-            currentChannel = 1;
-            
-            document.querySelectorAll('.channel-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelector(`.channel-type-btn[onclick="selectChannelType('${type}')"]`).classList.add('active');
-            
-            document.querySelectorAll('.channel-container').forEach(container => {
-                container.classList.remove('active');
-            });
-            document.getElementById(`${type}-container`).classList.add('active');
-            
-            if (type === 'pmr') {
-                selectPMRChannel(1);
-            } else if (type === 'cb') {
-                selectCBChannel(19); // Canal 19 por defecto en CB
-            }
-            
-            playRadioBeep(600, 40);
-        }
-
-        function buildPMRChannels() {
-            const container = document.getElementById('pmr-channels-grid');
-            container.innerHTML = '';
-            
-            const channels = pmrChannels[currentPMRType];
-            for (let i = 1; i <= currentPMRType; i++) {
-                const btn = document.createElement('button');
-                btn.className = 'channel-btn';
-                btn.textContent = i;
-                btn.onclick = () => selectPMRChannel(i);
-                container.appendChild(btn);
-            }
-            
-            // Marcar primer canal como activo
-            if (container.firstChild) {
-                container.firstChild.classList.add('active');
-            }
-        }
-
-        function selectPMRType(type) {
-            currentPMRType = parseInt(type);
-            buildPMRChannels();
-            selectPMRChannel(1);
-        }
-
-        function selectPMRChannel(channel) {
-            const channels = pmrChannels[currentPMRType];
-            if (channels && channels[channel]) {
-                currentFrequency = channels[channel];
-                currentChannel = channel;
-                
-                document.querySelectorAll('#pmr-channels-grid .channel-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                document.querySelectorAll('#pmr-channels-grid .channel-btn')[channel - 1].classList.add('active');
-                
-                document.getElementById('radio-frequency-input').value = currentFrequency.toFixed(5);
-                updateFrequencyDisplay();
-                updateChannelDisplay();
-                playRadioBeep(700, 40);
-            }
-        }
-
-        function buildCBChannels() {
-            const container = document.getElementById('cb-channels-grid');
-            container.innerHTML = '';
-            
-            for (let i = 1; i <= 40; i++) {
-                const btn = document.createElement('button');
-                btn.className = 'channel-btn';
-                btn.textContent = i;
-                btn.onclick = () => selectCBChannel(i);
-                container.appendChild(btn);
-            }
-            
-            // Marcar canal 19 como activo por defecto
-            if (container.children[18]) {
-                container.children[18].classList.add('active');
-            }
-        }
-
-        function selectCBChannel(channel) {
-            if (cbChannels[channel]) {
-                currentFrequency = cbChannels[channel];
-                currentChannel = channel;
-                
-                document.querySelectorAll('#cb-channels-grid .channel-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                document.querySelectorAll('#cb-channels-grid .channel-btn')[channel - 1].classList.add('active');
-                
-                document.getElementById('radio-frequency-input').value = currentFrequency.toFixed(3);
-                updateFrequencyDisplay();
-                updateChannelDisplay();
-                playRadioBeep(700, 40);
-            }
-        }
-
-        function updateFrequencyDisplay() {
-            const display = document.getElementById('radio-frequency-display');
-            const activeDisplay = document.getElementById('active-frequency');
-            
-            let freqText = currentFrequency.toFixed(3);
-            if (currentFrequency < 1 && currentUnit === 'MHz') {
-                freqText = (currentFrequency * 1000).toFixed(1) + ' KHz';
-            } else {
-                freqText += ' ' + currentUnit;
-            }
-            
-            display.textContent = freqText;
-            
-            let activeText = freqText + ' ' + currentBand;
-            if (currentHFBand) {
-                activeText += ' (' + currentHFBand + ')';
-            }
-            activeDisplay.textContent = activeText;
-            
-            localStorage.setItem('radcom_radio_freq', currentFrequency);
-            localStorage.setItem('radcom_radio_band', currentBand);
-            localStorage.setItem('radcom_radio_unit', currentUnit);
-            if (currentHFBand) {
-                localStorage.setItem('radcom_radio_hfband', currentHFBand);
-            }
-        }
-
-        function updateChannelDisplay() {
-            const display = document.getElementById('channel-display');
-            
-            if (currentChannelType === 'pmr') {
-                display.textContent = `PMR446 CH${currentChannel} (${currentFrequency.toFixed(5)} MHz)`;
-            } else if (currentChannelType === 'cb') {
-                display.textContent = `CB CH${currentChannel} (${currentFrequency.toFixed(3)} MHz)`;
-            } else {
-                display.textContent = `${currentBand} ${currentFrequency.toFixed(3)} ${currentUnit}`;
-            }
-        }
-
-        function updateEmergencyFrequencies() {
-            const list = document.getElementById('emergency-list');
-            const emergencies = emergencyFrequencies[currentBand] || [];
-            
-            let html = '';
-            emergencies.forEach(emerg => {
-                html += `
-                    <div class="emergency-item" onclick="setEmergencyFrequency('${emerg.freq}')" 
-                         title="${emerg.purpose}">
-                        ${emerg.freq} MHz - ${emerg.purpose}
-                    </div>
-                `;
-            });
-            
-            list.innerHTML = html || '<div class="emergency-item">No hay frecuencias de emergencia para esta banda</div>';
-        }
-
-        function setEmergencyFrequency(freq) {
-            currentFrequency = parseFloat(freq);
-            document.getElementById('radio-frequency-input').value = currentFrequency.toFixed(3);
-            updateFrequencyDisplay();
-            updateChannelDisplay();
-            
-            playEmergencyTone();
-            updateMonitor(`⚠️ FRECUENCIA DE EMERGENCIA: ${freq} MHz`);
-        }
-
-        function selectPhoneticCharRadio(char) {
-            const input = document.getElementById('inputMsg');
-            const inputMode = document.getElementById('inputMode').value;
-            const data = phoneticAlphabetFull[char];
-            
-            if (inputMode === 'phonetic') {
-                input.value += data.word + ' ';
-            } else {
-                input.value += char;
-            }
-            
-            input.focus();
-            playPhoneticSound(char);
-        }
-
-        // ====== SONIDOS DE RADIO ======
-
-        function initRadioAudio() {
-            if (!radioAudioContext) {
-                try {
-                    radioAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-                } catch (error) {
-                    console.error("Error inicializando audio radio:", error);
-                }
-            }
-        }
-
-        function playRadioBeep(freq, duration) {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            initRadioAudio();
-            if (!radioAudioContext) return;
-            
-            const oscillator = radioAudioContext.createOscillator();
-            const gainNode = radioAudioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(radioAudioContext.destination);
-            
-            oscillator.frequency.value = freq;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, radioAudioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, radioAudioContext.currentTime + duration / 1000);
-            
-            oscillator.start(radioAudioContext.currentTime);
-            oscillator.stop(radioAudioContext.currentTime + duration / 1000);
-        }
-
-        function playBandChangeSound(band) {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            initRadioAudio();
-            if (!radioAudioContext) return;
-            
-            let time = radioAudioContext.currentTime;
-            
-            const freqs = {
-                'UHF': [1200, 1400, 1600],
-                'VHF': [800, 1000, 1200],
-                'AEREA': [600, 800, 1000],
-                'MARINA': [400, 600, 800],
-                'HF': [200, 400, 600],
-                'EMERG': [300, 150, 300]
-            }[band] || [800, 1000, 1200];
-            
-            freqs.forEach((freq, index) => {
-                const oscillator = radioAudioContext.createOscillator();
-                const gainNode = radioAudioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(radioAudioContext.destination);
-                
-                oscillator.frequency.value = freq;
-                oscillator.type = 'sawtooth';
-                
-                gainNode.gain.setValueAtTime(0.4, time);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
-                
-                oscillator.start(time);
-                oscillator.stop(time + 0.1);
-                
-                time += 0.15;
-            });
-        }
-
-        function playPhoneticSound(char) {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            playRadioBeep(500 + char.charCodeAt(0) * 10, 100);
-        }
-
-        function playEmergencyTone() {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            initRadioAudio();
-            if (!radioAudioContext) return;
-            
-            let time = radioAudioContext.currentTime;
-            
-            for (let i = 0; i < 3; i++) {
-                const oscillator = radioAudioContext.createOscillator();
-                const gainNode = radioAudioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(radioAudioContext.destination);
-                
-                oscillator.frequency.value = i % 2 === 0 ? 1000 : 500;
-                oscillator.type = 'sawtooth';
-                
-                gainNode.gain.setValueAtTime(0.5, time);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
-                
-                oscillator.start(time);
-                oscillator.stop(time + 0.3);
-                
-                time += 0.35;
-            }
-        }
-
-        function playTransmissionSound() {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            initRadioAudio();
-            if (!radioAudioContext) return;
-            
-            const bufferSize = radioAudioContext.sampleRate * 0.5;
-            const buffer = radioAudioContext.createBuffer(1, bufferSize, radioAudioContext.sampleRate);
-            const output = buffer.getChannelData(0);
-            
-            for (let i = 0; i < bufferSize; i++) {
-                output[i] = Math.random() * 2 - 1;
-                output[i] += 0.3 * Math.sin(2 * Math.PI * 1000 * i / radioAudioContext.sampleRate);
-                const envelope = i < bufferSize * 0.1 ? i / (bufferSize * 0.1) : 
-                                (bufferSize - i) / (bufferSize * 0.9);
-                output[i] *= envelope;
-            }
-            
-            const source = radioAudioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(radioAudioContext.destination);
-            source.start();
-            
-            const staticOverlay = document.getElementById('static-overlay');
-            staticOverlay.classList.add('static-active');
-            
-            setTimeout(() => {
-                staticOverlay.classList.remove('static-active');
-            }, 500);
-        }
-
-        // ====== INICIALIZACIÓN DE RADIO ======
-
-        function initRadioSystem() {
-            buildRadioTable();
-            
-            const savedFreq = localStorage.getItem('radcom_radio_freq');
-            const savedBand = localStorage.getItem('radcom_radio_band');
-            const savedUnit = localStorage.getItem('radcom_radio_unit');
-            const savedHFBand = localStorage.getItem('radcom_radio_hfband');
-            
-            if (savedFreq) currentFrequency = parseFloat(savedFreq);
-            if (savedBand) currentBand = savedBand;
-            if (savedUnit) currentUnit = savedUnit;
-            if (savedHFBand) currentHFBand = savedHFBand;
-            
-            document.querySelectorAll('.band-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            const bandBtn = document.querySelector(`.band-btn[data-band="${currentBand}"]`);
-            if (bandBtn) bandBtn.classList.add('active');
-            
-            document.getElementById('radio-frequency-input').value = currentFrequency.toFixed(3);
-            document.getElementById('radio-unit').value = currentUnit;
-            
-            if (currentBand === 'HF' && currentHFBand) {
-                document.getElementById('hf-sub-bands').style.display = 'block';
-                const hfBtn = document.querySelector(`.hf-band-btn[data-hf="${currentHFBand}"]`);
-                if (hfBtn) hfBtn.classList.add('active');
-            }
-            
-            updateFrequencyDisplay();
-            updateEmergencyFrequencies();
-            updateChannelDisplay();
-        }
-
-        // ====== FUNCIONES DE ENVÍO ======
-
-        function handleSendButtonClick() {
-            const mode = document.getElementById('inputMode').value;
-            if (mode === 'phonetic' && document.getElementById('radio-frequency-input')) {
-                sendRadioMessage();
-            } else {
-                sendMessage();
-            }
-        }
-
-        function handleSendMessage(event) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                handleSendButtonClick();
-            }
-        }
-
-        // ====== FUNCIÓN DE ENVÍO DE RADIO ======
-
-        function sendRadioMessage() {
-            const input = document.getElementById('inputMsg');
-            let message = input.value.trim();
-            
-            if (!message) {
-                updateMonitor("⚠️ MENSAJE VACÍO", "error");
-                playStrongBeep(300, 200);
-                return;
-            }
-            
-            const key = document.getElementById('key').value || 'ATOM80';
-            const mode = document.getElementById('inputMode').value;
-            const encryption = document.getElementById('encryptionMode').value;
-            
-            if (!validateInput()) {
-                updateMonitor(`⚠️ FORMATO ${mode.toUpperCase()} INVÁLIDO`, "error");
-                playStrongBeep(300, 200);
-                return;
-            }
-            
-            let processedMessage = message;
-            
-            // Si estamos en modo fonético y no es código fonético ya, convertirlo
-            if (mode === 'phonetic') {
-                processedMessage = textToPhonetic(message);
-            }
-            
-            const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key);
-            const sentCount = sendToConnections(dataToSend);
-            
-            if (sentCount > 0) {
-                // Añadir información de radio al mensaje
-                const freq = document.getElementById('radio-frequency-display').textContent;
-                const band = currentBand;
-                
-                displayMessage(`📡 YO [${band} ${freq}]: ${message}`, 
-                              dataToSend.hexPreview, 'outgoing');
-                
-                stats.tx += JSON.stringify(dataToSend).length;
-                stats.messages++;
-                input.value = '';
-                updateMonitor(`📤 ENVIADO POR RADIO A ${sentCount} DESTINO${sentCount !== 1 ? 'S' : ''}`);
-                updateStats();
-                playTransmissionSound();
-                
-                if (activeTarget === 'GLOBAL') {
-                    Object.keys(connections).forEach(peerId => {
-                        if (connections[peerId]?.status === 'online') {
-                            connectionHealth[peerId] = {
-                                ...connectionHealth[peerId],
-                                lastActivity: Date.now(),
-                                packetsSent: (connectionHealth[peerId]?.packetsSent || 0) + 1
-                            };
-                        }
-                    });
-                } else if (connections[activeTarget]) {
-                    connectionHealth[activeTarget] = {
-                        ...connectionHealth[activeTarget],
-                        lastActivity: Date.now(),
-                        packetsSent: (connectionHealth[activeTarget]?.packetsSent || 0) + 1
-                    };
-                }
-                
-                document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
-                    td.classList.remove('highlighted');
-                });
-            } else {
-                updateMonitor("⚠️ SIN DESTINOS CONECTADOS", "warning");
-                playStrongBeep(300, 200);
-            }
-        }        
-
-        // ====== SISTEMA SATELITAL MEJORADO ======
-        const satelliteSystem = {
-    latitude: null,
-    longitude: null,
-    altitude: null,
-    accuracy: null,
-    weatherData: null,
-    lastUpdate: null,
-    lastKnownPosition: null  // ← nuevo: para fallback robusto
-};
-
-        // ====== ARREGLAR ENVÍO DE EMERGENCIAS ======
-        async function sendSatelliteEmergency() {
-    updateMonitor("🚨 INICIANDO PROTOCOLO DE EMERGENCIA...", "warning");
-    playEmergencySatelliteTone();
-    
-    try {
-        // 1. Intentar obtener posición fresca
-        await getCurrentGPSPosition();
-        
-        // 2. Verificar posición válida
-        if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
-            throw new Error("No position available");
-        }
-        
-        // 3. Verificar accuracy
-        if (satelliteSystem.accuracy > 100) {
-            if (!confirm(`⚠️ Precisión baja (${Math.round(satelliteSystem.accuracy)}m). ¿Continuar?`)) {
-                return;
-            }
-        }
-        
-        // 4. Verificar conexiones
-        const onlineCount = Object.keys(connections).filter(id => 
-            connections[id]?.status === 'online').length;
-        
-        if (onlineCount === 0) {
-            if (!confirm("⚠️ No hay contactos conectados. ¿Enviar solo a chat local?")) {
-                return;
-            }
-        }
-        
-        // 5. Confirmar envío
-        if (!confirm(`🚨 ¿ENVIAR SEÑAL DE EMERGENCIA S.O.S AYUDA?\n\nPosición: ${satelliteSystem.latitude.toFixed(4)}° N, ${satelliteSystem.longitude.toFixed(4)}° E\nSe enviará a ${onlineCount} contacto(s).`)) {
-            return;
-        }
-        
-        // 6. Crear y enviar mensaje
-        const emergencyMessage = createEmergencyMessage();
-        const sentCount = sendEmergencyMessage(emergencyMessage);
-        
-        // 7. Confirmación
-        updateMonitor(`✅ EMERGENCIA ENVIADA A ${sentCount} CONTACTO(S)`, "info");
-        
-        // 8. Mostrar en chat local
-        displayMessage(`🚨 YO [EMERGENCIA]: ${emergencyMessage.substring(0, 80)}...`, 'EMERG', 'outgoing');
-        
-    } catch (error) {
-        console.error("Emergency error:", error);
-        updateMonitor("❌ ERROR EN PROTOCOLO DE EMERGENCIA: " + error.message, "error");
-        playStrongBeep(300, 200);
-    }
-}
-            
-        function createEmergencyMessage() {
-            const lat = satelliteSystem.latitude.toFixed(6);
-            const lon = satelliteSystem.longitude.toFixed(6);
-            const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : 'N/A';
-            const time = new Date().toLocaleTimeString();
-            
-            let weatherInfo = '';
-            if (satelliteSystem.weatherData && satelliteSystem.weatherData.current_weather) {
-                const w = satelliteSystem.weatherData.current_weather;
-                weatherInfo = ` | Condiciones: ${w.temperature}°C, Viento: ${w.windspeed} km/h`;
-            }
-            
-            return `🚨 EMERGENCIA S.O.S AYUDA 🚨
-            Posición: ${lat}° N, ${lon}° E
-            Altitud: ${alt} m
-            Hora: ${time}
-            Sistema: RADCOM v${VERSION}${weatherInfo}
-            ⚠️ NECESITO ASISTENCIA INMEDIATA`;
-        }
-
-        function sendEmergencyMessage(message) {
-            const key = document.getElementById('key').value || 'ATOM80';
-            
-            const dataToSend = {
-                type: 'emergency',
-                message: xorEncrypt(message, key),
-                original: message,
-                mode: 'satellite',
-                encryption: document.getElementById('encryptionMode').value,
-                timestamp: Date.now(),
-                sender: myPeerId,
-                hexPreview: 'EMERGENCY'
-            };
-            
-            let sentCount = 0;
-            
-            // Enviar a todos los conectados
-            Object.keys(connections).forEach(peerId => {
-                if (connections[peerId]?.status === 'online') {
-                    try {
-                        console.log(`🚨 Enviando emergencia a ${peerId}`);
-                        connections[peerId].conn.send(dataToSend);
-                        sentCount++;
-                        
-                        // Actualizar health check
-                        if (connectionHealth[peerId]) {
-                            connectionHealth[peerId].lastActivity = Date.now();
-                            connectionHealth[peerId].packetsSent = (connectionHealth[peerId]?.packetsSent || 0) + 1;
-                        }
-                    } catch (error) {
-                        console.error(`❌ Error enviando emergencia a ${peerId}:`, error);
-                    }
-                }
-            });
-            
-            // Actualizar estadísticas
-            stats.tx += JSON.stringify(dataToSend).length;
-            stats.messages++;
-            updateStats();
-            
-            console.log(`✅ Emergencia enviada a ${sentCount} contacto(s)`);
-            return sentCount;
-        }
-
-        // ====== OBTENER POSICIÓN GPS REAL ======
-        function getCurrentGPSPosition(forceOneTime = false) {
-        return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-            updateMonitor("❌ Geolocalización no soportada en este navegador", "error");
-            reject(new Error("Geolocation no soportada"));
-            return;
-        }
-
-        // Si ya tenemos watch activo y no forzamos una sola vez, usamos el watch existente
-        if (watchId !== null && !forceOneTime) {
-            // Ya está siguiendo → solo resolvemos con la posición actual
-            if (satelliteSystem.latitude && satelliteSystem.longitude) {
-                resolve();
-            }
-            return;
-        }
-
-        updateMonitor("📍 Solicitando acceso a ubicación...", "info");
-        playStrongBeep(800, 100);
-
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 30000  // Acepta posición de hasta 30 segundos atrás para no pedir tanto
-        };
-
-        // Si forzamos "una sola vez" (por botón manual), usamos getCurrentPosition
-        if (forceOneTime) {
-            navigator.geolocation.getCurrentPosition(
-                successCallback,
-                errorCallback,
-                options
-            );
-        } else {
-            // Modo "fijo" → watchPosition (pide permiso una vez y actualiza automático)
-            watchId = navigator.geolocation.watchPosition(
-                successCallback,
-                errorCallback,
-                options
-            );
-        }
-
-        function successCallback(position) {
-            satelliteSystem.latitude = position.coords.latitude;
-            satelliteSystem.longitude = position.coords.longitude;
-            satelliteSystem.altitude = position.coords.altitude || 0;
-            satelliteSystem.accuracy = position.coords.accuracy;
-            satelliteSystem.lastUpdate = new Date();
-
-            // Guardar última posición conocida
-            localStorage.setItem('radcom_last_position', JSON.stringify({
-                latitude: satelliteSystem.latitude,
-                longitude: satelliteSystem.longitude,
-                altitude: satelliteSystem.altitude,
-                accuracy: satelliteSystem.accuracy,
-                timestamp: Date.now()
-            }));
-
-            updateSatelliteUI();
-            updateMonitor(`📍 Posición actualizada (Precisión: ${Math.round(satelliteSystem.accuracy)} m)`, "info");
-            playStrongBeep(600, 50);
-
-            resolve();
-        }
-
-        function errorCallback(error) {
-            let msg = "❌ Error GPS: ";
-            let showInstructions = false;
-
-            switch (error.code) {
-                case error.PERMISSION_DENIED:
-                    msg += "Permiso denegado.\n\nPara que no vuelva a pedir cada vez:\n1. Clic en el candado junto a la URL\n2. Ubicación → Permitir (o 'Siempre permitir')\n3. Recarga la página";
-                    showInstructions = true;
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    msg += "Posición no disponible. Verifica GPS o conexión.";
-                    break;
-                case error.TIMEOUT:
-                    msg += "Tiempo agotado. Intenta de nuevo.";
-                    break;
-                default:
-                    msg += error.message;
-            }
-
-            updateMonitor(msg, "error");
-
-            if (showInstructions) {
-                alert(msg);  // O puedes crear un modal bonito si prefieres
-            }
-
-            reject(error);
-        }
-    });
-}
-
-function handleGPSFallback() {
-    // 1. Última posición conocida (si < 30 min)
-    if (satelliteSystem.lastKnownPosition) {
-        const age = (Date.now() - satelliteSystem.lastKnownPosition.timestamp) / 60000;
-        if (age < 30 && confirm(`⚠️ Usar posición anterior (${Math.round(age)} min atrás)?`)) {
-            Object.assign(satelliteSystem, satelliteSystem.lastKnownPosition);
-            updateSatelliteUI();
-            updateMonitor(`⚠️ Usando posición anterior | Prec: ${Math.round(satelliteSystem.accuracy)}m`, "warning");
-            return;
-        }
-    }
-    
-    // 2. Entrada manual
-    const manualLat = prompt("⚠️ Ingrese latitud manualmente (ej: 40.4168):");
-    const manualLon = prompt("⚠️ Ingrese longitud manualmente (ej: -3.7038):");
-    
-    if (manualLat && manualLon && !isNaN(parseFloat(manualLat)) && !isNaN(parseFloat(manualLon))) {
-        satelliteSystem.latitude = parseFloat(manualLat);
-        satelliteSystem.longitude = parseFloat(manualLon);
-        satelliteSystem.altitude = 0;
-        satelliteSystem.accuracy = 9999;
-        satelliteSystem.lastUpdate = new Date();
-        
-        updateSatelliteUI();
-        updateMonitor("⚠️ Usando posición manual", "warning");
-        return;
-    }
-    
-    // 3. Default
-    if (confirm("⚠️ Usar posición por defecto (Madrid)?")) {
-        useDefaultPosition();
-    } else {
-        updateMonitor("❌ No se obtuvo posición. Operación cancelada.", "error");
-    }
-}
-
-function useDefaultPosition() {
-    satelliteSystem.latitude = 40.4168;
-    satelliteSystem.longitude = -3.7038;
-    satelliteSystem.altitude = 667;
-    satelliteSystem.accuracy = 1000;
-    satelliteSystem.lastUpdate = new Date();
-    
-    updateSatelliteUI();
-    updateMonitor("⚠️ Usando posición por defecto (Madrid)", "warning");
-}
-
-        function useRealtPosition() {
-            satelliteSystem.latitude = 40.4168; // Madrid
-            satelliteSystem.longitude = -3.7038;
-            satelliteSystem.altitude = 667;
-            satelliteSystem.accuracy = 1000;
-            satelliteSystem.lastUpdate = new Date();
-            
-            updateSatelliteUI();
-            updateMonitor("⚠️ Usando posición Real", "warning");
-            
-            fetchWeatherData();
-        }
-
-        // ====== OBTENER DATOS METEOROLÓGICOS REALES ======
-        // ====== OBTENER DATOS METEOROLÓGICOS + ALTITUD REAL ======
-async function fetchWeatherData() {
-    if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
-        updateMonitor("⚠️ Esperando posición GPS...", "warning");
-        return;
-    }
-
-    const lat = satelliteSystem.latitude.toFixed(4);
-    const lon = satelliteSystem.longitude.toFixed(4);
-
-    updateMonitor("🌤️ Consultando meteo + elevación...", "info");
-    updateAPIStatus("Conectando a Open-Meteo...", false);
-
-    try {
-        // 1. Datos meteorológicos (tu llamada original, mantenida)
-        const meteoParams = new URLSearchParams({
-            latitude: lat,
-            longitude: lon,
-            hourly: 'temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,pressure_msl,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,precipitation_probability,rain,uv_index,is_day',
-            current_weather: true,
-            timezone: 'auto',
-            forecast_days: 1
-        }).toString();
-
-        const meteoUrl = `https://api.open-meteo.com/v1/forecast?${meteoParams}`;
-        console.log("📡 Meteo URL:", meteoUrl);
-
-        const meteoRes = await fetch(meteoUrl);
-        if (!meteoRes.ok) throw new Error(`Meteo HTTP ${meteoRes.status}`);
-        satelliteSystem.weatherData = await meteoRes.json();
-
-        // 2. ALTITUD / ELEVACIÓN (endpoint dedicado)
-        const elevUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
-        console.log("📡 Elevación URL:", elevUrl);
-
-        const elevRes = await fetch(elevUrl);
-        let elevation = null;
-        if (elevRes.ok) {
-            const elevData = await elevRes.json();
-            if (elevData.elevation && elevData.elevation.length > 0) {
-                elevation = Math.round(elevData.elevation[0]);
-                satelliteSystem.altitude = elevation;
-                console.log("✅ Altitud obtenida:", elevation, "m");
-            }
-        } else {
-            console.warn("Elevación falló:", elevRes.status);
-        }
-
-        // Si no hay altitud de API ni de GPS, fallback a 0 o último valor
-        if (satelliteSystem.altitude === null || isNaN(satelliteSystem.altitude)) {
-            satelliteSystem.altitude = satelliteSystem.altitude || 0;
-            console.log("Altitud final (fallback):", satelliteSystem.altitude);
-        }
-
-        // Actualizar interfaces
-        updateWeatherUI(satelliteSystem.weatherData);
-        updateSatelliteUI();  // ← esto actualiza #updateSatelliteUI 
-        updateAPIStatus("Conectado", true);
-        updateMonitor("✅ Meteo y altitud actualizados", "info");
-        playStrongBeep(700, 30);
-
-    } catch (error) {
-        console.error("❌ Error total API:", error);
-        satelliteSystem.apiConnected = false;
-        updateMonitor(`❌ Error: ${error.message}`, "error");
-        updateAPIStatus("Error conexión", false);
-        playStrongBeep(300, 200);
-
-        // Fallback con altitud de ejemplo
-        useSampleWeatherData();
-    }
-    satelliteSystem.weatherData = sampleData;
-    satelliteSystem.altitude = satelliteSystem.altitude || 667; // Madrid por defecto
-
-    updateSatelliteUI(); // Asegura que altitud se muestre
-    updateMonitor("⚠️ Usando datos de muestra (Alt: 667 m)", "warning");
-}
-
-// Fallback mejorado (añadimos altitud de ejemplo)
-
-
-        function useSampleWeatherData() {
-            const sampleData = {
-                current_weather: {
-                    temperature: 18.5,
-                    windspeed: 12.3,
-                    winddirection: 245,
-                    weathercode: 3
-                },
-                hourly: {
-                    apparent_temperature: [17.8],
-                    relative_humidity_2m: [65],
-                    pressure_msl: [1013],
-                    wind_gusts_10m: [15.2],
-                    cloud_cover: [45],
-                    visibility: [15000],
-                    precipitation_probability: [20],
-                    rain: [0],
-                    dew_point_2m: [12.1],
-                    uv_index: [4.2],
-                    is_day: [1]
-                }
-            };
-            
-            updateWeatherUI(sampleData);
-        }
-
-        // ====== ACTUALIZAR INTERFAZ SATELITAL ======
-        function updateSatelliteUI() {
-            // Actualizar coordenadas GPS
-            if (satelliteSystem.latitude && satelliteSystem.longitude) {
-                const lat = satelliteSystem.latitude.toFixed(4);
-                const lon = satelliteSystem.longitude.toFixed(4);
-                const latDir = satelliteSystem.latitude >= 0 ? 'N' : 'S';
-                const lonDir = satelliteSystem.longitude >= 0 ? 'E' : 'W';
-                
-                document.getElementById('sat-gps-coords').textContent = 
-                    `Lat: ${Math.abs(lat)}° ${latDir}, Lon: ${Math.abs(lon)}° ${lonDir}`;
-                
-                const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : '--';
-                const acc = satelliteSystem.accuracy ? Math.round(satelliteSystem.accuracy) : '--';
-                document.getElementById('updateSatelliteUI').textContent = 
-                    `Altitud: ${alt} m | Precisión: ${acc} m`;
-                
-                if (satelliteSystem.lastUpdate) {
-                    const time = satelliteSystem.lastUpdate.toLocaleTimeString();
-                    document.getElementById('sat-last-update').textContent = time;
-                }
-            }
-        }
-
-        function updateWeatherUI(data) {
-            if (!data || !data.current_weather) return;
-            
-            const cw = data.current_weather;
-            const hourly = data.hourly;
-            const currentIndex = 0;
-            
-            // Temperatura y viento
-            document.getElementById('sat-temp').textContent = `${cw.temperature.toFixed(1)} °C`;
-            document.getElementById('sat-windspeed').textContent = `${cw.windspeed.toFixed(1)} km/h`;
-            document.getElementById('sat-winddirection').textContent = `${cw.winddirection} °`;
-            
-            // Datos horarios
-            if (hourly) {
-                if (hourly.apparent_temperature?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-feelslike').textContent = 
-                        `${hourly.apparent_temperature[currentIndex].toFixed(1)} °C`;
-                }
-                
-                if (hourly.relative_humidity_2m?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-humidity').textContent = 
-                        `${hourly.relative_humidity_2m[currentIndex].toFixed(0)} %`;
-                }
-                
-                if (hourly.pressure_msl?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-pressure').textContent = 
-                        `${hourly.pressure_msl[currentIndex].toFixed(0)} hPa`;
-                }
-                
-                if (hourly.wind_gusts_10m?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-windgusts').textContent = 
-                        `${hourly.wind_gusts_10m[currentIndex].toFixed(1)} km/h`;
-                }
-                
-                if (hourly.cloud_cover?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-cloudcover').textContent = 
-                        `${hourly.cloud_cover[currentIndex].toFixed(0)} %`;
-                }
-                
-                if (hourly.visibility?.[currentIndex] !== undefined) {
-                    const visibilityKm = hourly.visibility[currentIndex] / 1000;
-                    document.getElementById('sat-visibility').textContent = 
-                        `${visibilityKm.toFixed(1)} km`;
-                }
-                
-                if (hourly.precipitation_probability?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-precipitation').textContent = 
-                        `${hourly.precipitation_probability[currentIndex].toFixed(0)} %`;
-                }
-                
-                if (hourly.rain?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-rain').textContent = 
-                        `${hourly.rain[currentIndex].toFixed(1)} mm`;
-                }
-                
-                if (hourly.dew_point_2m?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-dewpoint').textContent = 
-                        `${hourly.dew_point_2m[currentIndex].toFixed(1)} °C`;
-                }
-                
-                if (hourly.uv_index?.[currentIndex] !== undefined) {
-                    document.getElementById('sat-uvindex').textContent = 
-                        `${hourly.uv_index[currentIndex].toFixed(1)}`;
-                }
-                
-                // Calcular índices derivados
-                calculateWeatherIndexes(cw.temperature, 
-                    hourly.relative_humidity_2m?.[currentIndex] || 50,
-                    cw.windspeed);
-            }
-        }
-
-        function calculateWeatherIndexes(temp, humidity, windSpeed) {
-            // Heat Index (Índice de calor)
-            if (temp >= 27) {
-                const T = temp;
-                const R = humidity;
-                const hi = -8.784695 + 1.61139411*T + 2.338549*R - 0.14611605*T*R 
-                          - 0.012308094*T*T - 0.016424828*R*R + 0.002211732*T*T*R 
-                          + 0.00072546*T*R*R - 0.000003582*T*T*R*R;
-                document.getElementById('sat-heatindex').textContent = `${hi.toFixed(1)} °C`;
-            } else {
-                document.getElementById('sat-heatindex').textContent = "N/A";
-            }
-            
-            // Wind Chill (Sensación por viento)
-            if (temp <= 10 && windSpeed >= 5) {
-                const wc = 13.12 + 0.6215*temp - 11.37*Math.pow(windSpeed, 0.16) 
-                          + 0.3965*temp*Math.pow(windSpeed, 0.16);
-                document.getElementById('sat-windchill').textContent = `${wc.toFixed(1)} °C`;
-            } else {
-                document.getElementById('sat-windchill').textContent = "N/A";
-            }
-            
-            // Calidad de aire estimada
-            let aqiScore = 50;
-            if (humidity > 80) aqiScore += 20;
-            if (humidity < 30) aqiScore += 10;
-            if (temp > 30) aqiScore += 15;
-            
-            let aqiLevel = "Buena";
-            if (aqiScore > 150) aqiLevel = "Muy pobre";
-            else if (aqiScore > 100) aqiLevel = "Pobre";
-            else if (aqiScore > 50) aqiLevel = "Moderada";
-            
-            document.getElementById('sat-aqi').textContent = aqiLevel;
-            
-            // Otros valores por defecto
-            document.getElementById('sat-sunshine').textContent = "8.5 h";
-            document.getElementById('sat-co2').textContent = "415 ppm";
-        }
-
-        function updateAPIStatus(text, connected) {
-            const dot = document.getElementById('api-status-dot');
-            const textElement = document.getElementById('api-status-text');
-            
-            dot.className = "status-dot-api " + (connected ? "status-connected" : "status-disconnected");
-            textElement.textContent = text;
-            textElement.style.color = connected ? "#00ff88" : "#ff3300";
-        }
-
-        // ====== ACTUALIZACIÓN FORZADA ======
-        function forceUpdateSatelliteData() {
-            updateMonitor("🔄 Actualización forzada de datos satelitales...", "info");
-            playStrongBeep(900, 80);
-            
-            getCurrentGPSPosition();
-        }
-
-        // ====== COMPARTIR POSICIÓN EN CHAT ======
-       function sendPositionToChat() {
-    if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
-        updateMonitor("❌ No hay posición GPS. Obtén posición primero.", "error");
-        playStrongBeep(300, 200);
-        getCurrentGPSPosition();  // ← esto ya lo tenías
-        return;
-    }
-
-    const lat = satelliteSystem.latitude.toFixed(6);
-    const lon = satelliteSystem.longitude.toFixed(6);
-    const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : 'N/A';
-    const time = new Date().toLocaleTimeString();
-
-    // Mensaje simple y limpio (como lo tenías originalmente)
-    const positionMessage = `📍 POSICIÓN ACTUAL\nLat: ${lat}\nLon: ${lon}\nAlt: ${alt} m\nHora: ${time}`;
-
-    // Enviar usando el mecanismo estándar de mensajes (sin forzar encriptación extra aquí)
-    const dataToSend = prepareMessageToSend(
-        positionMessage,
-        'text',                           // modo texto
-        document.getElementById('encryptionMode').value,  // respeta la config del usuario
-        document.getElementById('key').value || 'ATOM80'
-    );
-
-    const sent = sendToConnections(dataToSend);
-
-    if (sent > 0) {
-        displayMessage(`📍 YO: ${positionMessage.substring(0, 60)}...`, '', 'outgoing');
-        updateMonitor(`📍 Posición enviada a ${sent} destino(s)`, "info");
-        playStrongBeep(700, 100);
-    } else {
-        updateMonitor("⚠️ No se pudo enviar posición (sin conexiones)", "warning");
-    }
-}
-
-        // ====== SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA ======
-        function startAutoRefresh() {
-            if (satelliteSystem.refreshInterval) {
-                clearInterval(satelliteSystem.refreshInterval);
-            }
-            
-            satelliteSystem.refreshInterval = setInterval(() => {
-                const autoRefreshCheckbox = document.getElementById('auto-refresh-checkbox');
-                if (autoRefreshCheckbox?.checked && !document.hidden && satelliteSystem.latitude) {
-                    console.log("🔄 Actualización automática satelital");
-                    fetchWeatherData();
-                }
-            }, 60000); // 60 segundos
-            
-            updateMonitor("✅ Actualización automática activada (60s)", "info");
-        }
-
-        // ====== INICIALIZACIÓN SATELITAL ======
-        function initSatelliteSystem() {
-    // Cargar última posición conocida de localStorage
-    const savedPos = localStorage.getItem('radcom_last_position');
-    if (savedPos) {
-        satelliteSystem.lastKnownPosition = JSON.parse(savedPos);
-        console.log("📍 Posición anterior cargada:", satelliteSystem.lastKnownPosition);
-    }
-    
-    // Actualizar UI inicial
-    updateSatelliteUI();
-    
-    // Auto-refresco cada 5 minutos si app activa
-    setInterval(() => {
-        if (!document.hidden) {
-            forceUpdateSatelliteData();
-        }
-    }, 300000);
-}
-
-function startWatchingPosition() {
-    if (watchId !== null) return; // Ya está activo
-
-    getCurrentGPSPosition(false)  // false = modo watch (fijo)
-        .then(() => {
-            console.log("Seguimiento GPS iniciado en modo continuo");
-        })
-        .catch(() => {
-            console.warn("No se pudo iniciar seguimiento continuo");
-        });
-}
-
-function stopWatchingPosition() {
-    if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        console.log("Seguimiento GPS detenido");
-    }
-}
-
-// Ejemplo: parar cuando la pestaña está oculta
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        stopWatchingPosition();
-    } else {
-        // Solo intentamos recuperar posición si ya teníamos permiso antes
-        if (satelliteSystem.lastKnownPosition) {
-            updateSatelliteUI(); // usamos la última conocida
-        } else {
-            // Solo pedimos una vez al volver
-            setTimeout(() => {
-                if (!watchId) getCurrentGPSPosition(true); // true = solo una vez
-            }, 800);
-        }
-    }
-});
-
-function forceUpdateSatelliteData() {
-    getCurrentGPSPosition()
-        .then(() => {
-            fetchWeatherData();
-        })
-        .catch(() => {
-            updateMonitor("⚠️ Actualización satelital fallida", "warning");
-        });
-}
-        // ====== SONIDOS MEJORADOS ======
-        function playEmergencySatelliteTone() {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            
-            let time = audioContext.currentTime;
-            
-            // Sirena de emergencia
-            for (let i = 0; i < 3; i++) {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.setValueAtTime(800, time);
-                oscillator.frequency.exponentialRampToValueAtTime(1200, time + 0.3);
-                oscillator.type = 'sawtooth';
-                
-                gainNode.gain.setValueAtTime(0.6, time);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
-                
-                oscillator.start(time);
-                oscillator.stop(time + 0.3);
-                
-                time += 0.4;
-            }
-        }
-
-        // ====== MANEJAR MENSAJES DE EMERGENCIA RECIBIDOS ======
-        function handleEmergencyMessage(senderId, data) {
-            const key = document.getElementById('key').value || 'ATOM80';
-            const decryptedMessage = xorDecrypt(data.message, key);
-            
-            displayMessage(`🚨 EMERGENCIA DE ${senderId.substring(0,6)}: ${decryptedMessage.substring(0, 100)}...`, 
-                          'EMERG', 'incoming');
-            
-            // Sonido de alerta
-            if (document.getElementById('soundEnabled')?.checked) {
-                playEmergencyAlertSound();
-            }
-            
-            updateMonitor(`🚨 EMERGENCIA RECIBIDA DE ${senderId.substring(0,6)}`);
-            
-            // Actualizar estadísticas
-            stats.rx += data.message.length;
-            updateStats();
-        }
-
-        function playEmergencyAlertSound() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            
-            let time = audioContext.currentTime;
-            
-            // Alerta triple aguda
-            for (let i = 0; i < 3; i++) {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = 1500;
-                oscillator.type = 'square';
-                
-                gainNode.gain.setValueAtTime(0.5, time);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
-                
-                oscillator.start(time);
-                oscillator.stop(time + 0.1);
-                
-                time += 0.15;
-            }
-        }
-
-        // ====== INTEGRACIÓN CON SISTEMA EXISTENTE ======
-        // Guardar referencia a la función original de handleReceivedData
-        const originalHandleReceivedData = window.handleReceivedData;
-
-        // Sobrescribir para manejar emergencias
-        window.handleReceivedData = function(senderId, data) {
-            if (data.type === 'emergency') {
-                handleEmergencyMessage(senderId, data);
-                return;
-            }
-            
-            // Si no es emergencia, usar el manejo original
-            if (originalHandleReceivedData) {
-                originalHandleReceivedData(senderId, data);
-            }
-        };
-
-        // ====== FUNCIONES DE ENVÍO ORIGINALES ======
-
-        function sendMessage() {
-            const input = document.getElementById('inputMsg');
-            let message = input.value.trim();
-            
-            if (!message) {
-                updateMonitor("⚠️ MENSAJE VACÍO", "error");
-                playStrongBeep(300, 200);
-                return;
-            }
-            
-            const key = document.getElementById('key').value || 'ATOM80';
-            const mode = document.getElementById('inputMode').value;
-            const encryption = document.getElementById('encryptionMode').value;
-            
-            // Si estamos en modo satélite, añadir automáticamente la posición GPS
-            if (mode === 'satellite' && !message.includes('🚨 EMERGENCIA S.O.S AYUDA')) {
-                const pos = satellitePositions.paragliding;
-                const gpsInfo = `\n\n[GPS: ${pos.lat.toFixed(4)}° N, ${pos.lon.toFixed(4)}° E | Alt: ${Math.round(pos.alt)} m]`;
-                message += gpsInfo;
-            }
-            
-            if (!validateInput()) {
-                updateMonitor(`⚠️ FORMATO ${mode.toUpperCase()} INVÁLIDO`, "error");
-                playStrongBeep(300, 200);
-                return;
-            }
-            
-            let processedMessage = message;
-            
-            sendMessage
-            
-            const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key);
-            const sentCount = sendToConnections(dataToSend);
-            
-            if (sentCount > 0) {
-                displayMessage(`YO: ${message}`, dataToSend.hexPreview, 'outgoing');
-                stats.tx += JSON.stringify(dataToSend).length;
-                stats.messages++;
-                input.value = '';
-                updateMonitor(`📤 ENVIADO A ${sentCount} DESTINO${sentCount !== 1 ? 'S' : ''}`);
-                updateStats();
-                playStrongBeep(700, 100);
-                
-                if (activeTarget === 'GLOBAL') {
-                    Object.keys(connections).forEach(peerId => {
-                        if (connections[peerId]?.status === 'online') {
-                            connectionHealth[peerId] = {
-                                ...connectionHealth[peerId],
-                                lastActivity: Date.now(),
-                                packetsSent: (connectionHealth[peerId]?.packetsSent || 0) + 1
-                            };
-                        }
-                    });
-                } else if (connections[activeTarget]) {
-                    connectionHealth[activeTarget] = {
-                        ...connectionHealth[activeTarget],
-                        lastActivity: Date.now(),
-                        packetsSent: (connectionHealth[activeTarget]?.packetsSent || 0) + 1
-                    };
-                }
-                
-                document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
-                    td.classList.remove('highlighted');
-                });
-            } else {
-                updateMonitor("⚠️ SIN DESTINOS CONECTADOS", "warning");
-                playStrongBeep(300, 200);
-            }
-        }
-
-        function isMorseCode(text) {
-            const morseRegex = /^[\.\-\s\/]+$/;
-            return morseRegex.test(text);
-        }
-
-        function textToMorse(text) {
-            return text.toUpperCase().split('').map(char => morseCodes[char] || char).join(' ');
-        }
-
-        function textToPhonetic(text) {
-            return text.toUpperCase().split('').map(char => phoneticAlphabetFull[char]?.word || char).join(' ');
-        }
-
-        function prepareMessageToSend(message, mode, encryption, key) {
-            let processedMessage = message;
-            let hexPreview = '';
-            
-            if (mode === 'hex') {
-                const hex = message.replace(/\s/g, '');
-                if (hex.length % 2 !== 0) {
-                    throw new Error('HEX debe tener longitud par');
-                }
-                processedMessage = '';
-                for (let i = 0; i < hex.length; i += 2) {
-                    processedMessage += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-                }
-            } else if (mode === 'binary') {
-                const binary = message.replace(/\s/g, '');
-                if (binary.length % 8 !== 0) {
-                    throw new Error('Binario debe ser múltiplo de 8');
-                }
-                processedMessage = '';
-                for (let i = 0; i < binary.length; i += 8) {
-                    processedMessage += String.fromCharCode(parseInt(binary.substr(i, 8), 2));
-                }
-            }
-            
-            let encryptedMessage = processedMessage;
-            if (encryption === 'xor' || encryption === 'aes') {
-                encryptedMessage = xorEncrypt(processedMessage, key);
-                
-                for (let i = 0; i < Math.min(encryptedMessage.length, 3); i++) {
-                    hexPreview += encryptedMessage.charCodeAt(i).toString(16).padStart(2, '0');
-                }
-                if (encryptedMessage.length > 3) hexPreview += '...';
-            }
-            
-            return {
-                type: 'message',
-                message: encryptedMessage,
-                original: message,
-                mode: mode,
-                encryption: encryption,
-                timestamp: Date.now(),
-                sender: myPeerId,
-                hexPreview: hexPreview
-            };
-        }
-
-        // ====== FUNCIÓN PARA MOSTRAR TRADUCCIÓN MORSE ======
-function updateMorseTranslation(text) {
-    const translationBox = document.getElementById('morse-translation');
-    const textDisplay = document.getElementById('morse-text-display');
-    const codeDisplay = document.getElementById('morse-code-display');
-    
-    if (!text.trim()) {
-        translationBox.classList.remove('active');
-        return;
-    }
-    
-    // Mostrar siempre
-    translationBox.classList.add('active');
-    
-    // Si es código Morse, intentar decodificar
-    if (/^[\.\-\s\/]+$/.test(text.trim())) {
-        textDisplay.textContent = decodeMorse(text) || "[Código Morse]";
-        codeDisplay.textContent = text;
-    } 
-    // Si es texto normal, codificar a Morse
-    else {
-        textDisplay.textContent = text;
-        codeDisplay.textContent = textToMorse(text);
-    }
-
-    function sendMessage() {
-    const input = document.getElementById('inputMsg');
-    const rawText = input.value.trim();
-    if (!rawText) return;
-
-    const mode = document.getElementById('inputMode')?.value || 'text';
-
-    const secureResult = prepareAndSecureMessage(rawText, mode);
-
-    if (secureResult.error) {
-        updateMonitor("⚠️ " + secureResult.error);
-        return;
-    }
-
-    const data = secureResult.data;
-
-    // Enviar
-    let sentCount = 0;
-    if (activeTarget === 'GLOBAL') {
-        Object.keys(connections).forEach(pid => {
-            if (connections[pid]?.conn?.open) {
-                connections[pid].conn.send(data);
-                sentCount++;
-            }
-        });
-    } else if (connections[activeTarget]?.conn?.open) {
-        connections[activeTarget].conn.send(data);
-        sentCount = 1;
-    }
-
-    if (sentCount > 0) {
-        // Mostrar localmente el texto original (no el cifrado)
-        const bubble = document.createElement('div');
-        bubble.className = 'message-bubble message-outgoing';
-        bubble.innerHTML = `<strong>YO:</strong> ${rawText}<br>
-                            <small style="color:#00ffea">Cifrado: ${data.enc}</small>`;
-        document.getElementById('monitor-decoded').appendChild(bubble);
-        document.getElementById('monitor-decoded').scrollTop = document.getElementById('monitor-decoded').scrollHeight;
-
-        updateMonitor(`Enviado (${data.enc}) a ${sentCount} destino(s)`);
-    } else {
-        updateMonitor("⚠️ Sin conexiones abiertas");
-    }
-
-    input.value = '';
-}
-}
-
-// ====== FUNCIÓN PARA DECODIFICAR MORSE ======
-function decodeMorse(morseCode) {
-    const morseMap = {};
-    for (const [char, code] of Object.entries(morseCodes)) {
-        morseMap[code] = char;
-    }
-    
-    return morseCode.split(' ').map(code => morseMap[code] || '?').join('');
-}
-
-        function textToPhonetic(text) {
-            return text.toUpperCase().split('').map(char => phoneticAlphabetFull[char]?.word || char).join(' ');
-        }
-
-        function prepareMessageToSend(message, mode, encryption, key, extraData = {}) {
-    let processedMessage = message;
-    let hexPreview = '';
-    
-    if (mode === 'hex') {
-        const hex = message.replace(/\s/g, '');
-        if (hex.length % 2 !== 0) {
-            throw new Error('HEX debe tener longitud par');
-        }
-        processedMessage = '';
-        for (let i = 0; i < hex.length; i += 2) {
-            processedMessage += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-        }
-    } else if (mode === 'binary') {
-        const binary = message.replace(/\s/g, '');
-        if (binary.length % 8 !== 0) {
-            throw new Error('Binario debe ser múltiplo de 8');
-        }
-        processedMessage = '';
-        for (let i = 0; i < binary.length; i += 8) {
-            processedMessage += String.fromCharCode(parseInt(binary.substr(i, 8), 2));
-        }
-    }
-    
-    let encryptedMessage = processedMessage;
-    if (encryption === 'xor' || encryption === 'aes') {
-        encryptedMessage = xorEncrypt(processedMessage, key);
-        
-        for (let i = 0; i < Math.min(encryptedMessage.length, 3); i++) {
-            hexPreview += encryptedMessage.charCodeAt(i).toString(16).padStart(2, '0');
-        }
-        if (encryptedMessage.length > 3) hexPreview += '...';
-    }
-    
-    // ====== AÑADIR DATOS DUAL ======
-    return {
-        type: 'message',
-        message: encryptedMessage,
-        original: message,
-        mode: mode,
-        encryption: encryption,
-        timestamp: Date.now(),
-        sender: myPeerId,
-        hexPreview: hexPreview,
-        // Datos para sistema dual Morse
-        textVersion: extraData.textVersion || message,
-        morseVersion: extraData.morseVersion || '',
-        isDualMorse: extraData.isDualMorse || false
-    };
-}
-
-// ====== FUNCIONES DE cifrado original 4.7.1 ======
-
-        function xorEncrypt(text, key) {
-            let result = '';
-            for (let i = 0; i < text.length; i++) {
-                const charCode = text.charCodeAt(i);
-                const keyCode = key.charCodeAt(i % key.length);
-                result += String.fromCharCode(charCode ^ keyCode);
-            }
-            return result;
-        }
-
-        function xorDecrypt(text, key) {
-            return xorEncrypt(text, key);
-        }
-    
-
-        function sendToConnections(data) {
-            let sentCount = 0;
-            
-            console.log("📤 Enviando datos:", data);
-            
-            if (activeTarget === 'GLOBAL') {
-                Object.keys(connections).forEach(peerId => {
-                    if (connections[peerId]?.status === 'online') {
-                        try {
-                            console.log(`📤 Enviando a ${peerId}`);
-                            connections[peerId].conn.send(data);
-                            sentCount++;
-                        } catch (error) {
-                            console.error(`❌ Error enviando a ${peerId}:`, error);
-                        }
-                    }
-                });
-            } else if (connections[activeTarget]?.status === 'online') {
-                try {
-                    console.log(`📤 Enviando a ${activeTarget}`);
-                    connections[activeTarget].conn.send(data);
-                    sentCount = 1;
-                } catch (error) {
-                    console.error(`❌ Error enviando a ${activeTarget}:`, error);
-                }
-            }
-            
-            console.log(`✅ Enviado a ${sentCount} destino(s)`);
-            return sentCount;
-        }
-
-        // ====== FUNCIONES DE CONEXIÓN ======
-
-        
-
-        function setupConnection(conn, type) {
-            const peerId = conn.peer;
-            
-            connections[peerId] = {
-                conn: conn,
-                status: 'connecting',
-                type: type,
-                health: 'new',
-                latency: 0,
-                lastCheck: Date.now()
-            };
-            
-            connectionHealth[peerId] = {
-                connectedAt: Date.now(),
-                lastActivity: Date.now(),
-                packetsSent: 0,
-                packetsReceived: 0
-            };
-            
-            updatePeerList();
-            
-            conn.on('open', () => {
-                console.log(`✅ Conexión establecida con:`, peerId);
-                connections[peerId].status = 'online';
-                connections[peerId].health = 'healthy';
-                updatePeerList();
-                updateConnectedCount();
-                updateMonitor(`✅ CONECTADO A ${peerId.substring(0, 8)}`);
-                playStrongBeep(800, 100);
-                setTimeout(() => {
-        deliverOnConnect(peerId);
-    }, 1500);
-                
-                saveId(peerId);
-                
-                setTimeout(() => sendHealthPing(peerId), 1000);
-            });
-            
-            conn.on('data', (data) => {
-                console.log("📥 Datos recibidos de", peerId, ":", data);
-                
-                connectionHealth[peerId].lastActivity = Date.now();
-                connectionHealth[peerId].packetsReceived++;
-                
-                if (data.type === 'health_ping') {
-                    try {
-                        conn.send({
-                            type: 'health_pong',
-                            timestamp: data.timestamp,
-                            sender: myPeerId
-                        });
-                        console.log(`📡 Pong enviado a ${peerId}`);
-                        return;
-                    } catch (error) {
-                        console.error(`❌ Error enviando pong:`, error);
-                    }
-                }
-                
-                if (data.type === 'health_pong') {
-                    handleHealthPong(peerId, data.timestamp);
-                    return;
-                }
-                
-                try {
-                    handleReceivedData(peerId, data);
-                } catch (error) {
-                    console.error("❌ Error procesando datos:", error);
-                }
-            });
-            
-            conn.on('close', () => {
-                console.log(`🔒 Conexión cerrada con:`, peerId);
-                connections[peerId].status = 'offline';
-                updatePeerList();
-                updateConnectedCount();
-                updateMonitor(`🔒 DESCONECTADO: ${peerId.substring(0, 8)}`);
-                
-                if (document.getElementById('autoReconnect')?.checked) {
-                    setTimeout(() => {
-                        if (peerId !== myPeerId && !connections[peerId]?.conn) {
-                            console.log(`🔄 Reconexión automática con ${peerId}`);
-                            connectToPeerId(peerId);
-                        }
-                    }, 3000);
-                }
-            });
-            
-            conn.on('error', (err) => {
-                console.error(`❌ Error en conexión ${peerId}:`, err);
-                connections[peerId].status = 'error';
-                updatePeerList();
-            });
-        }
-
-        function connectToPeerId(peerId) {
-            if (!peer || peer.disconnected) {
-                console.log("❌ Peer no inicializado");
-                return;
-            }
-            if (connections[peerId] && connections[peerId].status === 'online') {
-                console.log("⚠️ Ya conectado a", peerId);
-                return;
-            }
-            
-            console.log("🔌 Conectando a:", peerId);
-            updateMonitor(`🔌 CONECTANDO A: ${peerId.substring(0, 8)}...`);
-            
-            try {
-                const conn = peer.connect(peerId, {
-                    reliable: true,
-                    serialization: 'json'
-                });
-                
-                setupConnection(conn, 'outgoing');
-                
-            } catch (error) {
-                console.error(`❌ Error conectando a ${peerId}:`, error);
-                updateMonitor(`❌ ERROR CONECTANDO A ${peerId.substring(0, 8)}`);
-            }
-        }
-
-        function connectToPeer() {
-    const input = document.getElementById('peer-id-input');
-    let peerId = input.value.trim();
-    
-    // VALIDACIÓN: solo letras, números y guiones, máx 20 caracteres
-    if (!peerId || !/^[a-zA-Z0-9\-]{1,20}$/.test(peerId)) {
-        document.getElementById('monitor-raw').innerHTML = 
-            '<span style="color:#ff3300">⚠️ ID INVÁLIDO (solo letras, números y guiones)</span>';
-        return;
-    }
-    
-    input.value = '';
-    saveId(peerId);
-    attemptConnection(peerId);
-}
-        function handleIncomingConnection(conn) {
-            console.log("🔄 Procesando conexión entrante:", conn.peer);
-            setupConnection(conn, 'incoming');
-        }
-
-        // ====== VERIFICAR CONEXIONES REALES ======
-function verificarConexiones() {
-    console.log("🔍 Verificando conexiones...");
-    
-    let problemas = 0;
-    const ahora = Date.now();
-    
-    // Verificar cada conexión
-    for (const peerId in connections) {
-        const conn = connections[peerId];
-        
-        if (!conn) continue;
-        
-        // Si dice estar online, verificar que sea real
-        if (conn.status === 'online') {
-            let estaViva = true;
-            
-            // Verificación 1: Objeto conexión existe
-            if (!conn.conn) {
-                estaViva = false;
-                console.log(`❌ ${peerId.substring(0,6)}: No tiene objeto conexión`);
-            }
-            // Verificación 2: Conexión abierta
-            else if (!conn.conn.open) {
-                estaViva = false;
-                console.log(`❌ ${peerId.substring(0,6)}: Conexión no abierta`);
-            }
-            // Verificación 3: Última actividad
-            else if (connectionHealth[peerId]?.lastActivity) {
-                const inactivo = ahora - connectionHealth[peerId].lastActivity;
-                if (inactivo > 60000) { // 1 minuto sin actividad
-                    console.log(`⚠️ ${peerId.substring(0,6)}: Inactivo ${Math.round(inactivo/1000)}s`);
-                    conn.health = 'inactive';
-                    problemas++;
-                }
-            }
-            
-            if (!estaViva) {
-                conn.status = 'offline';
-                conn.health = 'dead';
-                problemas++;
-                console.log(`🔴 ${peerId.substring(0,6)}: Marcado como offline`);
-            }
-        }
-        // Si está offline pero debería estar online (en savedIds)
-        else if (conn.status === 'offline' || conn.status === 'error') {
-            const estaGuardado = savedIds.includes(peerId);
-            if (estaGuardado && conn.health !== 'reconnecting') {
-                problemas++;
-                console.log(`🔄 ${peerId.substring(0,6)}: Offline pero guardado`);
-            }
-        }
-    }
-    
-    // Actualizar UI
-    updatePeerList();
-    updateConnectedCount();
-    
-    if (problemas > 0) {
-        console.log(`📊 ${problemas} problema(s) encontrado(s)`);
-        return false;
-    }
-    
-    return true;
-}
-
-// ====== REPARAR CONEXIONES PROBLEMÁTICAS ======
-function repararConexiones() {
-    console.log("🛠️ Reparando conexiones...");
-    updateMonitor("🔧 REPARANDO...", "info");
-    
-    let reparadas = 0;
-    
-    for (const peerId in connections) {
-        const conn = connections[peerId];
-        
-        if (!conn) continue;
-        
-        // Condiciones para reparar:
-        // 1. Está offline/error
-        // 2. O está online pero con salud mala
-        const necesitaReparar = (
-            (conn.status === 'offline' || conn.status === 'error') ||
-            (conn.status === 'online' && conn.health === 'inactive')
-        );
-        
-        if (necesitaReparar && conn.health !== 'reconnecting') {
-            console.log(`🔄 Reparando ${peerId.substring(0,6)}...`);
-            
-            // Marcar como reconectando
-            conn.health = 'reconnecting';
-            updatePeerList();
-            
-            // Usar función existente para reconectar
-            if (peer && !peer.disconnected) {
-                // Cerrar conexión vieja si existe
-                if (conn.conn) {
-                    try {
-                        conn.conn.close();
-                    } catch(e) {}
-                }
-                
-                // Eliminar registro temporal
-                delete connections[peerId];
-                delete connectionHealth[peerId];
-                
-                // Esperar y reconectar usando función existente
-                setTimeout(() => {
-                    if (connectToPeerId) {
-                        connectToPeerId(peerId);
-                        reparadas++;
-                    }
-                }, 500);
-            }
-        }
-    }
-    
-    // Actualizar
-    updatePeerList();
-    
-    if (reparadas > 0) {
-        console.log(`✅ ${reparadas} conexión(es) en reparación`);
-        updateMonitor(`✅ ${reparadas} conexión(es) reparándose`);
-        playStrongBeep(700, 100);
-    } else {
-        console.log("✅ Todas las conexiones OK");
-        updateMonitor("✅ Conexiones verificadas");
-    }
-    
-    return reparadas;
-}
-
-// ====== VERIFICAR Y REPARAR ======
-function verificarYReparar() {
-    console.log("⚡ Verificando y reparando...");
-    
-    // 1. Verificar
-    const ok = verificarConexiones();
-    
-    // 2. Si hay problemas, reparar
-    if (!ok) {
-        console.log("⚠️ Problemas detectados, reparando...");
-        setTimeout(() => {
-            repararConexiones();
-        }, 1000);
-    } else {
-        console.log("✅ Todas las conexiones OK");
-        updateMonitor("✅ Conexiones verificadas");
-    }
-    
-    return ok;
-}
-
-        // ====== FUNCIÓN NUEVA: sendWithQueue() ======
-// Usar esta en lugar de sendMessage() normal
-function sendWithQueue() {
-    const input = document.getElementById('inputMsg');
-    let message = input.value.trim();
-    
-    if (!message) {
-        updateMonitor("⚠️ MENSAJE VACÍO", "error");
-        playStrongBeep(300, 200);
-        return;
-    }
-    
-    const originalMessage = message;
-    const key = document.getElementById('key').value || 'ATOM80';
-    const mode = document.getElementById('inputMode').value;
-    const encryption = document.getElementById('encryptionMode').value;
-    
-    if (!validateInput()) {
-        updateMonitor(`⚠️ FORMATO ${mode.toUpperCase()} INVÁLIDO`, "error");
-        playStrongBeep(300, 200);
-        return;
-    }
-    
-    // Preparar mensaje (igual que función original)
-        // Preparar mensaje con sistema DUAL bidireccional
-    let processedMessage = message;
-    let extraData = {}; // Datos extra para el modo dual
-    
-    if (mode === 'morse') {
-        // ====== SISTEMA DUAL MORSE ======
-        const isMorse = /^[\.\-\s\/]+$/.test(message.trim());
-        
-        if (isMorse) {
-            // Escribieron Morse → enviamos Morse, guardamos texto traducido
-            processedMessage = message;  // Enviamos el Morse original
-            extraData = {
-                textVersion: decodeMorse(message) || message,
-                morseVersion: message,
-                isDualMorse: true
-            };
-            updateMonitor(`📡 Enviando Morse (${decodeMorse(message)?.substring(0, 20) || "Código"})`);
-        } else {
-            // Escribieron Texto → enviamos Morse traducido, guardamos texto original
-            processedMessage = textToMorse(message);  // Enviamos Morse traducido
-            extraData = {
-                textVersion: message,
-                morseVersion: processedMessage,
-                isDualMorse: true
-            };
-            updateMonitor(`📡 Enviando "${message.substring(0, 20)}" como Morse`);
-        }
-        
-        // Mostrar traducción para aprendizaje
-        updateMorseTranslation(message);
-        
-    } else if (mode === 'phonetic') {
-        processedMessage = textToPhonetic(message);
-    }
-    
-    const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key, extraData);
-    
-    // 1. Intentar enviar normalmente
-    let sentCount = 0;
-    
-    if (activeTarget === 'GLOBAL') {
-        Object.keys(connections).forEach(peerId => {
-            if (connections[peerId]?.status === 'online') {
-                try {
-                    connections[peerId].conn.send(dataToSend);
-                    sentCount++;
-                } catch (error) {
-                    console.error(`❌ Error:`, error);
-                }
-            }
-        });
-    } else if (connections[activeTarget]?.status === 'online') {
-        try {
-            connections[activeTarget].conn.send(dataToSend);
-            sentCount = 1;
-        } catch (error) {
-            console.error(`❌ Error:`, error);
-        }
-    }
-    
-    // 2. Resultado
-    if (sentCount > 0) {
-        // Éxito: mostrar normal
-        displayMessage(`YO: ${originalMessage}`, dataToSend.hexPreview, 'outgoing');
-        stats.tx += JSON.stringify(dataToSend).length;
-        stats.messages++;
-        input.value = '';
-        updateMonitor(`📤 ENVIADO A ${sentCount} DESTINO${sentCount !== 1 ? 'S' : ''}`);
-        updateStats();
-        playStrongBeep(700, 100);
-    } else {
-        // Guardar en cola
-        addToQueue(dataToSend, originalMessage);
-        displayMessage(`⏳ YO (EN COLA): ${originalMessage}`, dataToSend.hexPreview, 'outgoing');
-        input.value = '';
-        updateMonitor(`💾 GUARDADO EN COLA (${messageQueue.length} mensajes)`);
-        playStrongBeep(500, 100);
-    }
-    
-    // Limpiar tabla
-    document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
-        td.classList.remove('highlighted');
-    });
-}
-
-// ====== FUNCIÓN NUEVA: addToQueue() ======
-function addToQueue(dataToSend, originalMessage) {
-    // Limpiar si está llena
-    if (messageQueue.length >= MAX_QUEUE_SIZE) {
-        messageQueue.shift();
-    }
-    
-    const queueItem = {
-        id: Date.now() + Math.random().toString(36).substr(2, 5),
-        data: dataToSend,
-        original: originalMessage,
-        target: activeTarget,
-        timestamp: Date.now(),
-        attempts: 0
-    };
-    
-    messageQueue.push(queueItem);
-    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
-    
-    // Mostrar en UI
-    updateQueueCounter();
-    
-    // Iniciar sistema si no está activo
-    if (!queueRetryInterval) {
-        startQueueSystem();
-    }
-}
-
-// ====== FUNCIÓN NUEVA: startQueueSystem() ======
-function startQueueSystem() {
-    if (queueRetryInterval) clearInterval(queueRetryInterval);
-    
-    queueRetryInterval = setInterval(() => {
-        processQueue();
-    }, 1000000); // Cada 1000 segundos
-    
-    updateMonitor("🔄 Sistema de cola ACTIVADO", "info");
-}
-
-// ====== FUNCIÓN NUEVA: processQueue() ======
-function processQueue() {
-    if (messageQueue.length === 0) {
-        if (queueRetryInterval) {
-            clearInterval(queueRetryInterval);
-            queueRetryInterval = null;
-        }
-        return;
-    }
-    
-    const now = Date.now();
-    const remaining = [];
-    
-    messageQueue.forEach(item => {
-        // Saltar si es muy reciente
-        if (now - item.timestamp < 5000) {
-            remaining.push(item);
-            return;
-        }
-        
-        item.attempts++;
-        
-        let delivered = false;
-        
-        // Intentar entregar
-        if (item.target === 'GLOBAL') {
-            Object.keys(connections).forEach(peerId => {
-                if (connections[peerId]?.status === 'online') {
-                    try {
-                        connections[peerId].conn.send(item.data);
-                        delivered = true;
-                        
-                        // Mostrar entrega
-                        displayMessage(`✅ ENTREGADO A ${peerId.substring(0,6)}: ${item.original.substring(0, 40)}...`, '', 'system');
-                    } catch (error) {
-                        console.error(`Error:`, error);
-                    }
-                }
-            });
-        } else if (connections[item.target]?.status === 'online') {
-            try {
-                connections[item.target].conn.send(item.data);
-                delivered = true;
-                
-                displayMessage(`✅ ENTREGADO A ${item.target.substring(0,6)}: ${item.original.substring(0, 40)}...`, '', 'system');
-            } catch (error) {
-                console.error(`Error:`, error);
-            }
-        }
-        
-        if (delivered) {
-            // Estadísticas
-            stats.tx += JSON.stringify(item.data).length;
-            stats.messages++;
-            updateStats();
-            
-            playStrongBeep(600, 50);
-        } else if (item.attempts < 10) {
-            // Mantener para otro intento
-            remaining.push(item);
-        } else {
-            // Demasiados intentos
-            displayMessage(`❌ NO ENTREGADO: ${item.original.substring(0, 30)}...`, '', 'system');
-        }
-    });
-    
-    // Actualizar cola
-    messageQueue = remaining;
-    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
-    updateQueueCounter();
-}
-
-// ====== FUNCIÓN NUEVA: updateQueueCounter() ======
-function updateQueueCounter() {
-    // Buscar o crear elemento
-    let counter = document.getElementById('queue-counter');
-    
-    if (!counter) {
-        // Crear en el footer
-        const statsPanel = document.querySelector('.stats-panel');
-        if (statsPanel) {
-            const queueItem = document.createElement('div');
-            queueItem.className = 'stat-item';
-            queueItem.id = 'queue-item';
-            queueItem.innerHTML = `
-                <div class="stat-value" id="queue-counter">0</div>
-                <div class="stat-label">EN COLA</div>
-            `;
-            statsPanel.appendChild(queueItem);
-            counter = document.getElementById('queue-counter');
-        }
-    }
-    
-    if (counter) {
-        counter.textContent = messageQueue.length;
-        
-        // Color según cantidad
-        if (messageQueue.length === 0) {
-            counter.style.color = '#00ff88';
-        } else if (messageQueue.length < 5) {
-            counter.style.color = '#ffaa00';
-        } else {
-            counter.style.color = '#ff3300';
-            counter.style.animation = 'pulse 1s infinite';
-        }
-    }
-}
-
-// ====== FUNCIÓN NUEVA: deliverOnConnect() ======
-function deliverOnConnect(peerId) {
-    if (messageQueue.length === 0) return;
-    
-    const remaining = [];
-    
-    messageQueue.forEach(item => {
-        // Si es para este peer o para todos
-        if (item.target === peerId || item.target === 'GLOBAL') {
-            try {
-                if (connections[peerId]?.status === 'online') {
-                    connections[peerId].conn.send(item.data);
-                    
-                    // Mostrar
-                    displayMessage(`🎯 ENTREGADO A NUEVA CONEXIÓN ${peerId.substring(0,6)}`, '', 'system');
-                    
-                    // Estadísticas
-                    stats.tx += JSON.stringify(item.data).length;
-                    stats.messages++;
-                }
-            } catch (error) {
-                console.error(`Error:`, error);
-                remaining.push(item);
-            }
-        } else {
-            remaining.push(item);
-        }
-    });
-    
-    // Actualizar
-    messageQueue = remaining;
-    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
-    updateQueueCounter();
-}
-
-
-        // ====== SISTEMA DE HEALTH CHECKS MEJORADO ======
-        
-        function startHealthCheckSystem() {
-            setInterval(() => {
-                if (!isBackground) {
-                    checkConnectionsHealth();
-                }
-            }, 10000);
-            
-            setInterval(() => {
-                const now = Date.now();
-                Object.keys(connectionHealth).forEach(peerId => {
-                    if (connections[peerId]?.status === 'online') {
-                        const lastActivity = connectionHealth[peerId]?.lastActivity || 0;
-                        const inactiveTime = now - lastActivity;
-                        
-                        if (inactiveTime > 15000) {
-                            console.log(`⚠️ Conexión ${peerId} inactiva por ${Math.round(inactiveTime/1000)}s`);
-                            if (connections[peerId].health !== 'suspicious') {
-                                connections[peerId].health = 'suspicious';
-                                updatePeerList();
-                            }
-                        }
-                    }
-                });
-            }, 5000);
-        }
-
-        function sendHealthPing(peerId) {
-            if (!connections[peerId]?.conn || connections[peerId]?.status !== 'online') return;
-            
-            try {
-                connections[peerId].conn.send({
-                    type: 'health_ping',
-                    timestamp: Date.now(),
-                    sender: myPeerId
-                });
-                
-                console.log(`📡 Ping enviado a ${peerId}`);
-                connectionHealth[peerId] = {
-                    ...connectionHealth[peerId],
-                    lastPing: Date.now(),
-                    waitingForPong: true
-                };
-                
-                setTimeout(() => {
-                    if (connectionHealth[peerId]?.waitingForPong) {
-                        console.log(`❌ No hay respuesta de ${peerId}`);
-                        connections[peerId].health = 'unresponsive';
-                        updatePeerList();
-                    }
-                }, 3000);
-                
-            } catch (error) {
-                console.error(`❌ Error enviando ping a ${peerId}:`, error);
-                connections[peerId].health = 'error';
-                updatePeerList();
-            }
-        }
-
-        function handleHealthPong(peerId, timestamp) {
-            const latency = Date.now() - timestamp;
-            
-            connectionHealth[peerId] = {
-                ...connectionHealth[peerId],
-                lastActivity: Date.now(),
-                lastLatency: latency,
-                waitingForPong: false
-            };
-            
-            connections[peerId].health = 'healthy';
-            connections[peerId].latency = latency;
-            
-            console.log(`✅ Pong recibido de ${peerId} (${latency}ms)`);
-            updatePeerList();
-            
-            document.getElementById('stats-latency').textContent = `${latency} ms`;
-        }
-
-        function checkConnectionsHealth() {
-            Object.keys(connections).forEach(peerId => {
-                if (connections[peerId]?.status === 'online') {
-                    const lastActivity = connectionHealth[peerId]?.lastActivity || 0;
-                    const inactiveTime = Date.now() - lastActivity;
-                    
-                    if (inactiveTime > 10000) {
-                        sendHealthPing(peerId);
-                    }
-                }
-            });
-        }
-
-        // ====== DETECCIÓN DE SEGUNDO PLANO MEJORADA ======
-        
-        document.addEventListener('visibilitychange', function() {
-            isBackground = document.hidden;
-            
-            console.log(`📱 App ${isBackground ? 'en segundo plano' : 'en primer plano'}`);
-            
-            if (!isBackground) {
-                updateMonitor("⚡ APP REACTIVADA - VERIFICANDO CONEXIONES...");
-                playStrongBeep(800, 100);
-                
-                if (fastRecovery) {
-                    setTimeout(() => {
-                        reviveAllConnections();
-                    }, 500);
-                } else {
-                    checkConnectionsHealth();
-                }
-            } else {
-                updateMonitor("⏸️ APP EN SEGUNDO PLANO");
-            }
-        });
-
-        // ====== FUNCIÓN REVIVIR CONEXIONES MEJORADA ======
-        
-        function reviveAllConnections() {
-            if (revivingInProgress) {
-                console.log("⚠️ Ya hay una operación de revivir en progreso");
-                return;
-            }
-            
-            revivingInProgress = true;
-            const reviveBtn = document.getElementById('reviveBtn');
-            if (reviveBtn) {
-                reviveBtn.classList.add('reviving');
-                reviveBtn.disabled = true;
-                reviveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REVIVIENDO...';
-            }
-            
-            updateMonitor("⚡ REVIVIENDO CONEXIONES...");
-            playStrongBeep(600, 100);
-            
-            let revived = 0;
-            let suspiciousCount = 0;
-            
-            Object.keys(connections).forEach(peerId => {
-                if (connections[peerId]?.status === 'online' && 
-                    (connections[peerId]?.health === 'suspicious' || 
-                     connections[peerId]?.health === 'unresponsive')) {
-                    suspiciousCount++;
-                }
-            });
-            
-            if (suspiciousCount === 0) {
-                updateMonitor("✅ TODAS LAS CONEXIONES ESTÁN SALUDABLES");
-                finishReviveOperation(reviveBtn, 0);
-                return;
-            }
-            
-            updateMonitor(`🔍 ENCONTRADAS ${suspiciousCount} CONEXIÓN(ES) SOSPECHOSAS`);
-            
-            Object.keys(connections).forEach(peerId => {
-                if (connections[peerId]?.status === 'online' && 
-                    (connections[peerId]?.health === 'suspicious' || 
-                     connections[peerId]?.health === 'unresponsive')) {
-                    
-                    console.log(`⚡ Reviviendo ${peerId}`);
-                    revived++;
-                    
-                    sendHealthPing(peerId);
-                    
-                    if (aggressiveRevive) {
-                        setTimeout(() => {
-                            if (connections[peerId]?.health !== 'healthy') {
-                                console.log(`🔁 Reconexión agresiva para ${peerId}`);
-                                forceReconnect(peerId);
-                            }
-                        }, 2000);
-                    }
-                }
-            });
-            
-            setTimeout(() => {
-                updateMonitor(`🔄 REVIVIDAS ${revived} CONEXIÓN(ES)`);
-                
-                setTimeout(() => {
-                    let healthyCount = 0;
-                    Object.keys(connections).forEach(peerId => {
-                        if (connections[peerId]?.status === 'online' && 
-                            connections[peerId]?.health === 'healthy') {
-                            healthyCount++;
-                        }
-                    });
-                    
-                    updateMonitor(`✅ ${healthyCount} CONEXIÓN(ES) SALUDABLES`);
-                    finishReviveOperation(reviveBtn, revived);
-                }, 5000);
-            }, 3000);
-        }
-
-        function forceReconnect(peerId) {
-            console.log(`🔁 Forzando reconexión con ${peerId}`);
-            
-            const shouldReconnect = savedIds.includes(peerId);
-            
-            if (connections[peerId]?.conn) {
-                try {
-                    connections[peerId].conn.close();
-                } catch (e) {
-                    console.error("Error cerrando conexión:", e);
-                }
-            }
-            
-            delete connections[peerId];
-            delete connectionHealth[peerId];
-            
-            updatePeerList();
-            updateConnectedCount();
-            
-            if (shouldReconnect) {
-                setTimeout(() => {
-                    connectToPeerId(peerId);
-                    updateMonitor(`🔄 RECONECTANDO: ${peerId.substring(0, 8)}...`);
-                }, 1000);
-            }
-        }
-
-        function finishReviveOperation(reviveBtn, revivedCount) {
-            revivingInProgress = false;
-            
-            if (reviveBtn) {
-                reviveBtn.classList.remove('reviving');
-                reviveBtn.disabled = false;
-                reviveBtn.innerHTML = '<i class="fas fa-heartbeat"></i> REVIVIR CONEXIONES';
-            }
-            
-            if (revivedCount > 0) {
-                playStrongBeep(800, 100);
-            }
-            
-            console.log(`✅ Operación de revivir completada: ${revivedCount} conexiones revividas`);
-        }
-
-        // ====== REFRESCAR CONEXIONES MEJORADO ======
-        
-        function refreshAllConnections() {
-            console.log("🔄 Refrescando todas las conexiones...");
-            updateMonitor("🔄 REFRESCANDO CONEXIONES...", "info");
-            playStrongBeep(1000, 200);
-            
-            const currentPeers = [...savedIds];
-            
-            Object.keys(connections).forEach(peerId => {
-                if (connections[peerId]?.conn) {
-                    try {
-                        connections[peerId].conn.close();
-                    } catch (error) {
-                        console.error("Error cerrando conexión:", error);
-                    }
-                }
-            });
-            
-            connections = {};
-            connectionHealth = {};
-            
-            updatePeerList();
-            updateConnectedCount();
-            
-            setTimeout(() => {
-                currentPeers.forEach(peerId => {
-                    if (peerId !== myPeerId) {
-                        setTimeout(() => connectToPeerId(peerId), 300);
-                    }
-                });
-                updateMonitor("✅ CONEXIONES REFRESCADAS", "info");
-            }, 1000);
-        }
-
-        // ====== FUNCIONES DE MENSAJERÍA ======
-
-        function handleReceivedData(senderId, data) {
-    console.log("🔄 Procesando datos de", senderId, ":", data);
-    
-    connectionHealth[senderId] = {
-        ...connectionHealth[senderId],
-        lastActivity: Date.now(),
-        lastReceived: Date.now()
-    };
-    
-    if (!data || !data.message) {
-        console.log("❌ Datos inválidos");
-        return;
-    }
-    
-    const key = document.getElementById('key').value || 'ATOM80';
-    const encryption = document.getElementById('encryptionMode').value;
-    
-    let decryptedMessage = data.message;
-    
-    if (encryption === 'xor' || encryption === 'aes') {
-        decryptedMessage = xorDecrypt(data.message, key);
-    }
-    
-    const displayName = senderId.substring(0, 6);
-    
-    // ====== SISTEMA DUAL MORSE ======
-    if (data.isDualMorse && data.textVersion && data.morseVersion) {
-        // Mostrar AMBAS versiones: Texto (Morse)
-        displayMessage(
-            `${displayName}: ${data.textVersion} (${data.morseVersion})`,
-            data.hexPreview || '',
-            'incoming'
-        );
-    } else {
-        // Mostrar normal
-        displayMessage(`${displayName}: ${decryptedMessage}`, 
-                     data.hexPreview || '', 'incoming');
-    }
-    
-    stats.rx += data.message.length;
-    stats.messages++;
-    updateStats();
-    
-    updateMonitor(`📥 ${displayName}: "${decryptedMessage.substring(0, 20)}${decryptedMessage.length > 20 ? '...' : ''}"`);
-    
-    playMessageNotification();
-
-    function handleReceivedData(senderId, data) {
-    if (!data || data.type !== "message" || !data.message) return;
-
-    const key = document.getElementById('key')?.value?.trim() || "";
-    const encMode = document.getElementById('encryptionMode')?.value || "none"; // no se usa realmente para descifrar
-
-    const secured = securityLayer(data.message, false, data.encryption, key);
-
-    const displayName = senderId.substring(0, 8);
-    let color = "#888";
-
-    if (secured.encryptionUsed === "AES-256-GCM") color = "#00ffea";
-    else if (secured.encryptionUsed === "XOR") color = "#ffaa00";
-    else color = "#ff3300";
-
-    // Mostrar
-    const bubble = document.createElement("div");
-    bubble.className = "message-bubble message-incoming";
-    bubble.innerHTML = `
-        <strong>${displayName}:</strong> ${secured.text}
-        <br><small style="color:${color}">${secured.encryptionUsed}${secured.error ? " ⚠️" : ""}</small>
-    `;
-    document.getElementById("monitor-decoded").appendChild(bubble);
-    document.getElementById("monitor-decoded").scrollTop = document.getElementById("monitor-decoded").scrollHeight;
-
-    if (secured.error) {
-        updateMonitor(`⚠️ Error seguridad de ${displayName}: ${secured.error}`);
-    }
-}
-
-function handleReceivedData(senderId, data) {
-    if (data.type !== 'message') return;
-
-    let text = data.payload || '';
-
-    // ¿Es AES-256-GCM?
-    if (data.enc === 'AES-256-GCM') {
-        const aesKey = connections[senderId]?.aesKey;
-        if (!aesKey) {
-            console.warn("Mensaje cifrado recibido pero sin clave");
-            text = "[clave no negociada]";
-        } else {
-            try {
-                const [ivHex, ct] = text.split(':');
-                const iv = CryptoJS.enc.Hex.parse(ivHex);
-                const key = CryptoJS.enc.Hex.parse(aesKey);
-                const decrypted = CryptoJS.AES.decrypt(ct, key, { iv });
-                text = decrypted.toString(CryptoJS.enc.Utf8) || "[error descifrado]";
-            } catch (e) {
-                text = "[fallo descifrado]";
-            }
-        }
-    }
-
-    // ¿Es Morse?
-    if (data.mode === 'morse') {
-        if (typeof decodeMorse === 'function') {
-            text = decodeMorse(text);
-        } else {
-            text = "[morse no decodificado]";
-        }
-    }
-
-    // Mostrar
-    const bubble = document.createElement('div');
-    bubble.className = 'message-bubble message-incoming';
-    bubble.innerHTML = `<strong>${senderId.substring(0,8)}:</strong> ${text}<br>
-                        <small style="color:#00ffea">${data.enc}</small>`;
-    document.getElementById('monitor-decoded').appendChild(bubble);
-    document.getElementById('monitor-decoded').scrollTop = document.getElementById('monitor-decoded').scrollHeight;
-}
-
-    
-}
-
-        // ====== FUNCIONES DE UI MEJORADAS ======
-        
-        function updatePeerList() {
-            const container = document.getElementById('saved-peers');
-            let html = "";
-            
-            savedIds.forEach(id => {
-                const conn = connections[id];
-                let status = conn ? conn.status : 'offline';
-                let health = conn ? conn.health : 'offline';
-                
-                let statusClass = 'st-offline';
-                
-                if (status === 'online') {
-                    if (health === 'healthy') {
-                        statusClass = 'st-online';
-                    } else if (health === 'suspicious' || health === 'unresponsive') {
-                        statusClass = 'st-warning';
-                    } else if (health === 'new') {
-                        statusClass = 'st-encrypted';
-                    }
-                }
-                
-                let statusText = status.toUpperCase();
-                if (health === 'suspicious') statusText = 'INACTIVO';
-                if (health === 'unresponsive') statusText = 'SIN RESPUESTA';
-                
-                const displayStyle = (status === 'offline' && !showOffline) ? 'display: none;' : '';
-                
-                html += `
-                    <div class="peer-item ${activeTarget === id ? 'active' : ''}" 
-                         data-peer-id="${id}"
-                         data-status="${status}"
-                         data-health="${health}"
-                         onclick="selectPeer('${id}')"
-                         style="${displayStyle}">
-                        <div class="peer-info">
-                            <span class="status-dot ${statusClass}"></span>
-                            <div style="display:flex; flex-direction:column;">
-                                <span style="font-weight:bold;">${id.substring(0, 8)}</span>
-                                <span style="font-size:0.55rem; color:#888;">
-                                    ${statusText}
-                                    ${conn?.latency ? ` (${conn.latency}ms)` : ''}
-                                </span>
-                            </div>
-                        </div>
-                        <span class="del-btn" onclick="event.stopPropagation(); executeRemoveId('${id}')">×</span>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-            updateConnectionStatusIndicators();
-
-            
-        }
-
-        function updateConnectionStatusIndicators() {
-            const onlineHealthy = Object.keys(connections).filter(id => 
-                connections[id]?.status === 'online' && 
-                connections[id]?.health === 'healthy').length;
-            
-            const onlineSuspicious = Object.keys(connections).filter(id => 
-                connections[id]?.status === 'online' && 
-                (connections[id]?.health === 'suspicious' || 
-                 connections[id]?.health === 'unresponsive')).length;
-            
-            const countElement = document.getElementById('connected-count');
-            if (countElement) {
-                if (onlineHealthy > 0) {
-                    countElement.innerHTML = 
-                        `<span style="color:#00ff88">${onlineHealthy}</span>` + 
-                        (onlineSuspicious > 0 ? `<span style="color:#ffaa00">/${onlineSuspicious}</span>` : '');
-                } else if (onlineSuspicious > 0) {
-                    countElement.innerHTML = `<span style="color:#ffaa00">${onlineSuspicious}</span>`;
-                } else {
-                    countElement.innerHTML = '0';
-                }
-            }
-            
-            document.getElementById('stats-connections').textContent = onlineHealthy + onlineSuspicious;
-        }
-
-        function toggleShowOffline() {
-            showOffline = !showOffline;
-            updatePeerList();
-            
-            const icon = document.querySelector('#saved-peers-container').parentElement
-                .querySelector('.fa-eye-slash, .fa-eye');
-            if (icon) {
-                icon.classList.toggle('fa-eye');
-                icon.classList.toggle('fa-eye-slash');
-            }
-            
-            updateMonitor(showOffline ? "👁️ MOSTRANDO OFFLINE" : "👁️ OCULTANDO OFFLINE");
-            playStrongBeep(600, 50);
-        }
-
-        function selectPeer(id) {
-            if (id !== 'GLOBAL' && connections[id]?.health === 'suspicious') {
-                sendHealthPing(id);
-            }
-            
-            activeTarget = id;
-            
-            document.querySelectorAll('.peer-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            if (id === 'GLOBAL') {
-                document.getElementById('target-global').classList.add('active');
-            } else {
-                const peerElement = document.querySelector(`[data-peer-id="${id}"]`);
-                if (peerElement) {
-                    peerElement.classList.add('active');
-                }
-            }
-            
-            document.getElementById('target-display').innerHTML = 
-                `<i class="fas fa-crosshairs"></i> DESTINO: ${id === 'GLOBAL' ? "GLOBAL" : id.substring(0, 8)}`;
-        }
-
-        // ====== FUNCIONES AUXILIARES MEJORADAS ======
-        
-        function saveId(id) {
-    // Convertir a string y validar
-    const idStr = String(id).trim();
-    
-    // Rechazar si es muy largo o tiene caracteres raros
-    if (idStr.length > 30 || !/^[a-zA-Z0-9\-]+$/.test(idStr)) {
-        console.log("ID rechazado (formato inválido):", idStr.substring(0,20));
-        return false;
-    }
-    
-    if (!savedIds.includes(idStr)) {
-        savedIds.push(idStr);
-        localStorage.setItem('radcom_peers', JSON.stringify(savedIds));
-        updatePeerList();
-    }
-    return true;
-}
-
-        function executeRemoveId(id) {
-            if (!confirm(`¿Eliminar ${id.substring(0, 8)} del historial?`)) {
-                return;
-            }
-            
-            console.log("🗑️ Eliminando ID:", id);
-            
-            savedIds = savedIds.filter(savedId => savedId !== id);
-            localStorage.setItem('radcom_peers_v4', JSON.stringify(savedIds));
-            
-            if (connections[id]) {
-                if (connections[id].conn) {
-                    connections[id].conn.close();
-                }
-                delete connections[id];
-                delete connectionHealth[id];
-            }
-            
-            if (activeTarget === id) {
-                activeTarget = 'GLOBAL';
-                document.getElementById('target-display').innerHTML = 
-                    '<i class="fas fa-crosshairs"></i> DESTINO: GLOBAL';
-                document.getElementById('target-global').classList.add('active');
-            }
-            
-            updatePeerList();
-            updateConnectedCount();
-            
-            updateMonitor(`🗑️ ELIMINADO: ${id.substring(0, 8)}`);
-            playStrongBeep(300, 100);
-        }
-
-        function updateConnectedCount() {
-            const onlineCount = Object.keys(connections).filter(id => 
-                connections[id]?.status === 'online').length;
-            document.getElementById('stats-connections').textContent = onlineCount;
-        }
-
-        function displayMessage(content, hex, type) {
-            const monitor = document.getElementById('monitor-decoded');
-            const messageDiv = document.createElement('div');
-            
-            messageDiv.className = `message-bubble message-${type}`;
-            
-            let displayContent = content;
-            if (content.length > 150) {
-                displayContent = content.substring(0, 150) + '...';
-            }
-            
-            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-            
-            messageDiv.innerHTML = `
-                <div style="margin-bottom:1px;">
-                    <span style="color:#${type === 'outgoing' ? '0088ff' : type === 'incoming' ? 'ff3300' : '00ff88'}">
-                        ${time}
-                    </span>
-                </div>
-                <div>${escapeHtml(displayContent)}</div>
-                ${hex ? `<div style="font-size:0.55rem; color:#888; margin-top:1px;">
-                    <i class="fas fa-code"></i> ${hex}</div>` : ''}
-            `;
-            
-            monitor.appendChild(messageDiv);
-            monitor.scrollTop = monitor.scrollHeight;
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function updateMonitor(message, type = 'info') {
-            const monitor = document.getElementById('monitor-raw');
-            const color = type === 'error' ? '#ff3300' : 
-                         type === 'warning' ? '#ffaa00' : '#00ff88';
-            
-            monitor.innerHTML = `<span style="color:${color}">${message}</span>`;
-        }
-
-        // ====== SONIDOS ======
-
-        function playStrongBeep(freq, duration) {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = freq;
-            oscillator.type = 'sawtooth';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + duration / 1000);
-        }
-        
-        function playMessageNotification() {
-            if (!document.getElementById('soundEnabled')?.checked) return;
-            
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            
-            let currentTime = audioContext.currentTime;
-            
-            [800, 1200, 1000].forEach((freq, index) => {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = freq;
-                oscillator.type = 'sawtooth';
-                
-                gainNode.gain.setValueAtTime(0.4, currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.15);
-                
-                oscillator.start(currentTime);
-                oscillator.stop(currentTime + 0.15);
-                
-                currentTime += 0.2;
-            });
-        }
-
-        // ====== FUNCIONES RESTANTES ======
-        
-        function generateKey() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let key = '';
-            for (let i = 0; i < 12; i++) {
-                key += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            document.getElementById('key').value = key;
-            document.getElementById('key').type = 'text';
-            
-            setTimeout(() => {
-                document.getElementById('key').type = 'password';
-            }, 2000);
-            
-            return key;
-        }
-
-        function copyID() {
-            if (!myPeerId) {
-                alert('Espera a que se genere el ID primero');
-                return;
-            }
-            
-            navigator.clipboard.writeText(myPeerId).then(() => {
-                updateMonitor(`📋 ID COPIADO: ${myPeerId.substring(0, 12)}...`);
-                playStrongBeep(800, 100);
-            });
-        }
-
-        function updateUptime() {
-            const elapsed = Date.now() - stats.startTime;
-            const hours = Math.floor(elapsed / 3600000);
-            const minutes = Math.floor((elapsed % 3600000) / 60000);
-            const seconds = Math.floor((elapsed % 60000) / 1000);
-            
-            document.getElementById('stats-uptime').textContent = 
-                `${hours.toString().padStart(2, '0')}:` +
-                `${minutes.toString().padStart(2, '0')}:` +
-                `${seconds.toString().padStart(2, '0')}`;
-        }
-
-        function updateStats() {
-            document.getElementById('stats-messages').textContent = stats.messages;
-            document.getElementById('data-session').textContent = stats.tx + stats.rx;
-            
-            document.getElementById('stats-tx').textContent = formatBytes(stats.tx);
-            document.getElementById('stats-rx').textContent = formatBytes(stats.rx);
-            
-            const elapsed = (Date.now() - stats.startTime) / 1000;
-            const bandwidth = elapsed > 0 ? (stats.tx + stats.rx) / elapsed / 1024 : 0;
-            document.getElementById('stats-bandwidth').textContent = 
-                `${bandwidth.toFixed(2)} KB/s`;
-        }
-
-        function formatBytes(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / 1048576).toFixed(1) + ' MB';
-        }
-
-        function validateInput() {
-            const input = document.getElementById('inputMsg');
-            const mode = document.getElementById('inputMode').value;
-            const value = input.value.trim();
-            
-            input.classList.remove('invalid');
-            
-            if (mode === 'hex') {
-                const hexRegex = /^[0-9a-fA-F\s]*$/;
-                if (!hexRegex.test(value)) {
-                    input.classList.add('invalid');
-                    return false;
-                }
-            } else if (mode === 'binary') {
-                const binRegex = /^[01\s]*$/;
-                if (!binRegex.test(value)) {
-                    input.classList.add('invalid');
-                    return false;
-                }
-            }
-            
-            return true;
-
-            function clearMorseTranslation() {
-    document.getElementById('morse-translation').classList.remove('active');
-    document.getElementById('morse-text-display').textContent = '';
-    document.getElementById('morse-code-display').textContent = '';
-}
-        }
-
-        function validateInputMode() {
-            const input = document.getElementById('inputMsg');
-            const mode = document.getElementById('inputMode').value;
-            
-            if (mode === 'text') {
-                input.placeholder = "INYECTAR DATOS SEGUROS...";
-            } else if (mode === 'hex') {
-                input.placeholder = "INGRESA HEX (0-9, A-F)...";
-            } else if (mode === 'binary') {
-                input.placeholder = "INGRESA BINARIO (0-1)...";
-            } else if (mode === 'morse') {
-                input.placeholder = "ESCRIBE CÓDIGO MORSE (. y -) o texto...";
-            } else if (mode === 'phonetic') {
-                input.placeholder = "INGRESA TEXTO PARA FONÉTICO...";
-            } else if (mode === 'satellite') {
-                input.placeholder = "PREPARADO PARA SATÉLITE...";
-            }
-            
-            input.value = '';
-            validateInput();
-        }
-
-        function realTimePreview() {
-            clearTimeout(window.previewTimeout);
-            window.previewTimeout = setTimeout(() => {
-                const input = document.getElementById('inputMsg');
-                const message = input.value;
-                
-                if (!message) {
-                    updateMonitor("ESCUCHA ACTIVA...");
-                    return;
-                }
-                
-                const key = document.getElementById('key').value || 'ATOM80';
-                let hex = '';
-                for (let i = 0; i < Math.min(message.length, 3); i++) {
-                    const charCode = message.charCodeAt(i);
-                    const keyCode = key.charCodeAt(i % key.length);
-                    hex += (charCode ^ keyCode).toString(16).padStart(2, '0');
-                }
-                
-                updateMonitor(`PREVIEW: ${hex}...`);
-            }, 300);
-
-                // Mostrar traducción Morse si está en modo morse
-    const mode = document.getElementById('inputMode').value;
-    if (mode === 'morse') {
-        updateMorseTranslation(text);
-    } else {
-        document.getElementById('morse-translation').classList.remove('active');
-    }
-
-        }
-
-        function realTimeTableHighlight() {
-            const input = document.getElementById('inputMsg');
-            const text = input.value;
-            
-            document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
-                td.classList.remove('highlighted');
-            });
-            
-            if (text.length === 0) {
-                return;
-            }
-            
-            const lastChar = text[text.length - 1];
-            const asciiCode = lastChar.charCodeAt(0);
-            
-            if (asciiCode >= 32 && asciiCode <= 126) {
-                const row = asciiCode & 0x0F;
-                const col = (asciiCode >> 4) & 0x07;
-                
-                const cell = document.querySelector(`#ansiTable td[data-ascii="${asciiCode}"]`);
-                if (cell) {
-                    cell.classList.add('highlighted');
-                    
-                    const displayChar = cell.getAttribute('data-char');
-                    const hex = cell.getAttribute('data-hex');
-                    updateCharPreview(row, col, asciiCode, hex, displayChar);
-                    
-                    cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-                }
-            } else if (lastChar === ' ') {
-                const cell = document.querySelector('#ansiTable td[data-char="SPC"]');
-                if (cell) {
-                    cell.classList.add('highlighted');
-                    const row = parseInt(cell.getAttribute('data-row'));
-                    const col = parseInt(cell.getAttribute('data-col'));
-                    const ascii = parseInt(cell.getAttribute('data-ascii'));
-                    const hex = cell.getAttribute('data-hex');
-                    updateCharPreview(row, col, ascii, hex, 'SPC');
-                }
-            } else if (lastChar === '\x7F') {
-                const cell = document.querySelector('#ansiTable td[data-char="DEL"]');
-                if (cell) {
-                    cell.classList.add('highlighted');
-                    const row = parseInt(cell.getAttribute('data-row'));
-                    const col = parseInt(cell.getAttribute('data-col'));
-                    const ascii = parseInt(cell.getAttribute('data-ascii'));
-                    const hex = cell.getAttribute('data-hex');
-                    updateCharPreview(row, col, ascii, hex, 'DEL');
-                }
-            }
-        }
-
-        function clearChat() {
-            if (confirm("¿Borrar todo el historial del chat?")) {
-                document.getElementById('monitor-decoded').innerHTML = 
-                    '<div class="message-bubble message-system"><i class="fas fa-satellite"></i> HISTORIAL LIMPIADO</div>';
-                updateMonitor("✅ CHAT LIMPIADO");
-                playStrongBeep(400, 200);
-            }
-        }
-
-        // ====== CONFIGURACIÓN MEJORADA ======
-        
-        function showSettings() {
-            document.getElementById('settingsModal').style.display = 'flex';
-            updateConnectionUI();
-            loadIdSettings();
-        }
-
-        function hideSettings() {
-            document.getElementById('settingsModal').style.display = 'none';
-        }
-
-        function updateConnectionUI() {
-            document.querySelectorAll('.connection-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.getElementById(`btn-${currentConnectionType}`).classList.add('active');
-            
-            const typeName = currentConnectionType === 'wifi' ? 'WiFi' : 'Datos Móviles';
-            document.getElementById('current-connection-type').textContent = typeName;
-        }
-
-        function selectConnectionType(type) {
-            if (type === currentConnectionType) return;
-            
-            document.querySelectorAll('.connection-type-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.getElementById(`btn-${type}`).classList.add('active');
-            
-            currentConnectionType = type;
-            const typeName = type === 'wifi' ? 'WiFi' : 'Datos Móviles';
-            document.getElementById('current-connection-type').textContent = typeName;
-            
-            updateMonitor(`⚡ Modo conexión cambiado a: ${typeName}`);
-            playStrongBeep(800, 100);
-            
-            saveConnectionType();
-        }
-
-        function saveConnectionType() {
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
-            config.connectionType = currentConnectionType;
-            localStorage.setItem('radcom_config_v4.6', JSON.stringify(config));
-        }
-
-        // ====== FUNCIONES DE CONFIGURACIÓN DE ID ======
-        
-        function loadIdSettings() {
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
-            
-            document.getElementById('useFixedId').checked = config.useFixedId !== false;
-            document.getElementById('customIdInput').value = config.fixedId || getOrCreateFixedId();
-            document.getElementById('currentIdDisplay').textContent = ID_SYSTEM.currentId || 'No asignado';
-            
-            toggleIdMode();
-        }
-
-        function toggleIdMode() {
-            const useFixed = document.getElementById('useFixedId').checked;
-            const container = document.getElementById('customIdContainer');
-            
-            if (useFixed) {
-                container.style.display = 'block';
-            } else {
-                container.style.display = 'none';
-            }
-        }
-
-        function generateCustomId() {
-            const prefixes = ['RADCOM', 'SATCOM', 'NETCOM', 'SECURE', 'MASTER'];
-            const adjectives = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'];
-            const nouns = ['STATION', 'NODE', 'HUB', 'RELAY', 'TERMINAL'];
-            
-            const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-            const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-            const noun = nouns[Math.floor(Math.random() * nouns.length)];
-            const number = Math.floor(Math.random() * 999).toString().padStart(3, '0');
-            
-            const generatedId = `${prefix}-${adj}-${noun}-${number}`;
-            document.getElementById('customIdInput').value = generatedId;
-        }
-
-        function applyIdSettings() {
-            const useFixed = document.getElementById('useFixedId').checked;
-            const customId = document.getElementById('customIdInput').value.trim();
-            
-            if (useFixed && (!customId || customId.length < 3)) {
-                updateMonitor("⚠️ ID PERSONALIZADO INVÁLIDO", "error");
-                playStrongBeep(300, 200);
-                return;
-            }
-            
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
-            config.useFixedId = useFixed;
-            
-            if (useFixed) {
-                config.fixedId = customId;
-            } else {
-                config.fixedId = null;
-            }
-            
-            localStorage.setItem('radcom_config_v4', JSON.stringify(config));
-            
-            ID_SYSTEM.useFixedId = useFixed;
-            ID_SYSTEM.fixedId = useFixed ? customId : null;
-            
-            updateMonitor(`🔄 APLICANDO NUEVA CONFIGURACIÓN DE ID...`);
-            
-            setTimeout(() => {
-                if (peer) {
-                    peer.destroy();
-                }
-                setTimeout(() => initPeerJSEnhanced(), 1000);
-            }, 500);
-            
-            hideSettings();
-        }
-
-        function resetIdSettings() {
-            const defaultId = generateHardwareBasedId();
-            document.getElementById('customIdInput').value = defaultId;
-            document.getElementById('useFixedId').checked = true;
-            toggleIdMode();
-            updateMonitor("🔄 ID RESTABLECIDO A VALOR PREDETERMINADO");
-        }
-
-        function saveSettings() {
-            const config = {
-                systemName: document.getElementById('systemName').value,
-                connectionType: currentConnectionType,
-                autoReconnect: document.getElementById('autoReconnect').checked,
-                soundEnabled: document.getElementById('soundEnabled').checked,
-                saveHistory: document.getElementById('saveHistory').checked,
-                fastRecovery: document.getElementById('fastRecovery').checked,
-                aggressiveRevive: document.getElementById('aggressiveRevive').checked,
-                useFixedId: document.getElementById('useFixedId').checked,
-                fixedId: document.getElementById('customIdInput').value.trim()
-            };
-            
-            localStorage.setItem('radcom_config_v4', JSON.stringify(config));
-            
-            fastRecovery = config.fastRecovery;
-            aggressiveRevive = config.aggressiveRevive;
-            ID_SYSTEM.useFixedId = config.useFixedId;
-            
-            if (config.fixedId && config.useFixedId) {
-                ID_SYSTEM.fixedId = config.fixedId;
-                localStorage.setItem('radcom_fixed_id_v4', config.fixedId);
-            }
-            
-            updateMonitor("✅ CONFIGURACIÓN GUARDADA");
-            hideSettings();
-            playStrongBeep(600, 100);
-        }
-
-        function loadSettings() {
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
-            
-            if (config.systemName) {
-                document.getElementById('systemName').value = config.systemName;
-            }
-            if (config.connectionType) {
-                currentConnectionType = config.connectionType;
-            }
-            if (config.autoReconnect !== undefined) {
-                document.getElementById('autoReconnect').checked = config.autoReconnect;
-            }
-            if (config.soundEnabled !== undefined) {
-                document.getElementById('soundEnabled').checked = config.soundEnabled;
-            }
-            if (config.saveHistory !== undefined) {
-                document.getElementById('saveHistory').checked = config.saveHistory;
-            }
-            if (config.fastRecovery !== undefined) {
-                document.getElementById('fastRecovery').checked = config.fastRecovery;
-                fastRecovery = config.fastRecovery;
-            }
-            if (config.aggressiveRevive !== undefined) {
-                document.getElementById('aggressiveRevive').checked = config.aggressiveRevive;
-                aggressiveRevive = config.aggressiveRevive;
-            }
-            if (config.useFixedId !== undefined) {
-                ID_SYSTEM.useFixedId = config.useFixedId;
-            }
-            if (config.fixedId) {
-                ID_SYSTEM.fixedId = config.fixedId;
-            }
-        }
-
-        function initResizableSeparator() {
-            const separator = document.getElementById('resizableSeparator');
-            const monitorContainer = document.getElementById('monitorContainer');
-            const tableContainer = document.getElementById('tableContainer');
-            
-            let isResizing = false;
-            let startY, startHeight, startTableHeight;
-            
-            separator.addEventListener('mousedown', function(e) {
-                isResizing = true;
-                startY = e.clientY;
-                startHeight = parseInt(getComputedStyle(monitorContainer).height);
-                startTableHeight = parseInt(getComputedStyle(tableContainer).height);
-                
-                document.addEventListener('mousemove', resize);
-                document.addEventListener('mouseup', stopResize);
-            });
-
-            
-            function resize(e) {
-                if (!isResizing) return;
-                
-                const delta = e.clientY - startY;
-                let newHeight = startHeight + delta;
-                
-                if (newHeight < 150) newHeight = 150;
-                if (newHeight > 400) newHeight = 400;
-                
-                monitorContainer.style.height = newHeight + 'px';
-                
-                const tableNewHeight = newHeight - 80;
-                if (tableNewHeight > 80) {
-                    tableContainer.style.height = tableNewHeight + 'px';
-                }
-            }
-            
-            function stopResize() {
-                isResizing = false;
-                document.removeEventListener('mousemove', resize);
-                document.removeEventListener('mouseup', stopResize);
-                
-                const currentHeight = parseInt(getComputedStyle(monitorContainer).height);
-                localStorage.setItem('radcom_separator_height', currentHeight);
-            }
-            
-            const savedHeight = localStorage.getItem('radcom_separator_height');
-            if (savedHeight) {
-                monitorContainer.style.height = savedHeight + 'px';
-            }
-        }
-
- // ====== Codigo hasta aqui original 4.7.1 ======
-
-
-// Variables de seguridad
-let securityConfig = {
-    enabled: true,
-    algorithm: 'AES-256-GCM'
-};
-
-// Cifrar con AES
+// Funciones AES (CryptoJS)
 function encryptAES(text, password) {
     try {
         const iv = CryptoJS.lib.WordArray.random(16);
@@ -8938,7 +4563,6 @@ function encryptAES(text, password) {
     }
 }
 
-// Descifrar con AES
 function decryptAES(ciphertext, password) {
     try {
         const parts = ciphertext.split(':');
@@ -8953,288 +4577,71 @@ function decryptAES(ciphertext, password) {
     }
 }
 
-// Modificar la función sendMessage existente
-// Modificar la función sendMessage existente
-function enhanceSendMessage() {
-    const originalSendMessage = sendMessage;
-    
-    sendMessage = function() {
-        const input = document.getElementById('inputMsg');
-        let message = input.value.trim();
-        
-        if (!message) {
-            updateMonitor("⚠️ MENSAJE VACÍO", "error");
-            playStrongBeep(300, 200);
-            return;
-        }
-        
-        const key = document.getElementById('key').value || 'RADCOM-SECURE';
-        const mode = document.getElementById('inputMode').value;
-        const encryptionSelect = document.getElementById('encryptionMode');
-        const encryption = encryptionSelect ? encryptionSelect.value : 'aes'; // Valor por defecto
-        
-        // Cifrar según selección
-        let encryptedMessage = message;
-        let encryptionType = 'none';
-        
-        if (encryption === 'aes') {
-            encryptedMessage = encryptAES(message, key);
-            encryptionType = 'AES-256-GCM';
-        } else if (encryption === 'xor') {
-            encryptedMessage = xorEncrypt(message, key);
-            encryptionType = 'XOR';
-        } else if (encryption === 'none') {
-            // Sin cifrado - usar mensaje original
-            encryptedMessage = message;
-            encryptionType = 'Ninguno';
-        }
-        
-        // Crear paquete
-        const data = {
-            type: 'message',
-            message: encryptedMessage,
-            original: message,
-            mode: mode,
-            encryption: encryptionType,
-            timestamp: Date.now(),
-            sender: myPeerId
-        };
-        
-        // Enviar (mantener lógica original)
-        let sentCount = 0;
-        if (activeTarget === 'GLOBAL') {
-            Object.keys(connections).forEach(peerId => {
-                if (connections[peerId]?.conn?.open) {
-                    connections[peerId].conn.send(data);
-                    sentCount++;
-                }
-            });
-        } else if (connections[activeTarget]) {
-            connections[activeTarget].conn.send(data);
-            sentCount = 1;
-        }
-        
-        if (sentCount > 0) {
-            // Mostrar localmente con indicador de cifrado
-            const monitor = document.getElementById('monitor-decoded');
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble message-outgoing';
-            
-            // Cambiar color según cifrado
-            let color = '#888';
-            if (encryptionType === 'AES-256-GCM') color = '#00ffea';
-            if (encryptionType === 'XOR') color = '#ffaa00';
-            if (encryptionType === 'Ninguno') color = '#ff3300';
-            
-            bubble.innerHTML = `<strong>YO:</strong> ${message}<br>
-                               <small style="color:${color}; font-size:0.6rem;">Cifrado: ${encryptionType}</small>`;
-            monitor.appendChild(bubble);
-            monitor.scrollTop = monitor.scrollHeight;
-            
-            stats.tx += message.length;
-            stats.messages++;
-            input.value = '';
-            updateMonitor(`🔐 ENVIADO [${encryptionType}] a ${sentCount} destino(s)`);
-            updateStats();
-            playStrongBeep(700, 100);
-        } else {
-            updateMonitor("⚠️ SIN DESTINOS CONECTADOS", "warning");
-            playStrongBeep(300, 200);
-        }
+// Capa de seguridad unificada
+function securityLayer(text, isSending, encryptionMode, password) {
+    if (!password) password = "";
+    encryptionMode = (encryptionMode || "none").toLowerCase().trim();
+
+    const result = {
+        text: text,
+        encryptionUsed: "NONE",
+        error: null
     };
 
-    // ... obtienes message, mode, encryptionMode, key ...
-
-const key = document.getElementById('key')?.value?.trim() || "";
-const encMode = document.getElementById('encryptionMode')?.value || "none";
-
-const secured = securityLayer(message, true, encMode, key);
-
-// Mostrar localmente lo que se envió (el texto original)
-addBubble("YO", message, secured.encryptionUsed);   // ajusta nombre de función si es distinto
-
-const data = {
-    type: "message",
-    message: secured.text,
-    encryption: secured.encryptionUsed,
-    timestamp: Date.now(),
-    sender: myPeerId,
-    // otros campos que ya tengas
-};
-
-// Enviar
-if (activeTarget === 'GLOBAL') {
-    Object.keys(connections).forEach(peerId => {
-        if (connections[peerId]?.conn?.open) {
-            connections[peerId].conn.send(data);
-        }
-    });
-} else if (connections[activeTarget]?.conn?.open) {
-    connections[activeTarget].conn.send(data);
-}
-}
-
-// Modificar recepción de datos
-// Modificar recepción de datos
-function enhanceReceiveData() {
-    const originalHandleReceivedData = handleReceivedData;
-    
-    handleReceivedData = function(senderId, data) {
-        // Si es mensaje cifrado (tiene campo encryption)
-        if (data.encryption && data.encryption !== 'Ninguno') {
-            const key = document.getElementById('key').value || 'RADCOM-SECURE';
-            let decryptedMessage = data.message;
-            
-            // Descifrar según tipo
-            if (data.encryption === 'AES-256-GCM') {
-                decryptedMessage = decryptAES(data.message, key);
-            } else if (data.encryption === 'XOR') {
-                decryptedMessage = xorDecrypt(data.message, key);
-            }
-            
-            // Mostrar con indicador de cifrado
-            const displayName = senderId.substring(0, 8);
-            const monitor = document.getElementById('monitor-decoded');
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble message-incoming';
-            
-            // Cambiar color según cifrado
-            let color = '#888';
-            if (data.encryption === 'AES-256-GCM') color = '#00ffea';
-            if (data.encryption === 'XOR') color = '#ffaa00';
-            
-            bubble.innerHTML = `<strong>${displayName}:</strong> ${decryptedMessage}<br>
-                               <small style="color:${color}; font-size:0.6rem;">Cifrado: ${data.encryption}</small>`;
-            monitor.appendChild(bubble);
-            monitor.scrollTop = monitor.scrollHeight;
-            
-            stats.rx += data.message.length;
-            stats.messages++;
-            updateStats();
-            
-            updateMonitor(`🔐 ${displayName}: "${decryptedMessage.substring(0, 30)}${decryptedMessage.length > 30 ? '...' : ''}"`);
-            playMessageNotification();
-            
-        } else if (data.encryption === 'Ninguno') {
-            // Mensaje sin cifrado
-            const displayName = senderId.substring(0, 8);
-            const monitor = document.getElementById('monitor-decoded');
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble message-incoming';
-            bubble.innerHTML = `<strong>${displayName} [SIN CIFRADO]:</strong> ${data.message}<br>
-                               <small style="color:#ff3300; font-size:0.6rem;">⚠️ Sin cifrado</small>`;
-            monitor.appendChild(bubble);
-            monitor.scrollTop = monitor.scrollHeight;
-            
-            stats.rx += data.message.length;
-            stats.messages++;
-            updateStats();
-            
-            updateMonitor(`⚠️ ${displayName} [SIN CIFRADO]: "${data.message.substring(0, 30)}${data.message.length > 30 ? '...' : ''}"`);
-            playMessageNotification();
-            
-        } else {
-            // Usar función original para mensajes antiguos sin campo encryption
-            originalHandleReceivedData(senderId, data);
-        }
-    };
-}
-
-// Mostrar panel de información de seguridad
-function showSecurityInfo() {
-    const panel = document.createElement('div');
-    panel.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 10, 20, 0.95);
-        border: 2px solid #00ff88;
-        border-radius: 10px;
-        padding: 20px;
-        width: 300px;
-        z-index: 9999;
-        color: #00ff88;
-        font-family: 'Courier New', monospace;
-        box-shadow: 0 0 40px rgba(0, 255, 136, 0.4);
-    `;
-    
-    panel.innerHTML = `
-        <h3 style="margin: 0 0 15px 0; color: #00ffea;">
-            <i class="fas fa-shield-alt"></i> SEGURIDAD v5.2
-        </h3>
-        
-        <div style="background: rgba(0, 20, 0, 0.3); padding: 10px; border-radius: 5px; margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Estado:</span>
-                <span style="color:#00ff88;">ACTIVO</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Algoritmo:</span>
-                <span style="color:#00ffea;">AES-GCM-256</span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-                <span>Nivel:</span>
-                <span style="color:#00ff88;">ALTO</span>
-            </div>
-        </div>
-        
-        <div style="font-size: 0.75rem; color: #88ffaa;">
-            <p>✓ Cifrado extremo a extremo</p>
-            <p>✓ Autenticación de mensajes</p>
-            <p>✓ Protección contra manipulación</p>
-        </div>
-        
-        <button onclick="this.parentElement.remove()" 
-                style="margin-top: 15px; width: 100%; padding: 8px; background: #00ff88; color: #000; 
-                       border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
-            CERRAR
-        </button>
-    `;
-    
-    document.body.appendChild(panel);
-    
-    // Cerrar al hacer clic fuera
-    setTimeout(() => {
-        panel.addEventListener('click', e => e.stopPropagation());
-        document.addEventListener('click', () => panel.remove());
-    }, 100);
-}
-
-// Inicializar seguridad
-// Inicializar seguridad
-function initSecurity() {
-    console.log("🔐 Inicializando seguridad v5.2...");
-    enhanceSendMessage();
-    enhanceReceiveData();
-    
-    // Actualizar badge inicial
-    updateSecurityBadge();
-    
-    // Añadir evento al selector para actualizar badge
-    const encryptionSelect = document.getElementById('encryptionMode');
-    if (encryptionSelect) {
-        encryptionSelect.addEventListener('change', updateSecurityBadge);
+    if (encryptionMode === "none" || !password) {
+        return result;
     }
-    
-    // Actualizar monitor inicial
-    updateMonitor("🔐 SISTEMA DE SEGURIDAD v5.2 ACTIVADO");
-    
-    // Añadir mensaje al chat
-    const monitor = document.getElementById('monitor-decoded');
-    const bubble = document.createElement('div');
-    bubble.className = 'message-bubble message-system';
-    bubble.innerHTML = `
-        <i class="fas fa-shield-alt"></i> SEGURIDAD v5.2 ACTIVADA<br>
-        <small style="color:#88ffaa; font-size:0.7rem;">
-            Selecciona cifrado: AES-256-GCM | XOR | Sin cifrado
-        </small>
-    `;
-    monitor.appendChild(bubble);
-    monitor.scrollTop = monitor.scrollHeight;
+
+    try {
+        if (encryptionMode === "aes" || encryptionMode === "AES-256-GCM") {
+            if (isSending) {
+                const iv = CryptoJS.lib.WordArray.random(12);
+                const salt = CryptoJS.lib.WordArray.random(8);
+                const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
+                const encrypted = CryptoJS.AES.encrypt(text, key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.GCM,
+                    padding: CryptoJS.pad.NoPadding
+                });
+                result.text = salt.toString(CryptoJS.enc.Base64) + ":" + iv.toString(CryptoJS.enc.Base64) + ":" + encrypted.toString();
+                result.encryptionUsed = "AES-256-GCM";
+            } else {
+                const parts = text.split(":");
+                if (parts.length !== 3) throw new Error("Formato AES inválido");
+                const salt = CryptoJS.enc.Base64.parse(parts[0]);
+                const iv = CryptoJS.enc.Base64.parse(parts[1]);
+                const ct = parts[2];
+                const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
+                const decrypted = CryptoJS.AES.decrypt(ct, key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.GCM,
+                    padding: CryptoJS.pad.NoPadding
+                });
+                const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+                if (!plaintext) throw new Error("Descifrado vacío");
+                result.text = plaintext;
+                result.encryptionUsed = "AES-256-GCM";
+            }
+        } else if (encryptionMode === "xor") {
+            let output = "";
+            for (let i = 0; i < text.length; i++) {
+                output += String.fromCharCode(text.charCodeAt(i) ^ password.charCodeAt(i % password.length));
+            }
+            result.text = output;
+            result.encryptionUsed = "XOR";
+        } else {
+            result.error = "Modo de cifrado desconocido: " + encryptionMode;
+        }
+    } catch (err) {
+        result.error = err.message || "Error en capa de seguridad";
+        console.error("[securityLayer]", result.error);
+        result.text = "[ERROR SEGURIDAD] " + (result.error || "desconocido");
+    }
+
+    return result;
 }
 
-// Actualizar badge según cifrado seleccionado
+// Actualizar badge de seguridad
 function updateSecurityBadge() {
     const encryptionSelect = document.getElementById('encryptionMode');
     const securityBadge = document.querySelector('.security-badge span:nth-child(2)');
@@ -9262,405 +4669,236 @@ function updateSecurityBadge() {
     }
 }
 
-// ────────────────────────────────────────────────
-// ÚNICA FUNCIÓN DE SEGURIDAD (compatible 4.7.6)
-// ────────────────────────────────────────────────
-function securityLayer(text, isSending, encryptionMode, password) {
-    // Valores por defecto y normalización
-    if (!password) password = "";
-    encryptionMode = (encryptionMode || "none").toLowerCase().trim();
+// Mostrar panel de información de seguridad
+function showSecurityInfo() {
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 10, 20, 0.95);
+        border: 2px solid #00ff88;
+        border-radius: 10px;
+        padding: 20px;
+        width: 300px;
+        z-index: 9999;
+        color: #00ff88;
+        font-family: 'Courier New', monospace;
+        box-shadow: 0 0 40px rgba(0, 255, 136, 0.4);
+    `;
+    
+    panel.innerHTML = `
+        <h3 style="margin: 0 0 15px 0; color: #00ffea;">
+            <i class="fas fa-shield-alt"></i> SEGURIDAD v5.2
+        </h3>
+        <div style="background: rgba(0, 20, 0, 0.3); padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Estado:</span>
+                <span style="color:#00ff88;">ACTIVO</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Algoritmo:</span>
+                <span style="color:#00ffea;">AES-GCM-256</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Nivel:</span>
+                <span style="color:#00ff88;">ALTO</span>
+            </div>
+        </div>
+        <div style="font-size: 0.75rem; color: #88ffaa;">
+            <p>✓ Cifrado extremo a extremo</p>
+            <p>✓ Autenticación de mensajes</p>
+            <p>✓ Protección contra manipulación</p>
+        </div>
+        <button onclick="this.parentElement.remove()" 
+                style="margin-top: 15px; width: 100%; padding: 8px; background: #00ff88; color: #000; 
+                       border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+            CERRAR
+        </button>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    setTimeout(() => {
+        panel.addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('click', () => panel.remove());
+    }, 100);
+}
 
-    const result = {
-        text: text,
-        encryptionUsed: "NONE",
-        error: null
-    };
+// =============================================
+// FUNCIONES DE PEERJS Y CONEXIONES
+// =============================================
 
-    if (encryptionMode === "none" || !password) {
-        // sin cifrado o sin clave → no hacemos nada
-        return result;
+// Generación de IDs
+function generateHardwareBasedId() {
+    const sources = [
+        navigator.userAgent,
+        navigator.language,
+        screen.width + 'x' + screen.height,
+        new Date().getTimezoneOffset(),
+        localStorage.getItem('radcom_hardware_id')
+    ];
+    
+    if (!localStorage.getItem('radcom_hardware_id')) {
+        const hardwareId = 'HW-' + Math.random().toString(36).substring(2, 10) + '-' + Date.now().toString(36);
+        localStorage.setItem('radcom_hardware_id', hardwareId);
+        sources[4] = hardwareId;
     }
+    
+    let hash = 0;
+    const str = sources.join('|');
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    
+    return `RADCOM-${Math.abs(hash).toString(36).toUpperCase().substring(0, 8)}-V4`;
+}
 
+function generateRobustPeerId() {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 8);
+    return `RADCOM-${timestamp}-${random}`.toUpperCase();
+}
+
+function getOrCreateFixedId() {
+    let fixedId = localStorage.getItem('radcom_fixed_id_v4');
+    if (!fixedId) {
+        fixedId = generateHardwareBasedId();
+        localStorage.setItem('radcom_fixed_id_v4', fixedId);
+    }
+    return fixedId;
+}
+
+function connectToPeer() {
+    const input = document.getElementById('peer-id-input');
+    let peerId = input.value.trim();
+    
+    if (!peerId || !/^[a-zA-Z0-9\-]{1,20}$/.test(peerId)) {
+        document.getElementById('monitor-raw').innerHTML = 
+            '<span style="color:#ff3300">⚠️ ID INVÁLIDO (solo letras, números y guiones)</span>';
+        return;
+    }
+    
+    input.value = '';
+    saveId(peerId);
+    connectToPeerId(peerId);
+}
+
+function connectToPeerId(peerId) {
+    if (!peer || peer.disconnected) {
+        console.log("❌ Peer no inicializado");
+        return;
+    }
+    if (connections[peerId] && connections[peerId].status === 'online') {
+        console.log("⚠️ Ya conectado a", peerId);
+        return;
+    }
+    
+    console.log("🔌 Conectando a:", peerId);
+    updateMonitor(`🔌 CONECTANDO A: ${peerId.substring(0, 8)}...`);
+    
     try {
-        if (encryptionMode === "aes" || encryptionMode === "AES-256-GCM") {
-    if (isSending) {
-        // Cifrar con GCM
-        const iv = CryptoJS.lib.WordArray.random(12);  // GCM usa 12 bytes IV
-        const salt = CryptoJS.lib.WordArray.random(8);
-        const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
-        const encrypted = CryptoJS.AES.encrypt(text, key, {
-            iv: iv,
-            mode: CryptoJS.mode.GCM,  // Fix: GCM seguro
-            padding: CryptoJS.pad.NoPadding  // GCM no necesita padding
-        });
-        result.text = salt.toString(CryptoJS.enc.Base64) + ":" + iv.toString(CryptoJS.enc.Base64) + ":" + encrypted.toString();
-        result.encryptionUsed = "AES-256-GCM";
-    } else {
-        // Descifrar similar, con mode: GCM
-        const parts = text.split(":");
-        if (parts.length !== 3) throw new Error("Formato AES inválido");
-        const salt = CryptoJS.enc.Base64.parse(parts[0]);
-        const iv = CryptoJS.enc.Base64.parse(parts[1]);
-        const ct = parts[2];
-        const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
-        const decrypted = CryptoJS.AES.decrypt(ct, key, {
-            iv: iv,
-            mode: CryptoJS.mode.GCM,  // Fix: GCM
-            padding: CryptoJS.pad.NoPadding
-        });
-        const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
-        if (!plaintext) throw new Error("Descifrado vacío");
-        result.text = plaintext;
-        result.encryptionUsed = "AES-256-GCM";
-            }
-        }
-        else if (encryptionMode === "xor") {
-            // XOR simple (para compatibilidad con versiones antiguas)
-            let output = "";
-            for (let i = 0; i < text.length; i++) {
-                output += String.fromCharCode(
-                    text.charCodeAt(i) ^ password.charCodeAt(i % password.length)
-                );
-            }
-            result.text = output;
-            result.encryptionUsed = "XOR";
-        }
-        else {
-            result.error = "Modo de cifrado desconocido: " + encryptionMode;
-        }
-    }
-    catch (err) {
-        result.error = err.message || "Error en capa de seguridad";
-        console.error("[securityLayer]", result.error, { text, isSending, encryptionMode });
-        result.text = "[ERROR SEGURIDAD] " + (result.error || "desconocido");
-    }
-
-    return result;
-}
-
-
-
-// Ejecutar al cargar
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(initSecurity, 1000);
-});
-
-        
-        // ====== MÓDULO DE MEMORIA RADCOM v4.7 ======
-
-// ANTES (ejemplos dispersos, reemplaza todos localStorage.setItem/getItem con secure versions)
-
-// DESPUÉS (agrega estas funciones al inicio del JS, y reemplaza usos)
-function secureLocalSet(key, value) {
-    try {
-        const secret = 'radcom-secure-key-2026';  // Cambia por algo más seguro en prod
-        const enc = CryptoJS.AES.encrypt(JSON.stringify(value), secret).toString();
-        localStorage.setItem(key, enc);
-    } catch (e) {
-        console.error('Secure set failed:', e);
+        const conn = peer.connect(peerId, { reliable: true, serialization: 'json' });
+        setupConnection(conn, 'outgoing');
+    } catch (error) {
+        console.error(`❌ Error conectando a ${peerId}:`, error);
+        updateMonitor(`❌ ERROR CONECTANDO A ${peerId.substring(0, 8)}`);
     }
 }
 
-function secureLocalGet(key, defaultValue = null) {
-    try {
-        const enc = localStorage.getItem(key);
-        if (!enc) return defaultValue;
-        const secret = 'radcom-secure-key-2026';
-        const dec = CryptoJS.AES.decrypt(enc, secret);
-        return JSON.parse(dec.toString(CryptoJS.enc.Utf8));
-    } catch (e) {
-        console.error('Secure get failed:', e);
-        return defaultValue;
-    }
-}
-
-// Ejemplos de reemplazo:
-// ANTES: localStorage.setItem('radcom_history_v47', JSON.stringify(history));
-// DESPUÉS: secureLocalSet('radcom_history_v47', history);
-
-// ANTES: let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
-// DESPUÉS: let history = secureLocalGet('radcom_history_v47', []);
-
-// Aplica a: aes_key, message_queue, saved_peers, etc. (busca "localStorage.setItem" ~29 veces)
-
-function loadHistoryFromLocal() {
-    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
-    if(history.length > 0) {
-        updateMonitor("📂 RECUPERANDO MENSAJES GUARDADOS...");
-        history.forEach(item => {
-            // Se muestran en el log pero con un estilo más apagado (dimmed)
-            const logContainer = document.getElementById('logContainer');
-            if(logContainer) {
-                const div = document.createElement('div');
-                div.style.borderLeft = "2px solid #333";
-                div.style.paddingLeft = "5px";
-                div.style.marginBottom = "2px";
-                div.style.color = "#00aa66"; 
-                div.innerHTML = `<small>[Historial ${item.time}]</small> <b>${item.sender}:</b> ${item.text}`;
-                logContainer.appendChild(div);
-            }
-        });
-    }
-}
-
-
-
-/**
- * Función única que:
- * 1. Maneja conversión Morse si corresponde
- * 2. Negocia clave ECDH la primera vez (si no existe)
- * 3. Cifra con AES-256-GCM usando la clave negociada
- * 4. Prepara el objeto data listo para enviar
- * 5. Devuelve { data, error, displayText }
- */
-function prepareAndSecureMessage(rawText, inputMode = 'text') {
-    const result = {
-        data: null,
-        error: null,
-        displayText: rawText,     // lo que se muestra localmente
-        sentText: rawText         // lo que se envía (puede ser cifrado)
+function setupConnection(conn, type) {
+    const peerId = conn.peer;
+    
+    connections[peerId] = {
+        conn: conn,
+        status: 'connecting',
+        type: type,
+        health: 'new',
+        latency: 0,
+        lastCheck: Date.now()
     };
-
-    let messageToProcess = rawText.trim();
-    if (!messageToProcess) {
-        result.error = "Mensaje vacío";
-        return result;
-    }
-
-    // ───────────────────────────────────────────────
-    // 1. Conversión Morse (si modo = morse)
-    // ───────────────────────────────────────────────
-    if (inputMode === 'morse' || inputMode === 'morse_audio') {
-        if (typeof textToMorse !== 'function') {
-            result.error = "Función textToMorse no definida";
-            return result;
-        }
-        messageToProcess = textToMorse(messageToProcess);
-        result.displayText = rawText;               // mostramos texto humano
-        // result.sentText ya tiene el morse → se enviará cifrado o no
-        // Opcional: reproducir audio aquí si quieres
-        // if (typeof playMorse === 'function') playMorse(messageToProcess);
-    }
-
-    // ───────────────────────────────────────────────
-    // 2. Obtener o negociar clave AES para este peer
-    // ───────────────────────────────────────────────
-    const target = activeTarget === 'GLOBAL' ? null : activeTarget;
-    let aesKey = null;
-
-    if (target && connections[target]) {
-        // ¿Ya tenemos clave guardada?
-        aesKey = connections[target].aesKey || localStorage.getItem(`aes_key_${target}`);
-
-        // Si no → negociamos ahora (ECDH)
-        if (!aesKey) {
-            try {
-                const ec = new elliptic.ec('p256');
-                const myKeyPair = ec.genKeyPair();
-                const myPubHex = myKeyPair.getPublic('hex');
-
-                // Enviar handshake
-                const handshake = {
-                    type: 'ecdh_init',
-                    pub: myPubHex,
-                    from: myPeerId
-                };
-
-                connections[target].conn.send(handshake);
-
-                // Guardamos nuestra parte privada temporalmente
-                connections[target].ecdhTemp = myKeyPair;
-
-                updateMonitor(`Iniciando negociación segura con ${target}...`);
-            } catch (err) {
-                result.error = "Error al iniciar ECDH: " + err.message;
-                return result;
-            }
-
-            // La clave no estará lista inmediatamente → hay que esperar respuesta
-            result.error = "Esperando negociación de clave segura...";
-            return result;
-        }
-    }
-
-    // ───────────────────────────────────────────────
-    // 3. Cifrar si tenemos clave
-    // ───────────────────────────────────────────────
-    let encryptionType = "NONE";
-    let finalPayload = messageToProcess;
-
-    if (aesKey) {
-        try {
-            const iv = CryptoJS.lib.WordArray.random(16);
-            const keyParsed = CryptoJS.enc.Hex.parse(aesKey);
-            const encrypted = CryptoJS.AES.encrypt(messageToProcess, keyParsed, {
-                iv: iv,
-                mode: CryptoJS.mode.CBC,
-                padding: CryptoJS.pad.Pkcs7
-            });
-
-            finalPayload = iv.toString() + ':' + encrypted.toString();
-            encryptionType = "AES-256-GCM";
-        } catch (err) {
-            result.error = "Fallo al cifrar AES: " + err.message;
-            return result;
-        }
-    }
-
-    // ───────────────────────────────────────────────
-    // 4. Preparar paquete final
-    // ───────────────────────────────────────────────
-    result.data = {
-        type: 'message',
-        payload: finalPayload,
-        enc: encryptionType,
-        mode: inputMode,
-        ts: Date.now(),
-        from: myPeerId
+    
+    connectionHealth[peerId] = {
+        connectedAt: Date.now(),
+        lastActivity: Date.now(),
+        packetsSent: 0,
+        packetsReceived: 0
     };
-
-    result.sentText = finalPayload;
-
-    return result;
-}
-
-// =============================================================================
-// FUNCIÓN ÚNICA: CIFRADO MILITAR-GRADE AUTOMÁTICO (ECDH + AES-256-GCM)
-// =============================================================================
-async function secureMilitaryChannel(peerId, message = null, isSend = false, mode = 'text') {
-    // ── 1. Preparación inicial ──────────────────────────────────────────────
-    const result = {
-        success: false,
-        payload: null,
-        displayText: message || "",
-        error: null,
-        encryption: "NONE"
-    };
-
-    if (!peerId) {
-        result.error = "No hay peerId";
-        return result;
-    }
-
-    // ── 2. Obtener o generar clave compartida (ECDH x25519) ─────────────────
-    let sharedKeyHex = localStorage.getItem(`military_key_${peerId}`);
-
-    if (!sharedKeyHex) {
-        try {
-            // Generar claves privadas (x25519)
-            const privateKey = ed25519.utils.randomPrivateKey();
-            const publicKey = await ed25519.getPublicKeyAsync(privateKey);
-
-            // Enviar nuestra clave pública (base64)
-            const pubB64 = btoa(String.fromCharCode(...publicKey));
-
-            const handshake = {
-                type: 'military_handshake',
-                pub: pubB64,
-                from: myPeerId
-            };
-
-            if (connections[peerId]?.conn?.open) {
-                connections[peerId].conn.send(handshake);
-            }
-
-            // Guardamos temporalmente nuestra privada
-            connections[peerId] = connections[peerId] || {};
-            connections[peerId].militaryTempPriv = privateKey;
-
-            result.error = "Negociando clave militar... (espera 1-3 seg)";
-            return result;
-        } catch (err) {
-            result.error = "Fallo al iniciar ECDH: " + err.message;
-            return result;
-        }
-    }
-
-    // ── 3. Si tenemos clave → derivar AES-256-GCM con HKDF ──────────────────
-    const sharedSecret = hexToBytes(sharedKeyHex);
-    const hkdfSalt = new Uint8Array(32); // puedes usar valor fijo o random
-    const hkdfInfo = new TextEncoder().encode("RADCOM-MILITARY-2026");
-
-    const aesKeyRaw = await hashes.hkdf(sharedSecret, hashes.SHA256, {
-        salt: hkdfSalt,
-        info: hkdfInfo,
-        length: 32
+    
+    updatePeerList();
+    
+    conn.on('open', () => {
+        console.log(`✅ Conexión establecida con:`, peerId);
+        connections[peerId].status = 'online';
+        connections[peerId].health = 'healthy';
+        updatePeerList();
+        updateConnectedCount();
+        updateMonitor(`✅ CONECTADO A ${peerId.substring(0, 8)}`);
+        playStrongBeep(800, 100);
+        setTimeout(() => deliverOnConnect(peerId), 1500);
+        saveId(peerId);
+        setTimeout(() => sendHealthPing(peerId), 1000);
     });
-
-    const aesKey = aesKeyRaw; // ya son 32 bytes
-
-    // ── 4. Manejo de modo Morse ─────────────────────────────────────────────
-    let processedText = message || "";
-    if (mode === 'morse' && isSend) {
-        processedText = textToMorse(processedText) || "[error morse]";
-        result.displayText = message; // mostramos texto humano
-    }
-
-    // ── 5. Cifrar o descifrar ───────────────────────────────────────────────
-    if (isSend) {
-        // Cifrar (AES-GCM)
-        try {
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            const encoder = new TextEncoder();
-            const encrypted = await crypto.subtle.encrypt(
-                { name: "AES-GCM", iv },
-                await crypto.subtle.importKey("raw", aesKey, "AES-GCM", false, ["encrypt"]),
-                encoder.encode(processedText)
-            );
-
-            const encryptedB64 = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
-            const ivB64 = btoa(String.fromCharCode(...iv));
-
-            result.payload = {
-                type: 'military_msg',
-                iv: ivB64,
-                data: encryptedB64,
-                mode: mode
-            };
-            result.encryption = "AES-256-GCM";
-            result.success = true;
-        } catch (err) {
-            result.error = "Fallo cifrado GCM: " + err.message;
-        }
-    } else {
-        // Descifrar (si es mensaje cifrado)
-        if (message.iv && message.data) {
+    
+    conn.on('data', (data) => {
+        console.log("📥 Datos recibidos de", peerId, ":", data);
+        
+        connectionHealth[peerId].lastActivity = Date.now();
+        connectionHealth[peerId].packetsReceived++;
+        
+        if (data.type === 'health_ping') {
             try {
-                const iv = Uint8Array.from(atob(message.iv), c => c.charCodeAt(0));
-                const ct = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
-
-                const decrypted = await crypto.subtle.decrypt(
-                    { name: "AES-GCM", iv },
-                    await crypto.subtle.importKey("raw", aesKey, "AES-GCM", false, ["decrypt"]),
-                    ct
-                );
-
-                result.displayText = new TextDecoder().decode(decrypted);
-                result.encryption = "AES-256-GCM";
-                result.success = true;
-
-                if (message.mode === 'morse') {
-                    result.displayText = decodeMorse(result.displayText) || "[error morse]";
-                }
-            } catch (err) {
-                result.error = "Fallo descifrado GCM: " + err.message;
-                result.displayText = "[MENSAJE PROTEGIDO - CLAVE NO COINCIDE]";
+                conn.send({ type: 'health_pong', timestamp: data.timestamp, sender: myPeerId });
+                return;
+            } catch (error) {
+                console.error(`❌ Error enviando pong:`, error);
             }
-        } else {
-            result.displayText = message;
-            result.success = true;
         }
-    }
-
-    return result;
+        
+        if (data.type === 'health_pong') {
+            handleHealthPong(peerId, data.timestamp);
+            return;
+        }
+        
+        try {
+            handleReceivedData(peerId, data);
+        } catch (error) {
+            console.error("❌ Error procesando datos:", error);
+        }
+    });
+    
+    conn.on('close', () => {
+        console.log(`🔒 Conexión cerrada con:`, peerId);
+        connections[peerId].status = 'offline';
+        updatePeerList();
+        updateConnectedCount();
+        updateMonitor(`🔒 DESCONECTADO: ${peerId.substring(0, 8)}`);
+        
+        if (document.getElementById('autoReconnect')?.checked) {
+            setTimeout(() => {
+                if (peerId !== myPeerId && !connections[peerId]?.conn) {
+                    console.log(`🔄 Reconexión automática con ${peerId}`);
+                    connectToPeerId(peerId);
+                }
+            }, 3000);
+        }
+    });
+    
+    conn.on('error', (err) => {
+        console.error(`❌ Error en conexión ${peerId}:`, err);
+        connections[peerId].status = 'error';
+        updatePeerList();
+    });
 }
 
-// =============================================
-// PARTE C - LIMPIEZA GENERAL Y CONSOLIDACIÓN v5.5
-// =============================================
+function handleIncomingConnection(conn) {
+    console.log("🔄 Procesando conexión entrante:", conn.peer);
+    setupConnection(conn, 'incoming');
+}
 
-
-// === SETUP PEERJS LIMPIO ===
 function setupPeerEvents() {
     peer.on('open', (id) => {
         myPeerId = id;
@@ -9670,7 +4908,6 @@ function setupPeerEvents() {
         
         updateMonitor(`✅ RADCOM MASTER v${VERSION} INICIADO | ID: ${id.substring(0,10)}...`);
         
-        // Reconectar peers guardados
         savedIds.forEach(pid => {
             if (pid !== id) setTimeout(() => connectToPeerId(pid), 300);
         });
@@ -9689,221 +4926,3409 @@ function setupPeerEvents() {
     });
 }
 
-// === SETUP CONEXIÓN LIMPIO ===
-function setupConnection(conn, direction) {
-    const peerId = conn.peer;
+function initPeerJSEnhanced() {
+    updateMonitor("📡 INICIALIZANDO SISTEMA DE ID FIJOS...");
     
-    connections[peerId] = {
-        conn: conn,
-        status: 'connecting',
-        direction: direction,
-        health: 'new',
-        latency: 0,
-        lastActivity: Date.now()
-    };
-
-    conn.on('open', () => {
-        connections[peerId].status = 'online';
-        connections[peerId].health = 'healthy';
-        updatePeerList();
-        updateConnectedCount();
-        updateMonitor(`✅ CONECTADO A ${peerId.substring(0,8)}`);
-        playStrongBeep(800, 100);
-        
-        saveId(peerId);
-        deliverOnConnect(peerId); // Entregar cola
-    });
-
-    conn.on('data', (data) => {
-        connections[peerId].lastActivity = Date.now();
-        handleReceivedData(peerId, data);   // ← Usa la versión de Parte B
-    });
-
-    conn.on('close', () => {
-        connections[peerId].status = 'offline';
-        updatePeerList();
-        updateConnectedCount();
-        updateMonitor(`🔒 DESCONECTADO: ${peerId.substring(0,8)}`);
-        
-        if (document.getElementById('autoReconnect')?.checked) {
-            setTimeout(() => connectToPeerId(peerId), 2500);
-        }
-    });
-
-    conn.on('error', (err) => {
-        connections[peerId].status = 'error';
-        updatePeerList();
-    });
-}
-
-// === HEALTH + REVIVE MEJORADO ===
-function startHealthCheckSystem() {
-    setInterval(() => {
-        Object.keys(connections).forEach(peerId => {
-            if (connections[peerId]?.status === 'online') {
-                const inactive = Date.now() - (connections[peerId].lastActivity || 0);
-                if (inactive > 15000) {
-                    sendHealthPing(peerId);
-                }
-            }
-        });
-    }, 10000);
-}
-
-function reviveAllConnections() {
-    let revived = 0;
-    Object.keys(connections).forEach(peerId => {
-        if (connections[peerId]?.status === 'offline' && savedIds.includes(peerId)) {
-            connectToPeerId(peerId);
-            revived++;
-        }
-    });
+    const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
+    ID_SYSTEM.useFixedId = config.useFixedId !== false;
+    ID_SYSTEM.fixedId = config.fixedId || getOrCreateFixedId();
     
-    if (revived > 0) {
-        updateMonitor(`🔄 REVIVIENDO ${revived} CONEXIONES...`);
+    let peerId;
+    
+    if (ID_SYSTEM.useFixedId && ID_SYSTEM.fixedId) {
+        peerId = ID_SYSTEM.fixedId;
+        updateMonitor(`🔧 USANDO ID FIJADO: ${peerId.substring(0, 20)}...`);
+    } else {
+        peerId = generateRobustPeerId();
+        updateMonitor(`🎲 USANDO ID ALEATORIO: ${peerId.substring(0, 20)}...`);
+    }
+    
+    ID_SYSTEM.currentId = peerId;
+    localStorage.setItem('radcom_current_id', peerId);
+    
+    document.getElementById('currentIdDisplay').textContent = peerId;
+    
+    try {
+        const iceConfig = {
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            },
+            debug: 0
+        };
+        
+        if (currentConnectionType === 'mobile') {
+            iceConfig.config.iceServers = [
+                { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ];
+        }
+        
+        peer = new Peer(peerId, iceConfig);
+        setupPeerEvents();
+        updateMonitor(`✅ ID REGISTRADO: ${peerId.substring(0, 20)}...`);
+        
+    } catch (error) {
+        console.error("Error inicializando PeerJS:", error);
+        
+        if (ID_SYSTEM.useFixedId) {
+            updateMonitor("⚠️ ID FIJADO OCUPADO. USANDO ID ALEATORIO...", "warning");
+            
+            peerId = generateRobustPeerId();
+            ID_SYSTEM.useFixedId = false;
+            ID_SYSTEM.fixedId = null;
+            
+            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
+            config.useFixedId = false;
+            config.fixedId = null;
+            localStorage.setItem('radcom_config_v4', JSON.stringify(config));
+            
+            setTimeout(() => {
+                if (peer) peer.destroy();
+                setTimeout(() => initPeerJSEnhanced(), 1000);
+            }, 500);
+        }
     }
 }
 
+function saveId(id) {
+    const idStr = String(id).trim();
+    
+    if (idStr.length > 30 || !/^[a-zA-Z0-9\-]+$/.test(idStr)) {
+        console.log("ID rechazado (formato inválido):", idStr.substring(0,20));
+        return false;
+    }
+    
+    if (!savedIds.includes(idStr)) {
+        savedIds.push(idStr);
+        localStorage.setItem('radcom_peers', JSON.stringify(savedIds));
+        updatePeerList();
+    }
+    return true;
+}
 
+function executeRemoveId(id) {
+    if (!confirm(`¿Eliminar ${id.substring(0, 8)} del historial?`)) {
+        return;
+    }
+    
+    console.log("🗑️ Eliminando ID:", id);
+    
+    savedIds = savedIds.filter(savedId => savedId !== id);
+    localStorage.setItem('radcom_peers_v4', JSON.stringify(savedIds));
+    
+    if (connections[id]) {
+        if (connections[id].conn) {
+            connections[id].conn.close();
+        }
+        delete connections[id];
+        delete connectionHealth[id];
+    }
+    
+    if (activeTarget === id) {
+        activeTarget = 'GLOBAL';
+        document.getElementById('target-display').innerHTML = 
+            '<i class="fas fa-crosshairs"></i> DESTINO: GLOBAL';
+        document.getElementById('target-global').classList.add('active');
+    }
+    
+    updatePeerList();
+    updateConnectedCount();
+    
+    updateMonitor(`🗑️ ELIMINADO: ${id.substring(0, 8)}`);
+    playStrongBeep(300, 100);
+}
 
-// === FUNCIONES AUXILIARES (ya las tenías, solo las dejo por si faltan) ===
-function connectToPeerId(peerId) {
-    if (connections[peerId]?.status === 'online') return;
-    const conn = peer.connect(peerId, { reliable: true });
-    setupConnection(conn, 'outgoing');
+function updatePeerList() {
+    const container = document.getElementById('saved-peers');
+    let html = "";
+    
+    savedIds.forEach(id => {
+        const conn = connections[id];
+        let status = conn ? conn.status : 'offline';
+        let health = conn ? conn.health : 'offline';
+        
+        let statusClass = 'st-offline';
+        
+        if (status === 'online') {
+            if (health === 'healthy') {
+                statusClass = 'st-online';
+            } else if (health === 'suspicious' || health === 'unresponsive') {
+                statusClass = 'st-warning';
+            } else if (health === 'new') {
+                statusClass = 'st-encrypted';
+            }
+        }
+        
+        let statusText = status.toUpperCase();
+        if (health === 'suspicious') statusText = 'INACTIVO';
+        if (health === 'unresponsive') statusText = 'SIN RESPUESTA';
+        
+        const displayStyle = (status === 'offline' && !showOffline) ? 'display: none;' : '';
+        
+        html += `
+            <div class="peer-item ${activeTarget === id ? 'active' : ''}" 
+                 data-peer-id="${id}"
+                 data-status="${status}"
+                 data-health="${health}"
+                 onclick="selectPeer('${id}')"
+                 style="${displayStyle}">
+                <div class="peer-info">
+                    <span class="status-dot ${statusClass}"></span>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-weight:bold;">${id.substring(0, 8)}</span>
+                        <span style="font-size:0.55rem; color:#888;">
+                            ${statusText}
+                            ${conn?.latency ? ` (${conn.latency}ms)` : ''}
+                        </span>
+                    </div>
+                </div>
+                <span class="del-btn" onclick="event.stopPropagation(); executeRemoveId('${id}')">×</span>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    updateConnectionStatusIndicators();
+}
+
+function updateConnectionStatusIndicators() {
+    const onlineHealthy = Object.keys(connections).filter(id => 
+        connections[id]?.status === 'online' && connections[id]?.health === 'healthy').length;
+    
+    const onlineSuspicious = Object.keys(connections).filter(id => 
+        connections[id]?.status === 'online' && 
+        (connections[id]?.health === 'suspicious' || connections[id]?.health === 'unresponsive')).length;
+    
+    const countElement = document.getElementById('connected-count');
+    if (countElement) {
+        if (onlineHealthy > 0) {
+            countElement.innerHTML = 
+                `<span style="color:#00ff88">${onlineHealthy}</span>` + 
+                (onlineSuspicious > 0 ? `<span style="color:#ffaa00">/${onlineSuspicious}</span>` : '');
+        } else if (onlineSuspicious > 0) {
+            countElement.innerHTML = `<span style="color:#ffaa00">${onlineSuspicious}</span>`;
+        } else {
+            countElement.innerHTML = '0';
+        }
+    }
+    
+    document.getElementById('stats-connections').textContent = onlineHealthy + onlineSuspicious;
+}
+
+function toggleShowOffline() {
+    showOffline = !showOffline;
+    updatePeerList();
+    
+    const icon = document.querySelector('#saved-peers-container').parentElement
+        .querySelector('.fa-eye-slash, .fa-eye');
+    if (icon) {
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    }
+    
+    updateMonitor(showOffline ? "👁️ MOSTRANDO OFFLINE" : "👁️ OCULTANDO OFFLINE");
+    playStrongBeep(600, 50);
+}
+
+function selectPeer(id) {
+    if (id !== 'GLOBAL' && connections[id]?.health === 'suspicious') {
+        sendHealthPing(id);
+    }
+    
+    activeTarget = id;
+    
+    document.querySelectorAll('.peer-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    if (id === 'GLOBAL') {
+        document.getElementById('target-global').classList.add('active');
+    } else {
+        const peerElement = document.querySelector(`[data-peer-id="${id}"]`);
+        if (peerElement) {
+            peerElement.classList.add('active');
+        }
+    }
+    
+    document.getElementById('target-display').innerHTML = 
+        `<i class="fas fa-crosshairs"></i> DESTINO: ${id === 'GLOBAL' ? "GLOBAL" : id.substring(0, 8)}`;
 }
 
 function updateConnectedCount() {
-    const online = Object.values(connections).filter(c => c.status === 'online').length;
-    document.getElementById('connected-count').textContent = online;
-    document.getElementById('stats-connections').textContent = online;
+    const onlineCount = Object.keys(connections).filter(id => connections[id]?.status === 'online').length;
+    document.getElementById('stats-connections').textContent = onlineCount;
 }
 
-// Actualiza tu updateQueueCounter y demás funciones pequeñas si es necesario.
-
 // =============================================
-// PARTE D - FINALIZACIÓN v5.6.1
+// FUNCIONES DE HEALTH CHECK Y REVIVE
 // =============================================
 
+function sendHealthPing(peerId) {
+    if (!connections[peerId]?.conn || connections[peerId]?.status !== 'online') return;
+    
+    try {
+        connections[peerId].conn.send({
+            type: 'health_ping',
+            timestamp: Date.now(),
+            sender: myPeerId
+        });
+        
+        console.log(`📡 Ping enviado a ${peerId}`);
+        connectionHealth[peerId] = {
+            ...connectionHealth[peerId],
+            lastPing: Date.now(),
+            waitingForPong: true
+        };
+        
+        setTimeout(() => {
+            if (connectionHealth[peerId]?.waitingForPong) {
+                console.log(`❌ No hay respuesta de ${peerId}`);
+                connections[peerId].health = 'unresponsive';
+                updatePeerList();
+            }
+        }, 3000);
+        
+    } catch (error) {
+        console.error(`❌ Error enviando ping a ${peerId}:`, error);
+        connections[peerId].health = 'error';
+        updatePeerList();
+    }
+}
 
-// === PROCESAMIENTO DE COLA MEJORADO ===
+function handleHealthPong(peerId, timestamp) {
+    const latency = Date.now() - timestamp;
+    
+    connectionHealth[peerId] = {
+        ...connectionHealth[peerId],
+        lastActivity: Date.now(),
+        lastLatency: latency,
+        waitingForPong: false
+    };
+    
+    connections[peerId].health = 'healthy';
+    connections[peerId].latency = latency;
+    
+    console.log(`✅ Pong recibido de ${peerId} (${latency}ms)`);
+    updatePeerList();
+    
+    document.getElementById('stats-latency').textContent = `${latency} ms`;
+}
+
+function checkConnectionsHealth() {
+    Object.keys(connections).forEach(peerId => {
+        if (connections[peerId]?.status === 'online') {
+            const lastActivity = connectionHealth[peerId]?.lastActivity || 0;
+            const inactiveTime = Date.now() - lastActivity;
+            
+            if (inactiveTime > 10000) {
+                sendHealthPing(peerId);
+            }
+        }
+    });
+}
+
+function startHealthCheckSystem() {
+    setInterval(() => {
+        if (!isBackground) {
+            checkConnectionsHealth();
+        }
+    }, 10000);
+    
+    setInterval(() => {
+        const now = Date.now();
+        Object.keys(connectionHealth).forEach(peerId => {
+            if (connections[peerId]?.status === 'online') {
+                const lastActivity = connectionHealth[peerId]?.lastActivity || 0;
+                const inactiveTime = now - lastActivity;
+                
+                if (inactiveTime > 15000) {
+                    console.log(`⚠️ Conexión ${peerId} inactiva por ${Math.round(inactiveTime/1000)}s`);
+                    if (connections[peerId].health !== 'suspicious') {
+                        connections[peerId].health = 'suspicious';
+                        updatePeerList();
+                    }
+                }
+            }
+        });
+    }, 5000);
+}
+
+function forceReconnect(peerId) {
+    console.log(`🔁 Forzando reconexión con ${peerId}`);
+    
+    const shouldReconnect = savedIds.includes(peerId);
+    
+    if (connections[peerId]?.conn) {
+        try {
+            connections[peerId].conn.close();
+        } catch (e) {
+            console.error("Error cerrando conexión:", e);
+        }
+    }
+    
+    delete connections[peerId];
+    delete connectionHealth[peerId];
+    
+    updatePeerList();
+    updateConnectedCount();
+    
+    if (shouldReconnect) {
+        setTimeout(() => {
+            connectToPeerId(peerId);
+            updateMonitor(`🔄 RECONECTANDO: ${peerId.substring(0, 8)}...`);
+        }, 1000);
+    }
+}
+
+function reviveAllConnections() {
+    if (revivingInProgress) {
+        console.log("⚠️ Ya hay una operación de revivir en progreso");
+        return;
+    }
+    
+    revivingInProgress = true;
+    const reviveBtn = document.getElementById('reviveBtn');
+    if (reviveBtn) {
+        reviveBtn.classList.add('reviving');
+        reviveBtn.disabled = true;
+        reviveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> REVIVIENDO...';
+    }
+    
+    updateMonitor("⚡ REVIVIENDO CONEXIONES...");
+    playStrongBeep(600, 100);
+    
+    let revived = 0;
+    let suspiciousCount = 0;
+    
+    Object.keys(connections).forEach(peerId => {
+        if (connections[peerId]?.status === 'online' && 
+            (connections[peerId]?.health === 'suspicious' || connections[peerId]?.health === 'unresponsive')) {
+            suspiciousCount++;
+        }
+    });
+    
+    if (suspiciousCount === 0) {
+        updateMonitor("✅ TODAS LAS CONEXIONES ESTÁN SALUDABLES");
+        finishReviveOperation(reviveBtn, 0);
+        return;
+    }
+    
+    updateMonitor(`🔍 ENCONTRADAS ${suspiciousCount} CONEXIÓN(ES) SOSPECHOSAS`);
+    
+    Object.keys(connections).forEach(peerId => {
+        if (connections[peerId]?.status === 'online' && 
+            (connections[peerId]?.health === 'suspicious' || connections[peerId]?.health === 'unresponsive')) {
+            
+            console.log(`⚡ Reviviendo ${peerId}`);
+            revived++;
+            
+            sendHealthPing(peerId);
+            
+            if (aggressiveRevive) {
+                setTimeout(() => {
+                    if (connections[peerId]?.health !== 'healthy') {
+                        console.log(`🔁 Reconexión agresiva para ${peerId}`);
+                        forceReconnect(peerId);
+                    }
+                }, 2000);
+            }
+        }
+    });
+    
+    setTimeout(() => {
+        updateMonitor(`🔄 REVIVIDAS ${revived} CONEXIÓN(ES)`);
+        
+        setTimeout(() => {
+            let healthyCount = 0;
+            Object.keys(connections).forEach(peerId => {
+                if (connections[peerId]?.status === 'online' && connections[peerId]?.health === 'healthy') {
+                    healthyCount++;
+                }
+            });
+            
+            updateMonitor(`✅ ${healthyCount} CONEXIÓN(ES) SALUDABLES`);
+            finishReviveOperation(reviveBtn, revived);
+        }, 5000);
+    }, 3000);
+}
+
+function finishReviveOperation(reviveBtn, revivedCount) {
+    revivingInProgress = false;
+    
+    if (reviveBtn) {
+        reviveBtn.classList.remove('reviving');
+        reviveBtn.disabled = false;
+        reviveBtn.innerHTML = '<i class="fas fa-heartbeat"></i> REVIVIR CONEXIONES';
+    }
+    
+    if (revivedCount > 0) {
+        playStrongBeep(800, 100);
+    }
+    
+    console.log(`✅ Operación de revivir completada: ${revivedCount} conexiones revividas`);
+}
+
+function refreshAllConnections() {
+    console.log("🔄 Refrescando todas las conexiones...");
+    updateMonitor("🔄 REFRESCANDO CONEXIONES...", "info");
+    playStrongBeep(1000, 200);
+    
+    const currentPeers = [...savedIds];
+    
+    Object.keys(connections).forEach(peerId => {
+        if (connections[peerId]?.conn) {
+            try {
+                connections[peerId].conn.close();
+            } catch (error) {
+                console.error("Error cerrando conexión:", error);
+            }
+        }
+    });
+    
+    connections = {};
+    connectionHealth = {};
+    
+    updatePeerList();
+    updateConnectedCount();
+    
+    setTimeout(() => {
+        currentPeers.forEach(peerId => {
+            if (peerId !== myPeerId) {
+                setTimeout(() => connectToPeerId(peerId), 300);
+            }
+        });
+        updateMonitor("✅ CONEXIONES REFRESCADAS", "info");
+    }, 1000);
+}
+
+function verificarConexiones() {
+    console.log("🔍 Verificando conexiones...");
+    
+    let problemas = 0;
+    const ahora = Date.now();
+    
+    for (const peerId in connections) {
+        const conn = connections[peerId];
+        if (!conn) continue;
+        
+        if (conn.status === 'online') {
+            let estaViva = true;
+            
+            if (!conn.conn) {
+                estaViva = false;
+                console.log(`❌ ${peerId.substring(0,6)}: No tiene objeto conexión`);
+            } else if (!conn.conn.open) {
+                estaViva = false;
+                console.log(`❌ ${peerId.substring(0,6)}: Conexión no abierta`);
+            } else if (connectionHealth[peerId]?.lastActivity) {
+                const inactivo = ahora - connectionHealth[peerId].lastActivity;
+                if (inactivo > 60000) {
+                    console.log(`⚠️ ${peerId.substring(0,6)}: Inactivo ${Math.round(inactivo/1000)}s`);
+                    conn.health = 'inactive';
+                    problemas++;
+                }
+            }
+            
+            if (!estaViva) {
+                conn.status = 'offline';
+                conn.health = 'dead';
+                problemas++;
+                console.log(`🔴 ${peerId.substring(0,6)}: Marcado como offline`);
+            }
+        } else if (conn.status === 'offline' || conn.status === 'error') {
+            const estaGuardado = savedIds.includes(peerId);
+            if (estaGuardado && conn.health !== 'reconnecting') {
+                problemas++;
+                console.log(`🔄 ${peerId.substring(0,6)}: Offline pero guardado`);
+            }
+        }
+    }
+    
+    updatePeerList();
+    updateConnectedCount();
+    
+    if (problemas > 0) {
+        console.log(`📊 ${problemas} problema(s) encontrado(s)`);
+        return false;
+    }
+    
+    return true;
+}
+
+function repararConexiones() {
+    console.log("🛠️ Reparando conexiones...");
+    updateMonitor("🔧 REPARANDO...", "info");
+    
+    let reparadas = 0;
+    
+    for (const peerId in connections) {
+        const conn = connections[peerId];
+        if (!conn) continue;
+        
+        const necesitaReparar = (
+            (conn.status === 'offline' || conn.status === 'error') ||
+            (conn.status === 'online' && conn.health === 'inactive')
+        );
+        
+        if (necesitaReparar && conn.health !== 'reconnecting') {
+            console.log(`🔄 Reparando ${peerId.substring(0,6)}...`);
+            
+            conn.health = 'reconnecting';
+            updatePeerList();
+            
+            if (peer && !peer.disconnected) {
+                if (conn.conn) {
+                    try { conn.conn.close(); } catch(e) {}
+                }
+                
+                delete connections[peerId];
+                delete connectionHealth[peerId];
+                
+                setTimeout(() => {
+                    if (connectToPeerId) {
+                        connectToPeerId(peerId);
+                        reparadas++;
+                    }
+                }, 500);
+            }
+        }
+    }
+    
+    updatePeerList();
+    
+    if (reparadas > 0) {
+        console.log(`✅ ${reparadas} conexión(es) en reparación`);
+        updateMonitor(`✅ ${reparadas} conexión(es) reparándose`);
+        playStrongBeep(700, 100);
+    } else {
+        console.log("✅ Todas las conexiones OK");
+        updateMonitor("✅ Conexiones verificadas");
+    }
+    
+    return reparadas;
+}
+
+function verificarYReparar() {
+    console.log("⚡ Verificando y reparando...");
+    
+    const ok = verificarConexiones();
+    
+    if (!ok) {
+        console.log("⚠️ Problemas detectados, reparando...");
+        setTimeout(() => { repararConexiones(); }, 1000);
+    } else {
+        console.log("✅ Todas las conexiones OK");
+        updateMonitor("✅ Conexiones verificadas");
+    }
+    
+    return ok;
+}
+
+// =============================================
+// FUNCIONES DE MENSAJERÍA Y MANEJO DE DATOS
+// =============================================
+
+function handleReceivedData(senderId, data) {
+    console.log("🔄 Procesando datos de", senderId, ":", data);
+    
+    connectionHealth[senderId] = {
+        ...connectionHealth[senderId],
+        lastActivity: Date.now(),
+        lastReceived: Date.now()
+    };
+    
+    if (!data || !data.message) {
+        console.log("❌ Datos inválidos");
+        return;
+    }
+    
+    const key = document.getElementById('key').value || 'ATOM80';
+    
+    let decryptedMessage = data.message;
+    let encryptionType = data.encryption || 'NONE';
+    
+    if (encryptionType === 'xor' || encryptionType === 'XOR') {
+        decryptedMessage = xorDecrypt(data.message, key);
+    } else if (encryptionType === 'aes' || encryptionType === 'AES-256-GCM') {
+        try {
+            const secured = securityLayer(data.message, false, 'aes', key);
+            decryptedMessage = secured.text;
+        } catch (e) {
+            console.error("Error descifrando AES:", e);
+            decryptedMessage = "[ERROR DESENCRIPTADO]";
+        }
+    }
+    
+    const displayName = senderId.substring(0, 6);
+    
+    let color = '#888';
+    if (encryptionType === 'AES-256-GCM') color = '#00ffea';
+    else if (encryptionType === 'XOR') color = '#ffaa00';
+    
+    if (data.isDualMorse && data.textVersion && data.morseVersion) {
+        displayMessage(`${displayName}: ${data.textVersion} (${data.morseVersion})`, data.hexPreview || '', 'incoming');
+    } else {
+        const displayText = `<span style="color:${color}">[${encryptionType}]</span> ${decryptedMessage}`;
+        displayMessage(`${displayName}: ${decryptedMessage}`, data.hexPreview || '', 'incoming');
+    }
+    
+    stats.rx += data.message.length;
+    stats.messages++;
+    updateStats();
+    
+    updateMonitor(`📥 ${displayName}: "${decryptedMessage.substring(0, 20)}${decryptedMessage.length > 20 ? '...' : ''}"`);
+    
+    playMessageNotification();
+}
+
+function sendMessage() {
+    const input = document.getElementById('inputMsg');
+    let message = input.value.trim();
+    
+    if (!message) {
+        updateMonitor("⚠️ MENSAJE VACÍO", "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    const key = document.getElementById('key').value || 'ATOM80';
+    const mode = document.getElementById('inputMode').value;
+    const encryption = document.getElementById('encryptionMode').value;
+    
+    if (!validateInput()) {
+        updateMonitor(`⚠️ FORMATO ${mode.toUpperCase()} INVÁLIDO`, "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    let processedMessage = message;
+    let extraData = {};
+    
+    if (mode === 'morse') {
+        const isMorse = /^[\.\-\s\/]+$/.test(message.trim());
+        
+        if (isMorse) {
+            processedMessage = message;
+            extraData = {
+                textVersion: decodeMorse(message) || message,
+                morseVersion: message,
+                isDualMorse: true
+            };
+            updateMonitor(`📡 Enviando Morse (${decodeMorse(message)?.substring(0, 20) || "Código"})`);
+        } else {
+            processedMessage = textToMorse(message);
+            extraData = {
+                textVersion: message,
+                morseVersion: processedMessage,
+                isDualMorse: true
+            };
+            updateMonitor(`📡 Enviando "${message.substring(0, 20)}" como Morse`);
+        }
+        updateMorseTranslation(message);
+    } else if (mode === 'phonetic') {
+        processedMessage = textToPhonetic(message);
+    }
+    
+    const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key, extraData);
+    
+    let sentCount = 0;
+    
+    if (activeTarget === 'GLOBAL') {
+        Object.keys(connections).forEach(peerId => {
+            if (connections[peerId]?.status === 'online') {
+                try {
+                    connections[peerId].conn.send(dataToSend);
+                    sentCount++;
+                } catch (error) {
+                    console.error(`❌ Error:`, error);
+                }
+            }
+        });
+    } else if (connections[activeTarget]?.status === 'online') {
+        try {
+            connections[activeTarget].conn.send(dataToSend);
+            sentCount = 1;
+        } catch (error) {
+            console.error(`❌ Error:`, error);
+        }
+    }
+    
+    if (sentCount > 0) {
+        displayMessage(`YO: ${message}`, dataToSend.hexPreview, 'outgoing');
+        stats.tx += JSON.stringify(dataToSend).length;
+        stats.messages++;
+        input.value = '';
+        updateMonitor(`📤 ENVIADO A ${sentCount} DESTINO${sentCount !== 1 ? 'S' : ''}`);
+        updateStats();
+        playStrongBeep(700, 100);
+    } else {
+        addToQueue(dataToSend, message);
+        displayMessage(`⏳ YO (EN COLA): ${message}`, dataToSend.hexPreview, 'outgoing');
+        input.value = '';
+        updateMonitor(`💾 GUARDADO EN COLA (${messageQueue.length} mensajes)`);
+        playStrongBeep(500, 100);
+    }
+    
+    document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
+        td.classList.remove('highlighted');
+    });
+}
+
+function sendWithQueue() {
+    sendMessage();
+}
+
+function sendRadioMessage() {
+    const input = document.getElementById('inputMsg');
+    let message = input.value.trim();
+    
+    if (!message) {
+        updateMonitor("⚠️ MENSAJE VACÍO", "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    const key = document.getElementById('key').value || 'ATOM80';
+    const mode = document.getElementById('inputMode').value;
+    const encryption = document.getElementById('encryptionMode').value;
+    
+    if (!validateInput()) {
+        updateMonitor(`⚠️ FORMATO ${mode.toUpperCase()} INVÁLIDO`, "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    let processedMessage = message;
+    
+    if (mode === 'phonetic') {
+        processedMessage = textToPhonetic(message);
+    }
+    
+    const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key, {});
+    const sentCount = sendToConnections(dataToSend);
+    
+    if (sentCount > 0) {
+        const freq = document.getElementById('radio-frequency-display').textContent;
+        const band = currentBand;
+        
+        displayMessage(`📡 YO [${band} ${freq}]: ${message}`, dataToSend.hexPreview, 'outgoing');
+        
+        stats.tx += JSON.stringify(dataToSend).length;
+        stats.messages++;
+        input.value = '';
+        updateMonitor(`📤 ENVIADO POR RADIO A ${sentCount} DESTINO${sentCount !== 1 ? 'S' : ''}`);
+        updateStats();
+        playTransmissionSound();
+        
+        if (activeTarget === 'GLOBAL') {
+            Object.keys(connections).forEach(peerId => {
+                if (connections[peerId]?.status === 'online') {
+                    connectionHealth[peerId] = {
+                        ...connectionHealth[peerId],
+                        lastActivity: Date.now(),
+                        packetsSent: (connectionHealth[peerId]?.packetsSent || 0) + 1
+                    };
+                }
+            });
+        } else if (connections[activeTarget]) {
+            connectionHealth[activeTarget] = {
+                ...connectionHealth[activeTarget],
+                lastActivity: Date.now(),
+                packetsSent: (connectionHealth[activeTarget]?.packetsSent || 0) + 1
+            };
+        }
+        
+        document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
+            td.classList.remove('highlighted');
+        });
+    } else {
+        updateMonitor("⚠️ SIN DESTINOS CONECTADOS", "warning");
+        playStrongBeep(300, 200);
+    }
+}
+
+function sendToConnections(data) {
+    let sentCount = 0;
+    
+    console.log("📤 Enviando datos:", data);
+    
+    if (activeTarget === 'GLOBAL') {
+        Object.keys(connections).forEach(peerId => {
+            if (connections[peerId]?.status === 'online') {
+                try {
+                    console.log(`📤 Enviando a ${peerId}`);
+                    connections[peerId].conn.send(data);
+                    sentCount++;
+                } catch (error) {
+                    console.error(`❌ Error enviando a ${peerId}:`, error);
+                }
+            }
+        });
+    } else if (connections[activeTarget]?.status === 'online') {
+        try {
+            console.log(`📤 Enviando a ${activeTarget}`);
+            connections[activeTarget].conn.send(data);
+            sentCount = 1;
+        } catch (error) {
+            console.error(`❌ Error enviando a ${activeTarget}:`, error);
+        }
+    }
+    
+    console.log(`✅ Enviado a ${sentCount} destino(s)`);
+    return sentCount;
+}
+
+function prepareMessageToSend(message, mode, encryption, key, extraData = {}) {
+    let processedMessage = message;
+    let hexPreview = '';
+    
+    if (mode === 'hex') {
+        const hex = message.replace(/\s/g, '');
+        if (hex.length % 2 !== 0) {
+            throw new Error('HEX debe tener longitud par');
+        }
+        processedMessage = '';
+        for (let i = 0; i < hex.length; i += 2) {
+            processedMessage += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+        }
+    } else if (mode === 'binary') {
+        const binary = message.replace(/\s/g, '');
+        if (binary.length % 8 !== 0) {
+            throw new Error('Binario debe ser múltiplo de 8');
+        }
+        processedMessage = '';
+        for (let i = 0; i < binary.length; i += 8) {
+            processedMessage += String.fromCharCode(parseInt(binary.substr(i, 8), 2));
+        }
+    }
+    
+    let encryptedMessage = processedMessage;
+    let encryptionType = 'NONE';
+    
+    if (encryption === 'xor') {
+        encryptedMessage = xorEncrypt(processedMessage, key);
+        encryptionType = 'XOR';
+        for (let i = 0; i < Math.min(encryptedMessage.length, 3); i++) {
+            hexPreview += encryptedMessage.charCodeAt(i).toString(16).padStart(2, '0');
+        }
+        if (encryptedMessage.length > 3) hexPreview += '...';
+    } else if (encryption === 'aes') {
+        const secured = securityLayer(processedMessage, true, 'aes', key);
+        encryptedMessage = secured.text;
+        encryptionType = 'AES-256-GCM';
+        hexPreview = 'AES';
+    }
+    
+    return {
+        type: 'message',
+        message: encryptedMessage,
+        original: message,
+        mode: mode,
+        encryption: encryptionType,
+        timestamp: Date.now(),
+        sender: myPeerId,
+        hexPreview: hexPreview,
+        textVersion: extraData.textVersion || message,
+        morseVersion: extraData.morseVersion || '',
+        isDualMorse: extraData.isDualMorse || false
+    };
+}
+
+function handleSendMessage(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const mode = document.getElementById('inputMode').value;
+        if (mode === 'phonetic' && document.getElementById('radio-frequency-input')) {
+            sendRadioMessage();
+        } else {
+            sendMessage();
+        }
+    }
+}
+
+function handleSendButtonClick() {
+    const mode = document.getElementById('inputMode').value;
+    if (mode === 'phonetic' && document.getElementById('radio-frequency-input')) {
+        sendRadioMessage();
+    } else {
+        sendMessage();
+    }
+}
+
+// =============================================
+// SISTEMA DE COLA DE MENSAJES
+// =============================================
+
+function addToQueue(dataToSend, originalMessage) {
+    if (messageQueue.length >= MAX_QUEUE_SIZE) {
+        messageQueue.shift();
+    }
+    
+    const queueItem = {
+        id: Date.now() + Math.random().toString(36).substr(2, 5),
+        data: dataToSend,
+        original: originalMessage,
+        target: activeTarget,
+        timestamp: Date.now(),
+        attempts: 0
+    };
+    
+    messageQueue.push(queueItem);
+    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
+    
+    updateQueueCounter();
+    
+    if (!queueRetryInterval) {
+        startQueueSystem();
+    }
+}
+
+function startQueueSystem() {
+    if (queueRetryInterval) clearInterval(queueRetryInterval);
+    queueRetryInterval = setInterval(() => { processQueue(); }, 1000000);
+    updateMonitor("🔄 Sistema de cola ACTIVADO", "info");
+}
+
 function processQueue() {
-    if (messageQueue.length === 0) return;
-
+    if (messageQueue.length === 0) {
+        if (queueRetryInterval) {
+            clearInterval(queueRetryInterval);
+            queueRetryInterval = null;
+        }
+        return;
+    }
+    
     const now = Date.now();
-    let remaining = [];
-
+    const remaining = [];
+    
     messageQueue.forEach(item => {
-        if (now - item.timestamp < 3000) {
+        if (now - item.timestamp < 5000) {
             remaining.push(item);
             return;
         }
-
-        item.attempts = (item.attempts || 0) + 1;
-
+        
+        item.attempts++;
+        
         let delivered = false;
-        const target = item.target;
-
-        if (target === 'GLOBAL') {
-            Object.keys(connections).forEach(pid => {
-                if (connections[pid]?.conn?.open) {
-                    connections[pid].conn.send(item.packet);
-                    delivered = true;
+        
+        if (item.target === 'GLOBAL') {
+            Object.keys(connections).forEach(peerId => {
+                if (connections[peerId]?.status === 'online') {
+                    try {
+                        connections[peerId].conn.send(item.data);
+                        delivered = true;
+                        displayMessage(`✅ ENTREGADO A ${peerId.substring(0,6)}: ${item.original.substring(0, 40)}...`, '', 'system');
+                    } catch (error) {
+                        console.error(`Error:`, error);
+                    }
                 }
             });
-        } else if (connections[target]?.conn?.open) {
-            connections[target].conn.send(item.packet);
-            delivered = true;
+        } else if (connections[item.target]?.status === 'online') {
+            try {
+                connections[item.target].conn.send(item.data);
+                delivered = true;
+                displayMessage(`✅ ENTREGADO A ${item.target.substring(0,6)}: ${item.original.substring(0, 40)}...`, '', 'system');
+            } catch (error) {
+                console.error(`Error:`, error);
+            }
         }
-
+        
         if (delivered) {
-            stats.tx += JSON.stringify(item.packet).length;
+            stats.tx += JSON.stringify(item.data).length;
             stats.messages++;
             updateStats();
-            displayMessage(`✅ ENTREGADO: ${item.original.substring(0,40)}...`, '', 'system');
-        } else if (item.attempts < 8) {
+            playStrongBeep(600, 50);
+        } else if (item.attempts < 10) {
             remaining.push(item);
         } else {
-            displayMessage(`❌ NO ENTREGADO: ${item.original.substring(0,30)}...`, '', 'system');
+            displayMessage(`❌ NO ENTREGADO: ${item.original.substring(0, 30)}...`, '', 'system');
         }
     });
-
+    
     messageQueue = remaining;
     localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
     updateQueueCounter();
 }
 
-// === DISPLAYMESSAGE MEJORADO ===
-function displayMessage(content, hex = '', type = 'incoming') {
-    const monitor = document.getElementById('monitor-decoded');
-    if (!monitor) return;  // Fix: Null check
+function updateQueueCounter() {
+    let counter = document.getElementById('queue-counter');
     
-    const div = document.createElement('div');
-    div.className = `message-bubble message-${type}`;
-    
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
-    // Fix XSS: Crea nodos DOM en lugar de innerHTML
-    const timeSpan = document.createElement('span');
-    timeSpan.style.color = '#888';
-    timeSpan.style.fontSize = '0.55rem';
-    timeSpan.textContent = time;  // textContent escapa auto
-    div.appendChild(timeSpan);
-    div.innerHTML += '<br>';  // Solo HTML estático seguro
-    
-    const contentSpan = document.createElement('span');
-    contentSpan.textContent = content;  // Seguro
-    div.appendChild(contentSpan);
-    
-    if (hex) {
-        const hexSmall = document.createElement('small');
-        hexSmall.style.color = '#00ffea';
-        hexSmall.innerHTML = `<br>HEX: ${DOMPurify.sanitize(hex)}`;  // Sanitiza si HTML
-        div.appendChild(hexSmall);
+    if (!counter) {
+        const statsPanel = document.querySelector('.stats-panel');
+        if (statsPanel) {
+            const queueItem = document.createElement('div');
+            queueItem.className = 'stat-item';
+            queueItem.id = 'queue-item';
+            queueItem.innerHTML = `
+                <div class="stat-value" id="queue-counter">0</div>
+                <div class="stat-label">EN COLA</div>
+            `;
+            statsPanel.appendChild(queueItem);
+            counter = document.getElementById('queue-counter');
+        }
     }
     
-    monitor.appendChild(div);
+    if (counter) {
+        counter.textContent = messageQueue.length;
+        
+        if (messageQueue.length === 0) {
+            counter.style.color = '#00ff88';
+        } else if (messageQueue.length < 5) {
+            counter.style.color = '#ffaa00';
+        } else {
+            counter.style.color = '#ff3300';
+            counter.style.animation = 'pulse 1s infinite';
+        }
+    }
+}
+
+function deliverOnConnect(peerId) {
+    if (messageQueue.length === 0) return;
+    
+    const remaining = [];
+    
+    messageQueue.forEach(item => {
+        if (item.target === peerId || item.target === 'GLOBAL') {
+            try {
+                if (connections[peerId]?.status === 'online') {
+                    connections[peerId].conn.send(item.data);
+                    displayMessage(`🎯 ENTREGADO A NUEVA CONEXIÓN ${peerId.substring(0,6)}`, '', 'system');
+                    stats.tx += JSON.stringify(item.data).length;
+                    stats.messages++;
+                }
+            } catch (error) {
+                console.error(`Error:`, error);
+                remaining.push(item);
+            }
+        } else {
+            remaining.push(item);
+        }
+    });
+    
+    messageQueue = remaining;
+    localStorage.setItem('radcom_message_queue', JSON.stringify(messageQueue));
+    updateQueueCounter();
+}
+
+function initQueue() {
+    updateQueueCounter();
+    if (messageQueue.length > 0) {
+        updateMonitor(`📨 ${messageQueue.length} mensaje(s) en cola`);
+        if (!queueRetryInterval) {
+            startQueueSystem();
+        }
+    }
+}
+
+// =============================================
+// FUNCIONES DE UI Y DISPLAY
+// =============================================
+
+function buildAsciiTable() {
+    const table = document.getElementById('ansiTable');
+    let html = "<thead><tr><th class=\"row-idx\">V\\H</th>";
+    
+    for (let i = 0; i < 8; i++) {
+        html += `<th>${i.toString(16).toUpperCase()}</th>`;
+    }
+    html += "</tr></thead><tbody>";
+    
+    for (let row = 0; row < 16; row++) {
+        const rowHex = row.toString(16).toUpperCase();
+        html += `<tr><td class="row-idx">${rowHex}</td>`;
+        
+        for (let col = 0; col < 8; col++) {
+            const displayChar = chars[row][col];
+            const asciiCode = (col << 4) | row;
+            const hexCode = asciiCode.toString(16).toUpperCase().padStart(2, '0');
+            
+            html += `<td data-row="${row}" data-col="${col}" data-ascii="${asciiCode}" 
+                     data-hex="${hexCode}" data-char="${displayChar}" 
+                     onclick="selectTableChar(this)"
+                     title="${displayChar} | HEX: ${hexCode} | DEC: ${asciiCode}">
+                     ${displayChar}
+                     </td>`;
+        }
+        html += "</tr>";
+    }
+    
+    html += "</tbody>";
+    table.innerHTML = html;
+}
+
+function buildMorseTable() {
+    const table = document.getElementById('morseTable');
+    let html = "<thead><tr><th>CARÁCTER</th><th>CÓDIGO MORSE</th><th>EJEMPLO FONÉTICO</th><th>PROBAR</th></tr></thead><tbody>";
+    
+    for (let charCode = 65; charCode <= 90; charCode++) {
+        const char = String.fromCharCode(charCode);
+        const morse = morseCodes[char];
+        const phonetic = phoneticAlphabetFull[char]?.word || char;
+        
+        html += `
+            <tr>
+                <td class="morse-char" onclick="selectMorseChar('${char}')">${char}</td>
+                <td class="morse-code" onclick="selectMorseCode('${morse}')">${morse}</td>
+                <td class="phonetic-example">${phonetic}</td>
+                <td>
+                    <button class="play-morse-btn" onclick="playMorseCharSound('${char}')" 
+                            title="Probar sonido Morse para ${char}">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+    
+    for (let i = 0; i <= 9; i++) {
+        const char = i.toString();
+        const morse = morseCodes[char];
+        const phonetic = phoneticAlphabetFull[char]?.word || char;
+        
+        html += `
+            <tr>
+                <td class="morse-char" onclick="selectMorseChar('${char}')">${char}</td>
+                <td class="morse-code" onclick="selectMorseCode('${morse}')">${morse}</td>
+                <td class="phonetic-example">${phonetic}</td>
+                <td>
+                    <button class="play-morse-btn" onclick="playMorseCharSound('${char}')" 
+                            title="Probar sonido Morse para ${char}">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+    
+    const specialChars = ['.', ',', '?', '/', ' '];
+    specialChars.forEach(char => {
+        const morse = morseCodes[char];
+        const displayChar = char === ' ' ? 'ESPACIO' : char;
+        
+        html += `
+            <tr>
+                <td class="morse-char" onclick="selectMorseChar('${char}')">${displayChar}</td>
+                <td class="morse-code" onclick="selectMorseCode('${morse}')">${morse}</td>
+                <td class="phonetic-example">---</td>
+                <td>
+                    <button class="play-morse-btn" onclick="playMorseCharSound('${char}')" 
+                            title="Probar sonido Morse para ${displayChar}">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += "</tbody>";
+    table.innerHTML = html;
+}
+
+function buildRadioTable() {
+    const grid = document.getElementById('phonetic-grid');
+    let html = '';
+    
+    Object.keys(phoneticAlphabetFull).forEach(char => {
+        const data = phoneticAlphabetFull[char];
+        html += `
+            <div class="phonetic-item" onclick="selectPhoneticCharRadio('${char}')" 
+                 title="${char}: ${data.word} (${data.pronunciation})">
+                <div class="phonetic-char">${char}</div>
+                <div class="phonetic-word">${data.word}</div>
+                <div class="phonetic-pronunciation">${data.pronunciation}</div>
+            </div>
+        `;
+    });
+    
+    grid.innerHTML = html;
+    
+    updateFrequencyDisplay();
+    updateEmergencyFrequencies();
+    buildPMRChannels();
+    buildCBChannels();
+    
+    const freqInput = document.getElementById('radio-frequency-input');
+    const unitSelect = document.getElementById('radio-unit');
+    
+    if (freqInput) {
+        freqInput.addEventListener('input', validateFrequency);
+        freqInput.addEventListener('change', updateFrequencyFromInput);
+    }
+    if (unitSelect) {
+        unitSelect.addEventListener('change', updateUnit);
+    }
+}
+
+function selectTableChar(cell) {
+    document.querySelectorAll('#ansiTable td.selected').forEach(td => {
+        td.classList.remove('selected');
+    });
+    
+    cell.classList.add('selected');
+    
+    const row = parseInt(cell.getAttribute('data-row'));
+    const col = parseInt(cell.getAttribute('data-col'));
+    const asciiCode = parseInt(cell.getAttribute('data-ascii'));
+    const hexCode = cell.getAttribute('data-hex');
+    const displayChar = cell.getAttribute('data-char');
+    
+    updateCharPreview(row, col, asciiCode, hexCode, displayChar);
+    
+    const input = document.getElementById('inputMsg');
+    const inputMode = document.getElementById('inputMode').value;
+    
+    if (displayChar === "SPC") {
+        if (inputMode === 'hex') {
+            input.value += "20 ";
+        } else if (inputMode === 'binary') {
+            input.value += "00100000 ";
+        } else {
+            input.value += " ";
+        }
+    } else if (displayChar === "DEL") {
+        if (inputMode === 'hex') {
+            input.value += "7F ";
+        } else if (inputMode === 'binary') {
+            input.value += "01111111 ";
+        } else {
+            input.value += "\x7F";
+        }
+    } else if (col <= 1) {
+        if (inputMode === 'hex') {
+            input.value += hexCode + " ";
+        } else if (inputMode === 'binary') {
+            const binary = asciiCode.toString(2).padStart(8, '0');
+            input.value += binary + " ";
+        } else {
+            if (asciiCode === 9) input.value += "\t";
+            else if (asciiCode === 10) input.value += "\n";
+            else if (asciiCode === 13) input.value += "\r";
+            else if (asciiCode === 27) input.value += "\x1B";
+            else input.value += `[${displayChar}]`;
+        }
+    } else if (displayChar.length === 1) {
+        if (inputMode === 'hex') {
+            input.value += hexCode + " ";
+        } else if (inputMode === 'binary') {
+            const binary = asciiCode.toString(2).padStart(8, '0');
+            input.value += binary + " ";
+        } else {
+            input.value += displayChar;
+        }
+    }
+    
+    input.focus();
+    playStrongBeep(600, 50);
+}
+
+function selectMorseChar(char) {
+    const input = document.getElementById('inputMsg');
+    const inputMode = document.getElementById('inputMode').value;
+    
+    input.value += char;
+    input.focus();
+    
+    if (inputMode === 'morse' && document.getElementById('soundEnabled')?.checked) {
+        playMorseCharSound(char);
+    } else {
+        playStrongBeep(600, 50);
+    }
+}
+
+function selectMorseCode(code) {
+    const input = document.getElementById('inputMsg');
+    const inputMode = document.getElementById('inputMode').value;
+    
+    if (inputMode === 'morse') {
+        input.value += code + ' ';
+    } else {
+        const char = getCharFromMorse(code);
+        if (char) {
+            input.value += char;
+        } else {
+            input.value += code;
+        }
+    }
+    
+    input.focus();
+    
+    if (inputMode === 'morse') {
+        playMorseCodeSound(code);
+    } else {
+        playStrongBeep(600, 50);
+    }
+}
+
+function getCharFromMorse(morseCode) {
+    for (const [char, code] of Object.entries(morseCodes)) {
+        if (code === morseCode) {
+            return char;
+        }
+    }
+    return null;
+}
+
+function updateCharPreview(vertical, horizontal, ascii, hex, char) {
+    document.getElementById('current-char').textContent = char;
+    document.getElementById('current-hex').textContent = hex;
+    document.getElementById('current-dec').textContent = ascii;
+    document.getElementById('current-bin').textContent = ascii.toString(2).padStart(8, '0');
+    document.getElementById('current-pos').textContent = 
+        `V:${vertical.toString(16).toUpperCase()} H:${horizontal.toString(16).toUpperCase()}`;
+}
+
+function clearTableSelection() {
+    document.querySelectorAll('#ansiTable td.selected').forEach(td => {
+        td.classList.remove('selected');
+    });
+    
+    document.getElementById('current-char').textContent = '-';
+    document.getElementById('current-hex').textContent = '--';
+    document.getElementById('current-dec').textContent = '---';
+    document.getElementById('current-bin').textContent = '--------';
+    document.getElementById('current-pos').textContent = 'V:-- H:--';
+    
+    document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
+        td.classList.remove('highlighted');
+    });
+}
+
+function realTimeTableHighlight() {
+    const input = document.getElementById('inputMsg');
+    const text = input.value;
+    
+    document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
+        td.classList.remove('highlighted');
+    });
+    
+    if (text.length === 0) {
+        return;
+    }
+    
+    const lastChar = text[text.length - 1];
+    const asciiCode = lastChar.charCodeAt(0);
+    
+    if (asciiCode >= 32 && asciiCode <= 126) {
+        const row = asciiCode & 0x0F;
+        const col = (asciiCode >> 4) & 0x07;
+        
+        const cell = document.querySelector(`#ansiTable td[data-ascii="${asciiCode}"]`);
+        if (cell) {
+            cell.classList.add('highlighted');
+            
+            const displayChar = cell.getAttribute('data-char');
+            const hex = cell.getAttribute('data-hex');
+            updateCharPreview(row, col, asciiCode, hex, displayChar);
+            
+            cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+    } else if (lastChar === ' ') {
+        const cell = document.querySelector('#ansiTable td[data-char="SPC"]');
+        if (cell) {
+            cell.classList.add('highlighted');
+            const row = parseInt(cell.getAttribute('data-row'));
+            const col = parseInt(cell.getAttribute('data-col'));
+            const ascii = parseInt(cell.getAttribute('data-ascii'));
+            const hex = cell.getAttribute('data-hex');
+            updateCharPreview(row, col, ascii, hex, 'SPC');
+        }
+    } else if (lastChar === '\x7F') {
+        const cell = document.querySelector('#ansiTable td[data-char="DEL"]');
+        if (cell) {
+            cell.classList.add('highlighted');
+            const row = parseInt(cell.getAttribute('data-row'));
+            const col = parseInt(cell.getAttribute('data-col'));
+            const ascii = parseInt(cell.getAttribute('data-ascii'));
+            const hex = cell.getAttribute('data-hex');
+            updateCharPreview(row, col, ascii, hex, 'DEL');
+        }
+    }
+}
+
+function realTimePreview() {
+    clearTimeout(window.previewTimeout);
+    window.previewTimeout = setTimeout(() => {
+        const input = document.getElementById('inputMsg');
+        const message = input.value;
+        
+        if (!message) {
+            updateMonitor("ESCUCHA ACTIVA...");
+            return;
+        }
+        
+        const key = document.getElementById('key').value || 'ATOM80';
+        let hex = '';
+        for (let i = 0; i < Math.min(message.length, 3); i++) {
+            const charCode = message.charCodeAt(i);
+            const keyCode = key.charCodeAt(i % key.length);
+            hex += (charCode ^ keyCode).toString(16).padStart(2, '0');
+        }
+        
+        updateMonitor(`PREVIEW: ${hex}...`);
+    }, 300);
+    
+    const mode = document.getElementById('inputMode').value;
+    if (mode === 'morse') {
+        updateMorseTranslation(input.value);
+    } else {
+        document.getElementById('morse-translation').classList.remove('active');
+    }
+}
+
+function updateMorseTranslation(text) {
+    const translationBox = document.getElementById('morse-translation');
+    const textDisplay = document.getElementById('morse-text-display');
+    const codeDisplay = document.getElementById('morse-code-display');
+    
+    if (!text.trim()) {
+        translationBox.classList.remove('active');
+        return;
+    }
+    
+    translationBox.classList.add('active');
+    
+    if (/^[\.\-\s\/]+$/.test(text.trim())) {
+        textDisplay.textContent = decodeMorse(text) || "[Código Morse]";
+        codeDisplay.textContent = text;
+    } else {
+        textDisplay.textContent = text;
+        codeDisplay.textContent = textToMorse(text);
+    }
+}
+
+function decodeMorse(morseCode) {
+    const morseMap = {};
+    for (const [char, code] of Object.entries(morseCodes)) {
+        morseMap[code] = char;
+    }
+    
+    return morseCode.split(' ').map(code => morseMap[code] || '?').join('');
+}
+
+function textToMorse(text) {
+    return text.toUpperCase().split('').map(char => morseCodes[char] || char).join(' ');
+}
+
+function textToPhonetic(text) {
+    return text.toUpperCase().split('').map(char => phoneticAlphabetFull[char]?.word || char).join(' ');
+}
+
+function isMorseCode(text) {
+    const morseRegex = /^[\.\-\s\/]+$/;
+    return morseRegex.test(text);
+}
+
+function clearMorseTranslation() {
+    document.getElementById('morse-translation').classList.remove('active');
+    document.getElementById('morse-text-display').textContent = '';
+    document.getElementById('morse-code-display').textContent = '';
+}
+
+function displayMessage(content, hex, type) {
+    const monitor = document.getElementById('monitor-decoded');
+    const messageDiv = document.createElement('div');
+    
+    messageDiv.className = `message-bubble message-${type}`;
+    
+    let displayContent = content;
+    if (content.length > 150) {
+        displayContent = content.substring(0, 150) + '...';
+    }
+    
+    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+    
+    messageDiv.innerHTML = `
+        <div style="margin-bottom:1px;">
+            <span style="color:#${type === 'outgoing' ? '0088ff' : type === 'incoming' ? 'ff3300' : '00ff88'}">
+                ${time}
+            </span>
+        </div>
+        <div>${escapeHtml(displayContent)}</div>
+        ${hex ? `<div style="font-size:0.55rem; color:#888; margin-top:1px;">
+            <i class="fas fa-code"></i> ${hex}</div>` : ''}
+    `;
+    
+    monitor.appendChild(messageDiv);
     monitor.scrollTop = monitor.scrollHeight;
 }
 
-// === ACTUALIZACIÓN DINÁMICA DEL BADGE DE SEGURIDAD ===
-function updateSecurityBadge() {
-    const mode = document.getElementById('encryptionMode').value;
-    const badge = document.querySelector('.security-badge');
-    
-    if (!badge) return;
-    
-    let color = '#ff3300';
-    let text = 'SIN CIFRADO';
-    
-    if (mode === 'aes-gcm-ecdh') {
-        color = '#00ff88';
-        text = 'AES-256-GCM + ECDH';
-    } else if (mode === 'aes-cbc') {
-        color = '#00ffea';
-        text = 'AES-CBC (legacy)';
-    } else if (mode === 'xor') {
-        color = '#ffaa00';
-        text = 'XOR';
-    }
-    
-    badge.style.color = color;
-    badge.querySelector('span:last-child').textContent = text;
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-// === INICIALIZACIÓN FINAL (ejecutar al final) ===
+function updateMonitor(message, type = 'info') {
+    const monitor = document.getElementById('monitor-raw');
+    const color = type === 'error' ? '#ff3300' : type === 'warning' ? '#ffaa00' : '#00ff88';
+    
+    monitor.innerHTML = `<span style="color:${color}">${message}</span>`;
+}
+
+function clearChat() {
+    if (confirm("¿Borrar todo el historial del chat?")) {
+        document.getElementById('monitor-decoded').innerHTML = 
+            '<div class="message-bubble message-system"><i class="fas fa-satellite"></i> HISTORIAL LIMPIADO</div>';
+        updateMonitor("✅ CHAT LIMPIADO");
+        playStrongBeep(400, 200);
+    }
+}
+
+function validateInput() {
+    const input = document.getElementById('inputMsg');
+    const mode = document.getElementById('inputMode').value;
+    const value = input.value.trim();
+    
+    input.classList.remove('invalid');
+    
+    if (mode === 'hex') {
+        const hexRegex = /^[0-9a-fA-F\s]*$/;
+        if (!hexRegex.test(value)) {
+            input.classList.add('invalid');
+            return false;
+        }
+    } else if (mode === 'binary') {
+        const binRegex = /^[01\s]*$/;
+        if (!binRegex.test(value)) {
+            input.classList.add('invalid');
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+function validateInputMode() {
+    const input = document.getElementById('inputMsg');
+    const mode = document.getElementById('inputMode').value;
+    
+    if (mode === 'text') {
+        input.placeholder = "INYECTAR DATOS SEGUROS...";
+    } else if (mode === 'hex') {
+        input.placeholder = "INGRESA HEX (0-9, A-F)...";
+    } else if (mode === 'binary') {
+        input.placeholder = "INGRESA BINARIO (0-1)...";
+    } else if (mode === 'morse') {
+        input.placeholder = "ESCRIBE CÓDIGO MORSE (. y -) o texto...";
+    } else if (mode === 'phonetic') {
+        input.placeholder = "INGRESA TEXTO PARA FONÉTICO...";
+    } else if (mode === 'satellite') {
+        input.placeholder = "PREPARADO PARA SATÉLITE...";
+    }
+    
+    input.value = '';
+    validateInput();
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.tab-button[data-tab="${tab}"]`).classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    document.getElementById(`${tab}-table`).classList.add('active');
+
+    const modeSelect = document.getElementById('inputMode');
+    if (tab === 'ascii') {
+        if (modeSelect.value === 'morse' || modeSelect.value === 'phonetic' || modeSelect.value === 'satellite') {
+            modeSelect.value = 'text';
+        }
+    } else if (tab === 'morse') {
+        modeSelect.value = 'morse';
+    } else if (tab === 'radio') {
+        modeSelect.value = 'phonetic';
+        if (typeof initRadioSystem === 'function') {
+            setTimeout(initRadioSystem, 100);
+        }
+    } else if (tab === 'satellite') {
+        modeSelect.value = 'satellite';
+        initializeSatelliteWeather();
+    }
+    validateInputMode();
+}
+
+function switchTabFromMode() {
+    const mode = document.getElementById('inputMode').value;
+    if (mode === 'text' || mode === 'hex' || mode === 'binary') {
+        switchTab('ascii');
+    } else if (mode === 'morse') {
+        switchTab('morse');
+    } else if (mode === 'phonetic') {
+        switchTab('radio');
+    } else if (mode === 'satellite') {
+        switchTab('satellite');
+    }
+}
+
+function loadHistoryFromLocal() {
+    let history = JSON.parse(localStorage.getItem('radcom_history_v47') || "[]");
+    if(history.length > 0) {
+        updateMonitor("📂 RECUPERANDO MENSAJES GUARDADOS...");
+        history.forEach(item => {
+            const logContainer = document.getElementById('logContainer');
+            if(logContainer) {
+                const div = document.createElement('div');
+                div.style.borderLeft = "2px solid #333";
+                div.style.paddingLeft = "5px";
+                div.style.marginBottom = "2px";
+                div.style.color = "#00aa66"; 
+                div.innerHTML = `<small>[Historial ${item.time}]</small> <b>${item.sender}:</b> ${item.text}`;
+                logContainer.appendChild(div);
+            }
+        });
+    }
+}
+
+// =============================================
+// FUNCIONES DE SONIDO Y AUDIO
+// =============================================
+
+function initMorseAudio() {
+    if (!morseAudioContext) {
+        try {
+            morseAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (error) {
+            console.error("Error inicializando audio Morse:", error);
+        }
+    }
+}
+
+function initRadioAudio() {
+    if (!radioAudioContext) {
+        try {
+            radioAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (error) {
+            console.error("Error inicializando audio radio:", error);
+        }
+    }
+}
+
+function playStrongBeep(freq, duration) {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = freq;
+    oscillator.type = 'sawtooth';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration / 1000);
+}
+
+function playMessageNotification() {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    let currentTime = audioContext.currentTime;
+    
+    [800, 1200, 1000].forEach((freq, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = freq;
+        oscillator.type = 'sawtooth';
+        
+        gainNode.gain.setValueAtTime(0.4, currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.15);
+        
+        oscillator.start(currentTime);
+        oscillator.stop(currentTime + 0.15);
+        
+        currentTime += 0.2;
+    });
+}
+
+function playRadioBeep(freq, duration) {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    initRadioAudio();
+    if (!radioAudioContext) return;
+    
+    const oscillator = radioAudioContext.createOscillator();
+    const gainNode = radioAudioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(radioAudioContext.destination);
+    
+    oscillator.frequency.value = freq;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, radioAudioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, radioAudioContext.currentTime + duration / 1000);
+    
+    oscillator.start(radioAudioContext.currentTime);
+    oscillator.stop(radioAudioContext.currentTime + duration / 1000);
+}
+
+function playBandChangeSound(band) {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    initRadioAudio();
+    if (!radioAudioContext) return;
+    
+    let time = radioAudioContext.currentTime;
+    
+    const freqs = {
+        'UHF': [1200, 1400, 1600],
+        'VHF': [800, 1000, 1200],
+        'AEREA': [600, 800, 1000],
+        'MARINA': [400, 600, 800],
+        'HF': [200, 400, 600],
+        'EMERG': [300, 150, 300]
+    }[band] || [800, 1000, 1200];
+    
+    freqs.forEach((freq, index) => {
+        const oscillator = radioAudioContext.createOscillator();
+        const gainNode = radioAudioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(radioAudioContext.destination);
+        
+        oscillator.frequency.value = freq;
+        oscillator.type = 'sawtooth';
+        
+        gainNode.gain.setValueAtTime(0.4, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        
+        oscillator.start(time);
+        oscillator.stop(time + 0.1);
+        
+        time += 0.15;
+    });
+}
+
+function playPhoneticSound(char) {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    playRadioBeep(500 + char.charCodeAt(0) * 10, 100);
+}
+
+function playEmergencyTone() {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    initRadioAudio();
+    if (!radioAudioContext) return;
+    
+    let time = radioAudioContext.currentTime;
+    
+    for (let i = 0; i < 3; i++) {
+        const oscillator = radioAudioContext.createOscillator();
+        const gainNode = radioAudioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(radioAudioContext.destination);
+        
+        oscillator.frequency.value = i % 2 === 0 ? 1000 : 500;
+        oscillator.type = 'sawtooth';
+        
+        gainNode.gain.setValueAtTime(0.5, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
+        
+        oscillator.start(time);
+        oscillator.stop(time + 0.3);
+        
+        time += 0.35;
+    }
+}
+
+function playTransmissionSound() {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    initRadioAudio();
+    if (!radioAudioContext) return;
+    
+    const bufferSize = radioAudioContext.sampleRate * 0.5;
+    const buffer = radioAudioContext.createBuffer(1, bufferSize, radioAudioContext.sampleRate);
+    const output = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+        output[i] += 0.3 * Math.sin(2 * Math.PI * 1000 * i / radioAudioContext.sampleRate);
+        const envelope = i < bufferSize * 0.1 ? i / (bufferSize * 0.1) : (bufferSize - i) / (bufferSize * 0.9);
+        output[i] *= envelope;
+    }
+    
+    const source = radioAudioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(radioAudioContext.destination);
+    source.start();
+    
+    const staticOverlay = document.getElementById('static-overlay');
+    staticOverlay.classList.add('static-active');
+    
+    setTimeout(() => {
+        staticOverlay.classList.remove('static-active');
+    }, 500);
+}
+
+function playEmergencySatelliteTone() {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    let time = audioContext.currentTime;
+    
+    for (let i = 0; i < 3; i++) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, time);
+        oscillator.frequency.exponentialRampToValueAtTime(1200, time + 0.3);
+        oscillator.type = 'sawtooth';
+        
+        gainNode.gain.setValueAtTime(0.6, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
+        
+        oscillator.start(time);
+        oscillator.stop(time + 0.3);
+        
+        time += 0.4;
+    }
+}
+
+function playEmergencyAlertSound() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    let time = audioContext.currentTime;
+    
+    for (let i = 0; i < 3; i++) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 1500;
+        oscillator.type = 'square';
+        
+        gainNode.gain.setValueAtTime(0.5, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        
+        oscillator.start(time);
+        oscillator.stop(time + 0.1);
+        
+        time += 0.15;
+    }
+}
+
+function playMorseCharSound(char) {
+    if (isPlayingMorse) return;
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    const morseCode = morseCodes[char];
+    if (morseCode) {
+        playMorseCodeSound(morseCode);
+    }
+}
+
+function playMorseCodeSound(code) {
+    if (!document.getElementById('soundEnabled')?.checked) return;
+    
+    initMorseAudio();
+    if (!morseAudioContext || isPlayingMorse) return;
+    
+    isPlayingMorse = true;
+    let time = morseAudioContext.currentTime;
+    
+    let dotDuration, dashDuration, symbolGap;
+    
+    switch (morseSpeed) {
+        case 'slow':
+            dotDuration = 0.2;
+            dashDuration = 0.6;
+            symbolGap = 0.15;
+            break;
+        case 'fast':
+            dotDuration = 0.1;
+            dashDuration = 0.3;
+            symbolGap = 0.08;
+            break;
+        default:
+            dotDuration = 0.15;
+            dashDuration = 0.45;
+            symbolGap = 0.1;
+    }
+    
+    for (let i = 0; i < code.length; i++) {
+        const symbol = code[i];
+        
+        if (symbol === '.' || symbol === '-') {
+            const duration = symbol === '.' ? dotDuration : dashDuration;
+            
+            const oscillator = morseAudioContext.createOscillator();
+            const gainNode = morseAudioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(morseAudioContext.destination);
+            
+            oscillator.frequency.value = 700;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, time);
+            gainNode.gain.linearRampToValueAtTime(0.3, time + 0.01);
+            gainNode.gain.setValueAtTime(0.3, time + duration - 0.01);
+            gainNode.gain.linearRampToValueAtTime(0, time + duration);
+            
+            oscillator.start(time);
+            oscillator.stop(time + duration);
+            
+            time += duration + symbolGap;
+        }
+    }
+    
+    setTimeout(() => {
+        isPlayingMorse = false;
+    }, (time - morseAudioContext.currentTime) * 1000 + 100);
+}
+
+function setMorseSpeed(speed) {
+    morseSpeed = speed;
+    
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.speed-btn[onclick="setMorseSpeed('${speed}')"]`).classList.add('active');
+    
+    updateMonitor(`⚡ Velocidad Morse: ${speed.toUpperCase()}`);
+    playStrongBeep(800, 50);
+}
+
+function playMorsePreview() {
+    const input = document.getElementById('inputMsg');
+    const text = input.value.trim();
+    
+    if (!text) {
+        updateMonitor("⚠️ Escribe algo para probar el sonido Morse", "warning");
+        playStrongBeep(300, 100);
+        return;
+    }
+    
+    if (!document.getElementById('soundEnabled')?.checked) {
+        updateMonitor("🔇 Sonido desactivado en configuración", "warning");
+        return;
+    }
+    
+    updateMonitor(`🔊 Probando Morse: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`);
+    
+    const words = text.toUpperCase().split(' ');
+    
+    let totalDelay = 0;
+    words.forEach((word, wordIndex) => {
+        for (let i = 0; i < word.length; i++) {
+            const char = word[i];
+            const morseCode = morseCodes[char];
+            
+            if (morseCode) {
+                setTimeout(() => {
+                    playMorseCodeSound(morseCode);
+                }, totalDelay);
+                
+                const dotDuration = morseSpeed === 'slow' ? 200 : morseSpeed === 'fast' ? 100 : 150;
+                const dashDuration = morseSpeed === 'slow' ? 600 : morseSpeed === 'fast' ? 300 : 450;
+                const symbolGap = morseSpeed === 'slow' ? 150 : morseSpeed === 'fast' ? 80 : 100;
+                const letterGap = morseSpeed === 'slow' ? 400 : morseSpeed === 'fast' ? 200 : 300;
+                
+                let charDuration = 0;
+                for (let j = 0; j < morseCode.length; j++) {
+                    if (morseCode[j] === '.') charDuration += dotDuration + symbolGap;
+                    else if (morseCode[j] === '-') charDuration += dashDuration + symbolGap;
+                }
+                
+                totalDelay += charDuration + letterGap;
+            }
+        }
+        
+        if (wordIndex < words.length - 1) {
+            totalDelay += morseSpeed === 'slow' ? 1200 : morseSpeed === 'fast' ? 600 : 900;
+        }
+    });
+    
+    playStrongBeep(1000, 100);
+}
+
+// =============================================
+// SISTEMA DE RADIO
+// =============================================
+
+function validateFrequency() {
+    const input = document.getElementById('radio-frequency-input');
+    if (!input) return;
+    const value = input.value.replace(',', '.');
+    
+    if (!/^[\d.]*$/.test(value)) {
+        input.value = value.replace(/[^\d.]/g, '');
+    }
+    
+    const parts = value.split('.');
+    if (parts.length > 1 && parts[1].length > 3) {
+        input.value = parts[0] + '.' + parts[1].substring(0, 3);
+    }
+}
+
+function updateFrequencyFromInput() {
+    const input = document.getElementById('radio-frequency-input');
+    if (!input) return;
+    let value = parseFloat(input.value.replace(',', '.'));
+    
+    if (isNaN(value)) {
+        value = radioBands[currentBand].default;
+        input.value = value.toFixed(3);
+    }
+    
+    currentFrequency = value;
+    updateFrequencyDisplay();
+    updateChannelDisplay();
+    playRadioBeep(800, 50);
+}
+
+function updateUnit() {
+    const unitSelect = document.getElementById('radio-unit');
+    if (!unitSelect) return;
+    currentUnit = unitSelect.value;
+    
+    if (currentUnit === 'KHz' && currentFrequency > 1000) {
+        currentFrequency = currentFrequency / 1000;
+    } else if (currentUnit === 'MHz' && currentFrequency < 1) {
+        currentFrequency = currentFrequency * 1000;
+    }
+    
+    updateFrequencyDisplay();
+    updateChannelDisplay();
+}
+
+function tuneFrequency(step) {
+    currentFrequency += step;
+    
+    const band = radioBands[currentBand];
+    if (band) {
+        if (currentFrequency < band.min) currentFrequency = band.min;
+        if (currentFrequency > band.max) currentFrequency = band.max;
+    }
+    
+    updateFrequencyDisplay();
+    updateChannelDisplay();
+    playRadioBeep(600 + Math.abs(step) * 100, 30);
+    
+    const freqInput = document.getElementById('radio-frequency-input');
+    if (freqInput) freqInput.value = currentFrequency.toFixed(3);
+}
+
+function selectBand(band) {
+    currentBand = band;
+    currentHFBand = null;
+    
+    document.querySelectorAll('.band-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const bandBtn = document.querySelector(`.band-btn[data-band="${band}"]`);
+    if (bandBtn) bandBtn.classList.add('active');
+    
+    const hfContainer = document.getElementById('hf-sub-bands');
+    if (hfContainer) {
+        if (band === 'HF') {
+            hfContainer.style.display = 'block';
+            selectHFBand('10m');
+        } else {
+            hfContainer.style.display = 'none';
+            document.querySelectorAll('.hf-band-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+    }
+    
+    if (radioBands[band]) {
+        currentFrequency = radioBands[band].default;
+        currentUnit = radioBands[band].unit;
+        
+        const unitSelect = document.getElementById('radio-unit');
+        if (unitSelect) unitSelect.value = currentUnit;
+        
+        const freqInput = document.getElementById('radio-frequency-input');
+        if (freqInput) freqInput.value = currentFrequency.toFixed(3);
+        
+        updateFrequencyDisplay();
+        updateEmergencyFrequencies();
+        updateChannelDisplay();
+        
+        playBandChangeSound(band);
+    }
+}
+
+function selectHFBand(hfBand) {
+    currentHFBand = hfBand;
+    
+    document.querySelectorAll('.hf-band-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const hfBtn = document.querySelector(`.hf-band-btn[data-hf="${hfBand}"]`);
+    if (hfBtn) hfBtn.classList.add('active');
+    
+    if (hfBands[hfBand]) {
+        const range = hfBands[hfBand].range.split('-')[0];
+        const freq = parseFloat(range);
+        if (!isNaN(freq)) {
+            currentFrequency = freq;
+            const freqInput = document.getElementById('radio-frequency-input');
+            if (freqInput) freqInput.value = currentFrequency.toFixed(3);
+            updateFrequencyDisplay();
+            updateChannelDisplay();
+        }
+    }
+    
+    playRadioBeep(700, 40);
+}
+
+function selectChannelType(type) {
+    currentChannelType = type;
+    currentChannel = 1;
+    
+    document.querySelectorAll('.channel-type-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const typeBtn = document.querySelector(`.channel-type-btn[onclick="selectChannelType('${type}')"]`);
+    if (typeBtn) typeBtn.classList.add('active');
+    
+    document.querySelectorAll('.channel-container').forEach(container => {
+        container.classList.remove('active');
+    });
+    const container = document.getElementById(`${type}-container`);
+    if (container) container.classList.add('active');
+    
+    if (type === 'pmr') {
+        selectPMRChannel(1);
+    } else if (type === 'cb') {
+        selectCBChannel(19);
+    }
+    
+    playRadioBeep(600, 40);
+}
+
+function buildPMRChannels() {
+    const container = document.getElementById('pmr-channels-grid');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const channels = pmrChannels[currentPMRType];
+    for (let i = 1; i <= currentPMRType; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'channel-btn';
+        btn.textContent = i;
+        btn.onclick = () => selectPMRChannel(i);
+        container.appendChild(btn);
+    }
+    
+    if (container.firstChild) {
+        container.firstChild.classList.add('active');
+    }
+}
+
+function selectPMRType(type) {
+    currentPMRType = parseInt(type);
+    buildPMRChannels();
+    selectPMRChannel(1);
+}
+
+function selectPMRChannel(channel) {
+    const channels = pmrChannels[currentPMRType];
+    if (channels && channels[channel]) {
+        currentFrequency = channels[channel];
+        currentChannel = channel;
+        
+        document.querySelectorAll('#pmr-channels-grid .channel-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const btns = document.querySelectorAll('#pmr-channels-grid .channel-btn');
+        if (btns[channel - 1]) btns[channel - 1].classList.add('active');
+        
+        const freqInput = document.getElementById('radio-frequency-input');
+        if (freqInput) freqInput.value = currentFrequency.toFixed(5);
+        updateFrequencyDisplay();
+        updateChannelDisplay();
+        playRadioBeep(700, 40);
+    }
+}
+
+function buildCBChannels() {
+    const container = document.getElementById('cb-channels-grid');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    for (let i = 1; i <= 40; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'channel-btn';
+        btn.textContent = i;
+        btn.onclick = () => selectCBChannel(i);
+        container.appendChild(btn);
+    }
+    
+    if (container.children[18]) {
+        container.children[18].classList.add('active');
+    }
+}
+
+function selectCBChannel(channel) {
+    if (cbChannels[channel]) {
+        currentFrequency = cbChannels[channel];
+        currentChannel = channel;
+        
+        document.querySelectorAll('#cb-channels-grid .channel-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const btns = document.querySelectorAll('#cb-channels-grid .channel-btn');
+        if (btns[channel - 1]) btns[channel - 1].classList.add('active');
+        
+        const freqInput = document.getElementById('radio-frequency-input');
+        if (freqInput) freqInput.value = currentFrequency.toFixed(3);
+        updateFrequencyDisplay();
+        updateChannelDisplay();
+        playRadioBeep(700, 40);
+    }
+}
+
+function updateFrequencyDisplay() {
+    const display = document.getElementById('radio-frequency-display');
+    const activeDisplay = document.getElementById('active-frequency');
+    
+    if (!display || !activeDisplay) return;
+    
+    let freqText = currentFrequency.toFixed(3);
+    if (currentFrequency < 1 && currentUnit === 'MHz') {
+        freqText = (currentFrequency * 1000).toFixed(1) + ' KHz';
+    } else {
+        freqText += ' ' + currentUnit;
+    }
+    
+    display.textContent = freqText;
+    
+    let activeText = freqText + ' ' + currentBand;
+    if (currentHFBand) {
+        activeText += ' (' + currentHFBand + ')';
+    }
+    activeDisplay.textContent = activeText;
+    
+    localStorage.setItem('radcom_radio_freq', currentFrequency);
+    localStorage.setItem('radcom_radio_band', currentBand);
+    localStorage.setItem('radcom_radio_unit', currentUnit);
+    if (currentHFBand) {
+        localStorage.setItem('radcom_radio_hfband', currentHFBand);
+    }
+}
+
+function updateChannelDisplay() {
+    const display = document.getElementById('channel-display');
+    if (!display) return;
+    
+    if (currentChannelType === 'pmr') {
+        display.textContent = `PMR446 CH${currentChannel} (${currentFrequency.toFixed(5)} MHz)`;
+    } else if (currentChannelType === 'cb') {
+        display.textContent = `CB CH${currentChannel} (${currentFrequency.toFixed(3)} MHz)`;
+    } else {
+        display.textContent = `${currentBand} ${currentFrequency.toFixed(3)} ${currentUnit}`;
+    }
+}
+
+function updateEmergencyFrequencies() {
+    const list = document.getElementById('emergency-list');
+    if (!list) return;
+    
+    const emergencies = emergencyFrequencies[currentBand] || [];
+    
+    let html = '';
+    emergencies.forEach(emerg => {
+        html += `
+            <div class="emergency-item" onclick="setEmergencyFrequency('${emerg.freq}')" 
+                 title="${emerg.purpose}">
+                ${emerg.freq} MHz - ${emerg.purpose}
+            </div>
+        `;
+    });
+    
+    list.innerHTML = html || '<div class="emergency-item">No hay frecuencias de emergencia para esta banda</div>';
+}
+
+function setEmergencyFrequency(freq) {
+    currentFrequency = parseFloat(freq);
+    const freqInput = document.getElementById('radio-frequency-input');
+    if (freqInput) freqInput.value = currentFrequency.toFixed(3);
+    updateFrequencyDisplay();
+    updateChannelDisplay();
+    
+    playEmergencyTone();
+    updateMonitor(`⚠️ FRECUENCIA DE EMERGENCIA: ${freq} MHz`);
+}
+
+function selectPhoneticCharRadio(char) {
+    const input = document.getElementById('inputMsg');
+    const inputMode = document.getElementById('inputMode').value;
+    const data = phoneticAlphabetFull[char];
+    
+    if (inputMode === 'phonetic') {
+        input.value += data.word + ' ';
+    } else {
+        input.value += char;
+    }
+    
+    input.focus();
+    playPhoneticSound(char);
+}
+
+function initRadioSystem() {
+    buildRadioTable();
+    
+    const savedFreq = localStorage.getItem('radcom_radio_freq');
+    const savedBand = localStorage.getItem('radcom_radio_band');
+    const savedUnit = localStorage.getItem('radcom_radio_unit');
+    const savedHFBand = localStorage.getItem('radcom_radio_hfband');
+    
+    if (savedFreq) currentFrequency = parseFloat(savedFreq);
+    if (savedBand) currentBand = savedBand;
+    if (savedUnit) currentUnit = savedUnit;
+    if (savedHFBand) currentHFBand = savedHFBand;
+    
+    document.querySelectorAll('.band-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const bandBtn = document.querySelector(`.band-btn[data-band="${currentBand}"]`);
+    if (bandBtn) bandBtn.classList.add('active');
+    
+    const freqInput = document.getElementById('radio-frequency-input');
+    if (freqInput) freqInput.value = currentFrequency.toFixed(3);
+    
+    const unitSelect = document.getElementById('radio-unit');
+    if (unitSelect) unitSelect.value = currentUnit;
+    
+    const hfContainer = document.getElementById('hf-sub-bands');
+    if (hfContainer && currentBand === 'HF' && currentHFBand) {
+        hfContainer.style.display = 'block';
+        const hfBtn = document.querySelector(`.hf-band-btn[data-hf="${currentHFBand}"]`);
+        if (hfBtn) hfBtn.classList.add('active');
+    }
+    
+    updateFrequencyDisplay();
+    updateEmergencyFrequencies();
+    updateChannelDisplay();
+}
+
+// =============================================
+// SISTEMA SATELITAL
+// =============================================
+
+function getCurrentGPSPosition(forceOneTime = false) {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            updateMonitor("❌ Geolocalización no soportada en este navegador", "error");
+            reject(new Error("Geolocation no soportada"));
+            return;
+        }
+
+        updateMonitor("📍 Solicitando acceso a ubicación...", "info");
+        playStrongBeep(800, 100);
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 30000
+        };
+
+        const successCallback = (position) => {
+            satelliteSystem.latitude = position.coords.latitude;
+            satelliteSystem.longitude = position.coords.longitude;
+            satelliteSystem.altitude = position.coords.altitude || 0;
+            satelliteSystem.accuracy = position.coords.accuracy;
+            satelliteSystem.lastUpdate = new Date();
+
+            localStorage.setItem('radcom_last_position', JSON.stringify({
+                latitude: satelliteSystem.latitude,
+                longitude: satelliteSystem.longitude,
+                altitude: satelliteSystem.altitude,
+                accuracy: satelliteSystem.accuracy,
+                timestamp: Date.now()
+            }));
+
+            updateSatelliteUI();
+            updateMonitor(`📍 Posición actualizada (Precisión: ${Math.round(satelliteSystem.accuracy)} m)`, "info");
+            playStrongBeep(600, 50);
+
+            resolve();
+        };
+
+        const errorCallback = (error) => {
+            let msg = "❌ Error GPS: ";
+            let showInstructions = false;
+
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    msg += "Permiso denegado.";
+                    showInstructions = true;
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    msg += "Posición no disponible.";
+                    break;
+                case error.TIMEOUT:
+                    msg += "Tiempo agotado.";
+                    break;
+                default:
+                    msg += error.message;
+            }
+
+            updateMonitor(msg, "error");
+
+            if (showInstructions) {
+                alert(msg);
+            }
+
+            reject(error);
+        };
+
+        if (forceOneTime) {
+            navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options);
+        } else {
+            watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, options);
+        }
+    });
+}
+
+function useRealtPosition() {
+    satelliteSystem.latitude = 40.4168;
+    satelliteSystem.longitude = -3.7038;
+    satelliteSystem.altitude = 667;
+    satelliteSystem.accuracy = 1000;
+    satelliteSystem.lastUpdate = new Date();
+    
+    updateSatelliteUI();
+    updateMonitor("⚠️ Usando posición Real", "warning");
+    
+    fetchWeatherData();
+}
+
+function fetchWeatherData() {
+    if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+        updateMonitor("⚠️ Esperando posición GPS...", "warning");
+        return;
+    }
+
+    const lat = satelliteSystem.latitude.toFixed(4);
+    const lon = satelliteSystem.longitude.toFixed(4);
+
+    updateMonitor("🌤️ Consultando meteo + elevación...", "info");
+    updateAPIStatus("Conectando a Open-Meteo...", false);
+
+    try {
+        const meteoParams = new URLSearchParams({
+            latitude: lat,
+            longitude: lon,
+            hourly: 'temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,pressure_msl,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,precipitation_probability,rain,uv_index,is_day',
+            current_weather: true,
+            timezone: 'auto',
+            forecast_days: 1
+        }).toString();
+
+        const meteoUrl = `https://api.open-meteo.com/v1/forecast?${meteoParams}`;
+        console.log("📡 Meteo URL:", meteoUrl);
+
+        fetch(meteoUrl)
+            .then(response => {
+                if (!response.ok) throw new Error(`Meteo HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                satelliteSystem.weatherData = data;
+                
+                const elevUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
+                return fetch(elevUrl);
+            })
+            .then(elevResponse => {
+                if (!elevResponse.ok) throw new Error(`Elevación HTTP ${elevResponse.status}`);
+                return elevResponse.json();
+            })
+            .then(elevData => {
+                if (elevData.elevation && elevData.elevation.length > 0) {
+                    satelliteSystem.altitude = Math.round(elevData.elevation[0]);
+                }
+                
+                if (satelliteSystem.altitude === null || isNaN(satelliteSystem.altitude)) {
+                    satelliteSystem.altitude = satelliteSystem.altitude || 0;
+                }
+                
+                updateWeatherUI(satelliteSystem.weatherData);
+                updateSatelliteUI();
+                updateAPIStatus("Conectado", true);
+                updateMonitor("✅ Meteo y altitud actualizados", "info");
+                playStrongBeep(700, 30);
+            })
+            .catch(error => {
+                console.error("❌ Error API:", error);
+                satelliteSystem.apiConnected = false;
+                updateMonitor(`❌ Error: ${error.message}`, "error");
+                updateAPIStatus("Error conexión", false);
+                playStrongBeep(300, 200);
+                useSampleWeatherData();
+            });
+    } catch (error) {
+        console.error("❌ Error total:", error);
+        useSampleWeatherData();
+    }
+}
+
+function useSampleWeatherData() {
+    const sampleData = {
+        current_weather: {
+            temperature: 18.5,
+            windspeed: 12.3,
+            winddirection: 245
+        },
+        hourly: {
+            apparent_temperature: [17.2],
+            relative_humidity_2m: [68],
+            pressure_msl: [1015],
+            wind_gusts_10m: [25.6],
+            cloud_cover: [45],
+            visibility: [10000],
+            precipitation_probability: [10],
+            rain: [0.2],
+            dew_point_2m: [12.3],
+            uv_index: [4.5]
+        }
+    };
+    
+    satelliteSystem.weatherData = sampleData;
+    satelliteSystem.altitude = satelliteSystem.altitude || 667;
+    
+    updateWeatherUI(sampleData);
+    updateSatelliteUI();
+    updateMonitor("⚠️ Usando datos de muestra (Alt: 667 m)", "warning");
+}
+
+function updateWeatherUI(data) {
+    if (!data || !data.current_weather) return;
+    
+    const cw = data.current_weather;
+    const hourly = data.hourly;
+    const currentIndex = 0;
+    
+    document.getElementById('sat-temp').textContent = `${cw.temperature.toFixed(1)} °C`;
+    document.getElementById('sat-windspeed').textContent = `${cw.windspeed.toFixed(1)} km/h`;
+    document.getElementById('sat-winddirection').textContent = `${cw.winddirection} °`;
+    
+    if (hourly) {
+        if (hourly.apparent_temperature?.[currentIndex] !== undefined) {
+            document.getElementById('sat-feelslike').textContent = `${hourly.apparent_temperature[currentIndex].toFixed(1)} °C`;
+        }
+        
+        if (hourly.relative_humidity_2m?.[currentIndex] !== undefined) {
+            document.getElementById('sat-humidity').textContent = `${hourly.relative_humidity_2m[currentIndex].toFixed(0)} %`;
+        }
+        
+        if (hourly.pressure_msl?.[currentIndex] !== undefined) {
+            document.getElementById('sat-pressure').textContent = `${hourly.pressure_msl[currentIndex].toFixed(0)} hPa`;
+        }
+        
+        if (hourly.wind_gusts_10m?.[currentIndex] !== undefined) {
+            document.getElementById('sat-windgusts').textContent = `${hourly.wind_gusts_10m[currentIndex].toFixed(1)} km/h`;
+        }
+        
+        if (hourly.cloud_cover?.[currentIndex] !== undefined) {
+            document.getElementById('sat-cloudcover').textContent = `${hourly.cloud_cover[currentIndex].toFixed(0)} %`;
+        }
+        
+        if (hourly.visibility?.[currentIndex] !== undefined) {
+            const visibilityKm = hourly.visibility[currentIndex] / 1000;
+            document.getElementById('sat-visibility').textContent = `${visibilityKm.toFixed(1)} km`;
+        }
+        
+        if (hourly.precipitation_probability?.[currentIndex] !== undefined) {
+            document.getElementById('sat-precipitation').textContent = `${hourly.precipitation_probability[currentIndex].toFixed(0)} %`;
+        }
+        
+        if (hourly.rain?.[currentIndex] !== undefined) {
+            document.getElementById('sat-rain').textContent = `${hourly.rain[currentIndex].toFixed(1)} mm`;
+        }
+        
+        if (hourly.dew_point_2m?.[currentIndex] !== undefined) {
+            document.getElementById('sat-dewpoint').textContent = `${hourly.dew_point_2m[currentIndex].toFixed(1)} °C`;
+        }
+        
+        if (hourly.uv_index?.[currentIndex] !== undefined) {
+            document.getElementById('sat-uvindex').textContent = `${hourly.uv_index[currentIndex].toFixed(1)}`;
+        }
+        
+        calculateWeatherIndexes(cw.temperature, hourly.relative_humidity_2m?.[currentIndex] || 50, cw.windspeed);
+    }
+}
+
+function calculateWeatherIndexes(temp, humidity, windSpeed) {
+    if (temp >= 27) {
+        const T = temp;
+        const R = humidity;
+        const hi = -8.784695 + 1.61139411*T + 2.338549*R - 0.14611605*T*R 
+                  - 0.012308094*T*T - 0.016424828*R*R + 0.002211732*T*T*R 
+                  + 0.00072546*T*R*R - 0.000003582*T*T*R*R;
+        document.getElementById('sat-heatindex').textContent = `${hi.toFixed(1)} °C`;
+    } else {
+        document.getElementById('sat-heatindex').textContent = "N/A";
+    }
+    
+    if (temp <= 10 && windSpeed >= 5) {
+        const wc = 13.12 + 0.6215*temp - 11.37*Math.pow(windSpeed, 0.16) 
+                  + 0.3965*temp*Math.pow(windSpeed, 0.16);
+        document.getElementById('sat-windchill').textContent = `${wc.toFixed(1)} °C`;
+    } else {
+        document.getElementById('sat-windchill').textContent = "N/A";
+    }
+    
+    let aqiScore = 50;
+    if (humidity > 80) aqiScore += 20;
+    if (humidity < 30) aqiScore += 10;
+    if (temp > 30) aqiScore += 15;
+    
+    let aqiLevel = "Buena";
+    if (aqiScore > 150) aqiLevel = "Muy pobre";
+    else if (aqiScore > 100) aqiLevel = "Pobre";
+    else if (aqiScore > 50) aqiLevel = "Moderada";
+    
+    document.getElementById('sat-aqi').textContent = aqiLevel;
+    
+    document.getElementById('sat-sunshine').textContent = "8.5 h";
+    document.getElementById('sat-co2').textContent = "415 ppm";
+}
+
+function updateSatelliteUI() {
+    if (satelliteSystem.latitude && satelliteSystem.longitude) {
+        const lat = satelliteSystem.latitude.toFixed(4);
+        const lon = satelliteSystem.longitude.toFixed(4);
+        const latDir = satelliteSystem.latitude >= 0 ? 'N' : 'S';
+        const lonDir = satelliteSystem.longitude >= 0 ? 'E' : 'W';
+        
+        document.getElementById('sat-gps-coords').textContent = 
+            `Lat: ${Math.abs(lat)}° ${latDir}, Lon: ${Math.abs(lon)}° ${lonDir}`;
+        
+        const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : '--';
+        const acc = satelliteSystem.accuracy ? Math.round(satelliteSystem.accuracy) : '--';
+        document.getElementById('updateSatelliteUI').textContent = 
+            `Altitud: ${alt} m | Precisión: ${acc} m`;
+        
+        if (satelliteSystem.lastUpdate) {
+            const time = satelliteSystem.lastUpdate.toLocaleTimeString();
+            document.getElementById('sat-last-update').textContent = time;
+        }
+    }
+}
+
+function updateAPIStatus(text, connected) {
+    const dot = document.getElementById('api-status-dot');
+    const textElement = document.getElementById('api-status-text');
+    
+    if (dot) {
+        dot.className = "status-dot-api " + (connected ? "status-connected" : "status-disconnected");
+    }
+    if (textElement) {
+        textElement.textContent = text;
+        textElement.style.color = connected ? "#00ff88" : "#ff3300";
+    }
+}
+
+function forceUpdateSatelliteData() {
+    updateMonitor("🔄 Actualización forzada de datos satelitales...", "info");
+    playStrongBeep(900, 80);
+    getCurrentGPSPosition().then(() => fetchWeatherData());
+}
+
+function sendPositionToChat() {
+    if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+        updateMonitor("❌ No hay posición GPS. Obtén posición primero.", "error");
+        playStrongBeep(300, 200);
+        getCurrentGPSPosition();
+        return;
+    }
+
+    const lat = satelliteSystem.latitude.toFixed(6);
+    const lon = satelliteSystem.longitude.toFixed(6);
+    const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : 'N/A';
+    const time = new Date().toLocaleTimeString();
+
+    const positionMessage = `📍 POSICIÓN ACTUAL\nLat: ${lat}\nLon: ${lon}\nAlt: ${alt} m\nHora: ${time}`;
+
+    const dataToSend = prepareMessageToSend(
+        positionMessage,
+        'text',
+        document.getElementById('encryptionMode').value,
+        document.getElementById('key').value || 'ATOM80'
+    );
+
+    const sent = sendToConnections(dataToSend);
+
+    if (sent > 0) {
+        displayMessage(`📍 YO: ${positionMessage.substring(0, 60)}...`, '', 'outgoing');
+        updateMonitor(`📍 Posición enviada a ${sent} destino(s)`, "info");
+        playStrongBeep(700, 100);
+    } else {
+        updateMonitor("⚠️ No se pudo enviar posición (sin conexiones)", "warning");
+    }
+}
+
+function sendSatelliteEmergency() {
+    updateMonitor("🚨 INICIANDO PROTOCOLO DE EMERGENCIA...", "warning");
+    playEmergencySatelliteTone();
+    
+    try {
+        getCurrentGPSPosition(true).then(() => {
+            if (!satelliteSystem.latitude || !satelliteSystem.longitude) {
+                throw new Error("No position available");
+            }
+            
+            if (satelliteSystem.accuracy > 100) {
+                if (!confirm(`⚠️ Precisión baja (${Math.round(satelliteSystem.accuracy)}m). ¿Continuar?`)) {
+                    return;
+                }
+            }
+            
+            const onlineCount = Object.keys(connections).filter(id => 
+                connections[id]?.status === 'online').length;
+            
+            if (onlineCount === 0) {
+                if (!confirm("⚠️ No hay contactos conectados. ¿Enviar solo a chat local?")) {
+                    return;
+                }
+            }
+            
+            if (!confirm(`🚨 ¿ENVIAR SEÑAL DE EMERGENCIA S.O.S AYUDA?\n\nPosición: ${satelliteSystem.latitude.toFixed(4)}° N, ${satelliteSystem.longitude.toFixed(4)}° E\nSe enviará a ${onlineCount} contacto(s).`)) {
+                return;
+            }
+            
+            const emergencyMessage = createEmergencyMessage();
+            const sentCount = sendEmergencyMessage(emergencyMessage);
+            
+            updateMonitor(`✅ EMERGENCIA ENVIADA A ${sentCount} CONTACTO(S)`, "info");
+            displayMessage(`🚨 YO [EMERGENCIA]: ${emergencyMessage.substring(0, 80)}...`, 'EMERG', 'outgoing');
+        }).catch(error => {
+            console.error("Emergency error:", error);
+            updateMonitor("❌ ERROR EN PROTOCOLO DE EMERGENCIA: " + error.message, "error");
+            playStrongBeep(300, 200);
+        });
+    } catch (error) {
+        console.error("Emergency error:", error);
+        updateMonitor("❌ ERROR EN PROTOCOLO DE EMERGENCIA: " + error.message, "error");
+        playStrongBeep(300, 200);
+    }
+}
+
+function createEmergencyMessage() {
+    const lat = satelliteSystem.latitude.toFixed(6);
+    const lon = satelliteSystem.longitude.toFixed(6);
+    const alt = satelliteSystem.altitude ? Math.round(satelliteSystem.altitude) : 'N/A';
+    const time = new Date().toLocaleTimeString();
+    
+    let weatherInfo = '';
+    if (satelliteSystem.weatherData && satelliteSystem.weatherData.current_weather) {
+        const w = satelliteSystem.weatherData.current_weather;
+        weatherInfo = ` | Condiciones: ${w.temperature}°C, Viento: ${w.windspeed} km/h`;
+    }
+    
+    return `🚨 EMERGENCIA S.O.S AYUDA 🚨
+Posición: ${lat}° N, ${lon}° E
+Altitud: ${alt} m
+Hora: ${time}
+Sistema: RADCOM v${VERSION}${weatherInfo}
+⚠️ NECESITO ASISTENCIA INMEDIATA`;
+}
+
+function sendEmergencyMessage(message) {
+    const key = document.getElementById('key').value || 'ATOM80';
+    
+    const dataToSend = {
+        type: 'emergency',
+        message: xorEncrypt(message, key),
+        original: message,
+        mode: 'satellite',
+        encryption: document.getElementById('encryptionMode').value,
+        timestamp: Date.now(),
+        sender: myPeerId,
+        hexPreview: 'EMERGENCY'
+    };
+    
+    let sentCount = 0;
+    
+    Object.keys(connections).forEach(peerId => {
+        if (connections[peerId]?.status === 'online') {
+            try {
+                console.log(`🚨 Enviando emergencia a ${peerId}`);
+                connections[peerId].conn.send(dataToSend);
+                sentCount++;
+                
+                if (connectionHealth[peerId]) {
+                    connectionHealth[peerId].lastActivity = Date.now();
+                    connectionHealth[peerId].packetsSent = (connectionHealth[peerId]?.packetsSent || 0) + 1;
+                }
+            } catch (error) {
+                console.error(`❌ Error enviando emergencia a ${peerId}:`, error);
+            }
+        }
+    });
+    
+    stats.tx += JSON.stringify(dataToSend).length;
+    stats.messages++;
+    updateStats();
+    
+    console.log(`✅ Emergencia enviada a ${sentCount} contacto(s)`);
+    return sentCount;
+}
+
+function handleEmergencyMessage(senderId, data) {
+    const key = document.getElementById('key').value || 'ATOM80';
+    const decryptedMessage = xorDecrypt(data.message, key);
+    
+    displayMessage(`🚨 EMERGENCIA DE ${senderId.substring(0,6)}: ${decryptedMessage.substring(0, 100)}...`, 'EMERG', 'incoming');
+    
+    if (document.getElementById('soundEnabled')?.checked) {
+        playEmergencyAlertSound();
+    }
+    
+    updateMonitor(`🚨 EMERGENCIA RECIBIDA DE ${senderId.substring(0,6)}`);
+    
+    stats.rx += data.message.length;
+    updateStats();
+}
+
+function initSatelliteSystem() {
+    const savedPos = localStorage.getItem('radcom_last_position');
+    if (savedPos) {
+        satelliteSystem.lastKnownPosition = JSON.parse(savedPos);
+        console.log("📍 Posición anterior cargada:", satelliteSystem.lastKnownPosition);
+    }
+    
+    updateSatelliteUI();
+    
+    setInterval(() => {
+        if (!document.hidden) {
+            forceUpdateSatelliteData();
+        }
+    }, 100000);
+}
+
+function startWatchingPosition() {
+    if (watchId !== null) return;
+    getCurrentGPSPosition(false)
+        .then(() => { console.log("Seguimiento GPS iniciado en modo continuo"); })
+        .catch(() => { console.warn("No se pudo iniciar seguimiento continuo"); });
+}
+
+function stopWatchingPosition() {
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        console.log("Seguimiento GPS detenido");
+    }
+}
+
+function initializeSatelliteWeather() {
+    console.log("Satellite weather initialized");
+}
+
+// =============================================
+// SISTEMA DE RECONOCIMIENTO DE VOZ
+// =============================================
+
+function initVoiceRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        updateMonitor("Reconocimiento de voz no soportado en este navegador.", "warning");
+        return;
+    }
+    
+    recognition = new SpeechRecognition();
+    recognition.lang = "es-ES";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+        recognizing = true;
+        const micBtn = document.getElementById("micBtn");
+        const status = document.getElementById("mic-status");
+        if (micBtn) micBtn.classList.add("listening");
+        if (status) {
+            status.textContent = "ESCUCHANDO...";
+            status.classList.add("active");
+        }
+        updateMonitor("🎤 MODO VOZ ACTIVADO - HABLA AHORA", "info");
+        playStrongBeep(800, 100);
+    };
+
+    recognition.onresult = (event) => {
+        const input = document.getElementById("inputMsg");
+        if (!input) return;
+        
+        const transcript = event.results[0][0].transcript.trim();
+        
+        if (transcript) {
+            input.value = transcript;
+            
+            validateInput();
+            realTimePreview();
+            realTimeTableHighlight();
+            
+            updateMonitor(`🎤 Reconocido: "${transcript.substring(0, 30)}${transcript.length > 30 ? '...' : ''}"`, "info");
+            playStrongBeep(600, 50);
+            
+            setTimeout(() => {
+                if (input.value.trim() && !recognizing) {
+                    updateMonitor("⚡ ENVIANDO MENSAJE DE VOZ...", "info");
+                    
+                    setTimeout(() => {
+                        const mode = document.getElementById('inputMode').value;
+                        const onlineCount = Object.keys(connections).filter(id => 
+                            connections[id]?.status === 'online').length;
+                        
+                        if (onlineCount === 0) {
+                            updateMonitor("⚠️ No hay conexiones activas para enviar", "warning");
+                            playStrongBeep(300, 200);
+                            return;
+                        }
+                        
+                        if (mode === 'phonetic') {
+                            sendRadioMessage();
+                        } else {
+                            sendMessage();
+                        }
+                        
+                        input.value = "";
+                    }, 300);
+                }
+            }, 1500);
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Error de reconocimiento de voz:", event.error);
+        
+        if (event.error === 'no-speech') {
+            updateMonitor("🎤 No se detectó voz. Intenta de nuevo.", "warning");
+        } else if (event.error === 'audio-capture') {
+            updateMonitor("🎤 No se pudo acceder al micrófono.", "error");
+        } else if (event.error === 'not-allowed') {
+            updateMonitor("🎤 Permiso de micrófono denegado.", "error");
+        } else {
+            updateMonitor(`🎤 Error de voz: ${event.error}`, "error");
+        }
+        
+        resetVoiceUI();
+    };
+
+    recognition.onend = () => {
+        resetVoiceUI();
+    };
+}
+
+function resetVoiceUI() {
+    recognizing = false;
+    const micBtn = document.getElementById("micBtn");
+    const status = document.getElementById("mic-status");
+    if (micBtn) micBtn.classList.remove("listening");
+    if (status) {
+        status.textContent = "Voz OFF";
+        status.classList.remove("active");
+    }
+}
+
+function toggleVoiceInput() {
+    if (recognizing) {
+        try {
+            recognition.stop();
+            updateMonitor("🎤 Modo voz desactivado", "info");
+        } catch(e) {
+            console.log("Reconocimiento ya detenido");
+        }
+        return;
+    }
+    
+    if (!recognition) {
+        initVoiceRecognition();
+        if (!recognition) {
+            updateMonitor("❌ No se pudo inicializar reconocimiento de voz", "error");
+            return;
+        }
+    }
+    
+    const input = document.getElementById("inputMsg");
+    if (input) {
+        input.value = "";
+    }
+    
+    try {
+        recognition.start();
+    } catch(e) {
+        console.error("Error al iniciar reconocimiento:", e);
+        updateMonitor("❌ Error al acceder al micrófono. Verifica permisos.", "error");
+        resetVoiceUI();
+    }
+}
+
+// =============================================
+// FUNCIONES DE CONFIGURACIÓN
+// =============================================
+
+function showSettings() {
+    document.getElementById('settingsModal').style.display = 'flex';
+    updateConnectionUI();
+    loadIdSettings();
+}
+
+function hideSettings() {
+    document.getElementById('settingsModal').style.display = 'none';
+}
+
+function updateConnectionUI() {
+    document.querySelectorAll('.connection-type-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const btn = document.getElementById(`btn-${currentConnectionType}`);
+    if (btn) btn.classList.add('active');
+    
+    const typeName = currentConnectionType === 'wifi' ? 'WiFi' : 'Datos Móviles';
+    document.getElementById('current-connection-type').textContent = typeName;
+}
+
+function selectConnectionType(type) {
+    if (type === currentConnectionType) return;
+    
+    document.querySelectorAll('.connection-type-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const btn = document.getElementById(`btn-${type}`);
+    if (btn) btn.classList.add('active');
+    
+    currentConnectionType = type;
+    const typeName = type === 'wifi' ? 'WiFi' : 'Datos Móviles';
+    document.getElementById('current-connection-type').textContent = typeName;
+    
+    updateMonitor(`⚡ Modo conexión cambiado a: ${typeName}`);
+    playStrongBeep(800, 100);
+    
+    saveConnectionType();
+}
+
+function saveConnectionType() {
+    const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
+    config.connectionType = currentConnectionType;
+    localStorage.setItem('radcom_config_v4.6', JSON.stringify(config));
+}
+
+function loadIdSettings() {
+    const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
+    
+    const useFixedCheck = document.getElementById('useFixedId');
+    const customInput = document.getElementById('customIdInput');
+    const currentDisplay = document.getElementById('currentIdDisplay');
+    
+    if (useFixedCheck) useFixedCheck.checked = config.useFixedId !== false;
+    if (customInput) customInput.value = config.fixedId || getOrCreateFixedId();
+    if (currentDisplay) currentDisplay.textContent = ID_SYSTEM.currentId || 'No asignado';
+    
+    toggleIdMode();
+}
+
+function toggleIdMode() {
+    const useFixed = document.getElementById('useFixedId')?.checked;
+    const container = document.getElementById('customIdContainer');
+    
+    if (container) {
+        container.style.display = useFixed ? 'block' : 'none';
+    }
+}
+
+function generateCustomId() {
+    const prefixes = ['RADCOM', 'SATCOM', 'NETCOM', 'SECURE', 'MASTER'];
+    const adjectives = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'];
+    const nouns = ['STATION', 'NODE', 'HUB', 'RELAY', 'TERMINAL'];
+    
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    const number = Math.floor(Math.random() * 999).toString().padStart(3, '0');
+    
+    const generatedId = `${prefix}-${adj}-${noun}-${number}`;
+    const input = document.getElementById('customIdInput');
+    if (input) input.value = generatedId;
+}
+
+function applyIdSettings() {
+    const useFixed = document.getElementById('useFixedId')?.checked;
+    const customId = document.getElementById('customIdInput')?.value.trim();
+    
+    if (useFixed && (!customId || customId.length < 3)) {
+        updateMonitor("⚠️ ID PERSONALIZADO INVÁLIDO", "error");
+        playStrongBeep(300, 200);
+        return;
+    }
+    
+    const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
+    config.useFixedId = useFixed;
+    
+    if (useFixed) {
+        config.fixedId = customId;
+    } else {
+        config.fixedId = null;
+    }
+    
+    localStorage.setItem('radcom_config_v4', JSON.stringify(config));
+    
+    ID_SYSTEM.useFixedId = useFixed;
+    ID_SYSTEM.fixedId = useFixed ? customId : null;
+    
+    updateMonitor(`🔄 APLICANDO NUEVA CONFIGURACIÓN DE ID...`);
+    
+    setTimeout(() => {
+        if (peer) {
+            peer.destroy();
+        }
+        setTimeout(() => initPeerJSEnhanced(), 1000);
+    }, 500);
+    
+    hideSettings();
+}
+
+function resetIdSettings() {
+    const defaultId = generateHardwareBasedId();
+    const input = document.getElementById('customIdInput');
+    if (input) input.value = defaultId;
+    
+    const useFixedCheck = document.getElementById('useFixedId');
+    if (useFixedCheck) useFixedCheck.checked = true;
+    
+    toggleIdMode();
+    updateMonitor("🔄 ID RESTABLECIDO A VALOR PREDETERMINADO");
+}
+
+function loadSettings() {
+    const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
+    
+    const systemNameInput = document.getElementById('systemName');
+    if (config.systemName && systemNameInput) {
+        systemNameInput.value = config.systemName;
+    }
+    if (config.connectionType) {
+        currentConnectionType = config.connectionType;
+    }
+    
+    const autoReconnect = document.getElementById('autoReconnect');
+    if (config.autoReconnect !== undefined && autoReconnect) {
+        autoReconnect.checked = config.autoReconnect;
+    }
+    
+    const soundEnabled = document.getElementById('soundEnabled');
+    if (config.soundEnabled !== undefined && soundEnabled) {
+        soundEnabled.checked = config.soundEnabled;
+    }
+    
+    const saveHistory = document.getElementById('saveHistory');
+    if (config.saveHistory !== undefined && saveHistory) {
+        saveHistory.checked = config.saveHistory;
+    }
+    
+    const fastRecoveryCheck = document.getElementById('fastRecovery');
+    if (config.fastRecovery !== undefined && fastRecoveryCheck) {
+        fastRecoveryCheck.checked = config.fastRecovery;
+        fastRecovery = config.fastRecovery;
+    }
+    
+    const aggressiveReviveCheck = document.getElementById('aggressiveRevive');
+    if (config.aggressiveRevive !== undefined && aggressiveReviveCheck) {
+        aggressiveReviveCheck.checked = config.aggressiveRevive;
+        aggressiveRevive = config.aggressiveRevive;
+    }
+    if (config.useFixedId !== undefined) {
+        ID_SYSTEM.useFixedId = config.useFixedId;
+    }
+    if (config.fixedId) {
+        ID_SYSTEM.fixedId = config.fixedId;
+    }
+}
+
+function saveSettings() {
+    const config = {
+        systemName: document.getElementById('systemName')?.value,
+        connectionType: currentConnectionType,
+        autoReconnect: document.getElementById('autoReconnect')?.checked,
+        soundEnabled: document.getElementById('soundEnabled')?.checked,
+        saveHistory: document.getElementById('saveHistory')?.checked,
+        fastRecovery: document.getElementById('fastRecovery')?.checked,
+        aggressiveRevive: document.getElementById('aggressiveRevive')?.checked,
+        useFixedId: document.getElementById('useFixedId')?.checked,
+        fixedId: document.getElementById('customIdInput')?.value.trim()
+    };
+    
+    localStorage.setItem('radcom_config_v4', JSON.stringify(config));
+    
+    fastRecovery = config.fastRecovery;
+    aggressiveRevive = config.aggressiveRevive;
+    ID_SYSTEM.useFixedId = config.useFixedId;
+    
+    if (config.fixedId && config.useFixedId) {
+        ID_SYSTEM.fixedId = config.fixedId;
+        localStorage.setItem('radcom_fixed_id_v4', config.fixedId);
+    }
+    
+    updateMonitor("✅ CONFIGURACIÓN GUARDADA");
+    hideSettings();
+    playStrongBeep(600, 100);
+}
+
+// =============================================
+// FUNCIONES DE ESTADÍSTICAS
+// =============================================
+
+function updateStats() {
+    document.getElementById('stats-messages').textContent = stats.messages;
+    document.getElementById('data-session').textContent = stats.tx + stats.rx;
+    
+    document.getElementById('stats-tx').textContent = formatBytes(stats.tx);
+    document.getElementById('stats-rx').textContent = formatBytes(stats.rx);
+    
+    const elapsed = (Date.now() - stats.startTime) / 1000;
+    const bandwidth = elapsed > 0 ? (stats.tx + stats.rx) / elapsed / 1024 : 0;
+    document.getElementById('stats-bandwidth').textContent = `${bandwidth.toFixed(2)} KB/s`;
+}
+
+function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function updateUptime() {
+    const elapsed = Date.now() - stats.startTime;
+    const hours = Math.floor(elapsed / 3600000);
+    const minutes = Math.floor((elapsed % 3600000) / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    
+    document.getElementById('stats-uptime').textContent = 
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// =============================================
+// FUNCIONES DE UTILIDAD
+// =============================================
+
+function generateKey() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let key = '';
+    for (let i = 0; i < 12; i++) {
+        key += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const keyInput = document.getElementById('key');
+    if (keyInput) {
+        keyInput.value = key;
+        keyInput.type = 'text';
+        
+        setTimeout(() => {
+            keyInput.type = 'password';
+        }, 2000);
+    }
+    return key;
+}
+
+function copyID() {
+    if (!myPeerId) {
+        alert('Espera a que se genere el ID primero');
+        return;
+    }
+    
+    navigator.clipboard.writeText(myPeerId).then(() => {
+        updateMonitor(`📋 ID COPIADO: ${myPeerId.substring(0, 12)}...`);
+        playStrongBeep(800, 100);
+    });
+}
+
+function initResizableSeparator() {
+    const separator = document.getElementById('resizableSeparator');
+    const monitorContainer = document.getElementById('monitorContainer');
+    const tableContainer = document.getElementById('tableContainer');
+    
+    if (!separator || !monitorContainer || !tableContainer) return;
+    
+    let isResizing = false;
+    let startY, startHeight, startTableHeight;
+    
+    separator.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = parseInt(getComputedStyle(monitorContainer).height);
+        startTableHeight = parseInt(getComputedStyle(tableContainer).height);
+        
+        document.addEventListener('mousemove', resize);
+        document.addEventListener('mouseup', stopResize);
+    });
+
+    function resize(e) {
+        if (!isResizing) return;
+        
+        const delta = e.clientY - startY;
+        let newHeight = startHeight + delta;
+        
+        if (newHeight < 150) newHeight = 150;
+        if (newHeight > 400) newHeight = 400;
+        
+        monitorContainer.style.height = newHeight + 'px';
+        
+        const tableNewHeight = newHeight - 80;
+        if (tableNewHeight > 80) {
+            tableContainer.style.height = tableNewHeight + 'px';
+        }
+    }
+    
+    function stopResize() {
+        isResizing = false;
+        document.removeEventListener('mousemove', resize);
+        document.removeEventListener('mouseup', stopResize);
+        
+        const currentHeight = parseInt(getComputedStyle(monitorContainer).height);
+        localStorage.setItem('radcom_separator_height', currentHeight);
+    }
+    
+    const savedHeight = localStorage.getItem('radcom_separator_height');
+    if (savedHeight) {
+        monitorContainer.style.height = savedHeight + 'px';
+    }
+}
+
 function finalInitialization() {
-    // Badge dinámico
     const encSelect = document.getElementById('encryptionMode');
     if (encSelect) {
         encSelect.addEventListener('change', updateSecurityBadge);
         updateSecurityBadge();
     }
     
-    // Iniciar cola
     setInterval(processQueue, 8000);
     
-    // Revive automático cada 25 segundos
     setInterval(() => {
         if (Object.values(connections).some(c => c.status === 'offline')) {
             reviveAllConnections();
@@ -9913,19 +8338,10 @@ function finalInitialization() {
     updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión estable y segura`);
 }
 
-// === LLAMADA FINAL ===
+// =============================================
+// SISTEMA CONSOLA v5.6.1
+// =============================================
 
-
-
-
-
-
-// ====== SISTEMA CONSOLA v5.6.1 ======
-
-let currentConsoleTab = 'CMD';
-let hexEditorContent = '';
-
-// Abrir ventana consola
 function openConsole() {
     document.getElementById('consoleModal').style.display = 'flex';
     switchConsoleTab('CMD');
@@ -9933,37 +8349,35 @@ function openConsole() {
     playStrongBeep(1000, 100);
 }
 
-// Cerrar ventana consola
 function closeConsole() {
     document.getElementById('consoleModal').style.display = 'none';
     updateMonitor("🔒 Console closed", "info");
 }
 
-// Cambiar pestaña consola
 function switchConsoleTab(tab) {
     currentConsoleTab = tab;
     
-    // Actualizar pestañas activas
     document.querySelectorAll('.console-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.console-tab-content').forEach(c => c.classList.remove('active'));
     
-    // Activar pestaña seleccionada
-    document.querySelector(`.console-tab[onclick="switchConsoleTab('${tab}')"]`).classList.add('active');
-    document.getElementById(`console-tab-${tab}`).classList.add('active');
+    const tabBtn = document.querySelector(`.console-tab[onclick="switchConsoleTab('${tab}')"]`);
+    if (tabBtn) tabBtn.classList.add('active');
     
-    // Inicializar contenido según pestaña
+    const tabContent = document.getElementById(`console-tab-${tab}`);
+    if (tabContent) tabContent.classList.add('active');
+    
     if (tab === 'hex') {
         initializeHexEditor();
     } else if (tab === 'CMD') {
-        document.getElementById('CMD-input').focus();
+        const cmdInput = document.getElementById('CMD-input');
+        if (cmdInput) cmdInput.focus();
     } else if (tab === 'decode') {
-        document.getElementById('hex-decoder-input').focus();
+        const decodeInput = document.getElementById('hex-decoder-input');
+        if (decodeInput) decodeInput.focus();
     }
     
     playStrongBeep(600, 50);
 }
-
-// ====== CMD CONSOLE FUNCTIONS ======
 
 function handleCMDCommand(event) {
     if (event.key === 'Enter') {
@@ -9977,13 +8391,9 @@ function executeCMDCommand() {
     
     if (!command) return;
     
-    // Mostrar comando
     appendToCMDConsole(`&gt; ${command}`);
-    
-    // Procesar comando
     processCMDCommand(command);
     
-    // Limpiar input
     input.value = '';
     input.focus();
 }
@@ -9996,62 +8406,46 @@ function processCMDCommand(command) {
         case '?':
             showCMDHelp();
             break;
-            
         case 'status':
             showSystemStatus();
             break;
-            
         case 'clear':
             clearCMDConsole();
             break;
-            
         case 'connections':
             showConnections();
             break;
-            
         case 'version':
             appendToCMDConsole(`RADCOM MASTER v${VERSION}`);
             break;
-            
         case 'restart':
             appendToCMDConsole("Restarting system...");
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            setTimeout(() => { location.reload(); }, 1000);
             break;
-            
         case 'test':
             runSystemTest();
             break;
-            
         case 'encrypt test':
             testEncryption();
             break;
-            
         case 'morse test':
             testMorseSystem();
             break;
-            
         case 'radio test':
             testRadioSystem();
             break;
-            
         case 'satellite test':
             testSatelliteSystem();
             break;
-            
         case 'export config':
             exportConfiguration();
             break;
-            
         case 'import config':
             importConfiguration();
             break;
-            
         case 'debug':
             toggleDebugMode();
             break;
-            
         default:
             if (cmd.startsWith('echo ')) {
                 appendToCMDConsole(cmd.substring(5));
@@ -10067,16 +8461,20 @@ function processCMDCommand(command) {
 
 function appendToCMDConsole(text) {
     const console = document.getElementById('CMD-output');
-    console.innerHTML += `\n${text}`;
-    console.scrollTop = console.scrollHeight;
+    if (console) {
+        console.innerHTML += `\n${text}`;
+        console.scrollTop = console.scrollHeight;
+    }
 }
 
 function clearCMDConsole() {
-    document.getElementById('CMD-output').innerHTML = 
-        '&gt; RADCOM CMD CONSOLE v5.6.1 INITIALIZED\n' +
-        '&gt; System: RADCOM MASTER\n' +
-        '&gt; Version: ' + VERSION + '\n' +
-        '&gt; Ready for commands...';
+    const console = document.getElementById('CMD-output');
+    if (console) {
+        console.innerHTML = '&gt; RADCOM CMD CONSOLE v5.6.1 INITIALIZED\n' +
+            '&gt; System: RADCOM MASTER\n' +
+            '&gt; Version: ' + VERSION + '\n' +
+            '&gt; Ready for commands...';
+    }
 }
 
 function showCMDHelp() {
@@ -10166,368 +8564,6 @@ function runSystemTest() {
     appendToCMDConsole(`\n${passed}/${tests.length} tests passed`);
 }
 
-// ====== HEX EDITOR FUNCTIONS ======
-
-function initializeHexEditor() {
-    const editor = document.getElementById('hex-editor');
-    if (!hexEditorContent) {
-        hexEditorContent = `// RADCOM HEX EDITOR v5.6.1
-// Load page HTML or paste your code here
-// Use toolbar buttons to format, minify, or save
-
-// Example HTML:
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>RADCOM System</title>
-    <style>
-        body {
-            background: #000;
-            color: #0f0;
-            font-family: monospace;
-        }
-    </style>
-</head>
-<body>
-    <h1>RADCOM MASTER</h1>
-</body>
-</html>`;
-        
-        editor.value = hexEditorContent;
-    }
-    
-    editor.addEventListener('input', updateHexPosition);
-    updateHexPosition();
-}
-
-function updateHexPosition() {
-    const editor = document.getElementById('hex-editor');
-    const text = editor.value;
-    const lines = text.substring(0, editor.selectionStart).split('\n');
-    const line = lines.length;
-    const col = lines[lines.length - 1].length + 1;
-    
-    document.getElementById('hex-position').textContent = 
-        `Line: ${line}, Col: ${col} | Chars: ${text.length}`;
-}
-
-function hexLoadCurrentPage() {
-    // Cargar el HTML actual de la página
-    const htmlContent = document.documentElement.outerHTML;
-    const formatted = formatHTML(htmlContent);
-    
-    document.getElementById('hex-editor').value = formatted;
-    hexEditorContent = formatted;
-    
-    updateHexStatus('Page HTML loaded');
-    appendToCMDConsole('Loaded current page HTML into hex editor');
-}
-
-function hexSaveChanges() {
-    const content = document.getElementById('hex-editor').value;
-    
-    // Aquí iría la lógica para guardar cambios
-    // Por ahora solo mostramos un mensaje
-    updateHexStatus('Changes saved (simulated)');
-    appendToCMDConsole('Hex editor changes saved');
-    
-    // En un sistema real, aquí se enviaría al servidor o se guardaría en localStorage
-    localStorage.setItem('radcom_hex_editor_backup', content);
-    
-    playStrongBeep(800, 50);
-}
-
-function hexFind() {
-    const search = prompt('Search in hex editor:');
-    if (search) {
-        const editor = document.getElementById('hex-editor');
-        const content = editor.value;
-        const index = content.indexOf(search);
-        
-        if (index !== -1) {
-            editor.focus();
-            editor.setSelectionRange(index, index + search.length);
-            updateHexStatus(`Found: "${search}"`);
-        } else {
-            updateHexStatus(`Not found: "${search}"`);
-        }
-    }
-}
-
-function hexFormat() {
-    const editor = document.getElementById('hex-editor');
-    const content = editor.value;
-    
-    // Intentar formatear como HTML
-    if (content.includes('<') && content.includes('>')) {
-        editor.value = formatHTML(content);
-        updateHexStatus('Formatted as HTML');
-    } 
-    // Intentar formatear como JSON
-    else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
-        try {
-            const json = JSON.parse(content);
-            editor.value = JSON.stringify(json, null, 2);
-            updateHexStatus('Formatted as JSON');
-        } catch {
-            updateHexStatus('Not valid JSON');
-        }
-    } 
-    // Formatear como JavaScript
-    else if (content.includes('function') || content.includes('const ') || content.includes('let ')) {
-        editor.value = formatJavaScript(content);
-        updateHexStatus('Formatted as JavaScript');
-    }
-    
-    hexEditorContent = editor.value;
-}
-
-function hexMinify() {
-    const editor = document.getElementById('hex-editor');
-    let content = editor.value;
-    
-    // Método MANUAL sin regex problemáticos
-    let result = '';
-    let inComment = false;
-    
-    for (let i = 0; i < content.length; i++) {
-        // Detectar comentarios
-        if (content.substr(i, 4) === '<!--') {
-            inComment = true;
-            i += 3;
-            continue;
-        }
-        
-        if (inComment && content.substr(i, 3) === '-->') {
-            inComment = false;
-            i += 2;
-            continue;
-        }
-        
-        if (!inComment) {
-            result += content[i];
-        }
-    }
-    
-    content = result;
-    
-    // Reemplazar múltiples espacios (manualmente)
-    let lastCharWasSpace = false;
-    result = '';
-    
-    for (let i = 0; i < content.length; i++) {
-        const char = content[i];
-        const isWhitespace = char === ' ' || char === '\n' || char === '\t' || char === '\r';
-        
-        if (isWhitespace) {
-            if (!lastCharWasSpace && i > 0 && i < content.length - 1) {
-                // Solo agregar un espacio si no es al inicio/final
-                result += ' ';
-                lastCharWasSpace = true;
-            }
-        } else {
-            result += char;
-            lastCharWasSpace = false;
-        }
-    }
-    
-    content = result.trim();
-    
-    // Eliminar espacios entre tags (manualmente)
-    result = '';
-    for (let i = 0; i < content.length; i++) {
-        if (content[i] === '>' && i + 1 < content.length) {
-            result += '>';
-            // Saltar espacios después de >
-            let j = i + 1;
-            while (j < content.length && (content[j] === ' ' || content[j] === '\n' || content[j] === '\t')) {
-                j++;
-            }
-            if (j < content.length && content[j] === '<') {
-                result += '<';
-                i = j;
-            } else {
-                i = j - 1;
-            }
-        } else {
-            result += content[i];
-        }
-    }
-    
-    editor.value = result;
-    hexEditorContent = result;
-    updateHexStatus('Minified content');
-}
-
-function updateHexStatus(message) {
-    document.getElementById('hex-status').textContent = message;
-    setTimeout(() => {
-        document.getElementById('hex-status').textContent = 'Ready';
-    }, 3000);
-}
-
-function formatHTML(html) {
-    // Formateador HTML simple
-    let formatted = '';
-    let indent = 0;
-    const lines = html.split('\n');
-    
-    for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
-        
-        if (line.includes('</')) {
-            indent--;
-        }
-        
-        formatted += '    '.repeat(Math.max(0, indent)) + line + '\n';
-        
-        if (line.includes('<') && !line.includes('/>') && !line.includes('</')) {
-            indent++;
-        }
-    }
-    
-    return formatted;
-}
-
-function formatJavaScript(js) {
-    // Formateador JavaScript simple
-    js = js.replace(/{/g, ' {\n');
-    js = js.replace(/}/g, '\n}\n');
-    js = js.replace(/;/g, ';\n');
-    
-    let formatted = '';
-    let indent = 0;
-    const lines = js.split('\n');
-    
-    for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
-        
-        if (line.includes('}')) {
-            indent--;
-        }
-        
-        formatted += '    '.repeat(Math.max(0, indent)) + line + '\n';
-        
-        if (line.includes('{')) {
-            indent++;
-        }
-    }
-    
-    return formatted;
-}
-
-// ====== HEX DECODER FUNCTIONS ======
-
-function autoDetectAndConvert() {
-    const input = document.getElementById('hex-decoder-input').value.trim();
-    
-    if (!input) {
-        document.getElementById('hex-decoder-output').value = '';
-        return;
-    }
-    
-    // Auto-detect: si parece hex, convertir a texto
-    if (/^[0-9a-fA-F\s]+$/.test(input.replace(/\s/g, ''))) {
-        convertHexToText();
-    }
-    // Si parece texto normal, convertir a hex
-    else if (/^[\x00-\x7F\s]+$/.test(input)) {
-        convertTextToHex();
-    }
-}
-
-function convertTextToHex() {
-    const input = document.getElementById('hex-decoder-input').value;
-    let output = '';
-    
-    for (let i = 0; i < input.length; i++) {
-        const hex = input.charCodeAt(i).toString(16).toUpperCase().padStart(2, '0');
-        output += hex + ' ';
-        
-        // Agrupar en bloques de 8 bytes
-        if ((i + 1) % 8 === 0) {
-            output += ' ';
-        }
-        
-        // Nueva línea cada 32 bytes
-        if ((i + 1) % 32 === 0) {
-            output += '\n';
-        }
-    }
-    
-    // Agregar representación ASCII
-    output += '\n\nASCII: ';
-    for (let i = 0; i < Math.min(input.length, 64); i++) {
-        const char = input[i];
-        output += (char >= ' ' && char <= '~') ? char : '.';
-    }
-    
-    document.getElementById('hex-decoder-output').value = output.trim();
-    updateMonitor("📝 Converted text to HEX", "info");
-}
-
-function convertHexToText() {
-    const input = document.getElementById('hex-decoder-input').value;
-    const hex = input.replace(/[^0-9a-fA-F]/g, '');
-    
-    let output = '';
-    for (let i = 0; i < hex.length; i += 2) {
-        const hexByte = hex.substr(i, 2);
-        if (hexByte) {
-            const charCode = parseInt(hexByte, 16);
-            if (!isNaN(charCode)) {
-                output += String.fromCharCode(charCode);
-            }
-        }
-    }
-    
-    // Mostrar información adicional
-    const info = [
-        `Length: ${output.length} characters`,
-        `Hex bytes: ${Math.ceil(hex.length / 2)}`,
-        '',
-        'Decoded text:',
-        '-------------',
-        output
-    ].join('\n');
-    
-    document.getElementById('hex-decoder-output').value = info;
-    updateMonitor("🔓 Converted HEX to text", "info");
-}
-
-function decodeBase64() {
-    const input = document.getElementById('hex-decoder-input').value.trim();
-    
-    try {
-        const decoded = atob(input);
-        document.getElementById('hex-decoder-output').value = decoded;
-        updateMonitor("🔓 Decoded Base64", "info");
-    } catch (error) {
-        document.getElementById('hex-decoder-output').value = 
-            `Error decoding Base64: ${error.message}`;
-        updateMonitor("❌ Base64 decode failed", "error");
-    }
-}
-
-function clearDecoder() {
-    document.getElementById('hex-decoder-input').value = '';
-    document.getElementById('hex-decoder-output').value = '';
-    updateMonitor("🧹 Decoder cleared", "info");
-}
-
-// ====== UTILITY FUNCTIONS ======
-
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
 function formatUptime(ms) {
     const seconds = Math.floor(ms / 1000);
     const hours = Math.floor(seconds / 3600);
@@ -10536,8 +8572,6 @@ function formatUptime(ms) {
     
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
-
-// ====== TEST FUNCTIONS ======
 
 function testEncryption() {
     appendToCMDConsole('Testing encryption...');
@@ -10610,8 +8644,11 @@ function exportConfiguration() {
     };
     
     const configStr = JSON.stringify(config, null, 2);
-    document.getElementById('hex-decoder-input').value = configStr;
-    document.getElementById('hex-decoder-output').value = btoa(configStr);
+    const input = document.getElementById('hex-decoder-input');
+    const output = document.getElementById('hex-decoder-output');
+    
+    if (input) input.value = configStr;
+    if (output) output.value = btoa(configStr);
     
     switchConsoleTab('decode');
     appendToCMDConsole('Configuration exported to decoder');
@@ -10630,9 +8667,404 @@ function toggleDebugMode() {
     updateMonitor(`Debug ${debugMode ? 'ON' : 'OFF'}`, debugMode ? "warning" : "info");
 }
 
+function convertToHex(text) {
+    let hex = '';
+    for (let i = 0; i < text.length; i++) {
+        hex += text.charCodeAt(i).toString(16).padStart(2, '0') + ' ';
+    }
+    appendToCMDConsole(`HEX: ${hex.trim()}`);
+}
+
+function decodeHex(hexStr) {
+    const hex = hexStr.replace(/[^0-9a-fA-F]/g, '');
+    let text = '';
+    for (let i = 0; i < hex.length; i += 2) {
+        const charCode = parseInt(hex.substr(i, 2), 16);
+        if (!isNaN(charCode)) {
+            text += String.fromCharCode(charCode);
+        }
+    }
+    appendToCMDConsole(`Decoded: ${text}`);
+}
+
+// =============================================
+// FUNCIONES DE HEX EDITOR
+// =============================================
+
+function initializeHexEditor() {
+    const editor = document.getElementById('hex-editor');
+    if (!editor) return;
+    
+    if (!hexEditorContent) {
+        hexEditorContent = `// RADCOM HEX EDITOR v5.6.1
+// Load page HTML or paste your code here
+// Use toolbar buttons to format, minify, or save
+
+// Example HTML:
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>RADCOM System</title>
+    <style>
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>RADCOM MASTER</h1>
+</body>
+</html>`;
+        
+        editor.value = hexEditorContent;
+    }
+    
+    editor.addEventListener('input', updateHexPosition);
+    updateHexPosition();
+}
+
+function updateHexPosition() {
+    const editor = document.getElementById('hex-editor');
+    if (!editor) return;
+    
+    const text = editor.value;
+    const lines = text.substring(0, editor.selectionStart).split('\n');
+    const line = lines.length;
+    const col = lines[lines.length - 1].length + 1;
+    
+    const posEl = document.getElementById('hex-position');
+    if (posEl) {
+        posEl.textContent = `Line: ${line}, Col: ${col} | Chars: ${text.length}`;
+    }
+}
+
+function hexLoadCurrentPage() {
+    const htmlContent = document.documentElement.outerHTML;
+    const formatted = formatHTML(htmlContent);
+    
+    const editor = document.getElementById('hex-editor');
+    if (editor) {
+        editor.value = formatted;
+        hexEditorContent = formatted;
+    }
+    
+    updateHexStatus('Page HTML loaded');
+    appendToCMDConsole('Loaded current page HTML into hex editor');
+}
+
+function hexSaveChanges() {
+    const content = document.getElementById('hex-editor')?.value;
+    
+    updateHexStatus('Changes saved (simulated)');
+    appendToCMDConsole('Hex editor changes saved');
+    
+    if (content) {
+        localStorage.setItem('radcom_hex_editor_backup', content);
+    }
+    
+    playStrongBeep(800, 50);
+}
+
+function hexFind() {
+    const search = prompt('Search in hex editor:');
+    if (search) {
+        const editor = document.getElementById('hex-editor');
+        if (!editor) return;
+        
+        const content = editor.value;
+        const index = content.indexOf(search);
+        
+        if (index !== -1) {
+            editor.focus();
+            editor.setSelectionRange(index, index + search.length);
+            updateHexStatus(`Found: "${search}"`);
+        } else {
+            updateHexStatus(`Not found: "${search}"`);
+        }
+    }
+}
+
+function hexFormat() {
+    const editor = document.getElementById('hex-editor');
+    if (!editor) return;
+    
+    const content = editor.value;
+    
+    if (content.includes('<') && content.includes('>')) {
+        editor.value = formatHTML(content);
+        updateHexStatus('Formatted as HTML');
+    } else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+        try {
+            const json = JSON.parse(content);
+            editor.value = JSON.stringify(json, null, 2);
+            updateHexStatus('Formatted as JSON');
+        } catch {
+            updateHexStatus('Not valid JSON');
+        }
+    } else if (content.includes('function') || content.includes('const ') || content.includes('let ')) {
+        editor.value = formatJavaScript(content);
+        updateHexStatus('Formatted as JavaScript');
+    }
+    
+    hexEditorContent = editor.value;
+}
+
+function hexMinify() {
+    const editor = document.getElementById('hex-editor');
+    if (!editor) return;
+    
+    let content = editor.value;
+    let result = '';
+    let inComment = false;
+    
+    for (let i = 0; i < content.length; i++) {
+        if (content.substr(i, 4) === '<!--') {
+            inComment = true;
+            i += 3;
+            continue;
+        }
+        
+        if (inComment && content.substr(i, 3) === '-->') {
+            inComment = false;
+            i += 2;
+            continue;
+        }
+        
+        if (!inComment) {
+            result += content[i];
+        }
+    }
+    
+    content = result;
+    
+    let lastCharWasSpace = false;
+    result = '';
+    
+    for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+        const isWhitespace = char === ' ' || char === '\n' || char === '\t' || char === '\r';
+        
+        if (isWhitespace) {
+            if (!lastCharWasSpace && i > 0 && i < content.length - 1) {
+                result += ' ';
+                lastCharWasSpace = true;
+            }
+        } else {
+            result += char;
+            lastCharWasSpace = false;
+        }
+    }
+    
+    content = result.trim();
+    
+    result = '';
+    for (let i = 0; i < content.length; i++) {
+        if (content[i] === '>' && i + 1 < content.length) {
+            result += '>';
+            let j = i + 1;
+            while (j < content.length && (content[j] === ' ' || content[j] === '\n' || content[j] === '\t')) {
+                j++;
+            }
+            if (j < content.length && content[j] === '<') {
+                result += '<';
+                i = j;
+            } else {
+                i = j - 1;
+            }
+        } else {
+            result += content[i];
+        }
+    }
+    
+    editor.value = result;
+    hexEditorContent = result;
+    updateHexStatus('Minified content');
+}
+
+function updateHexStatus(message) {
+    const statusEl = document.getElementById('hex-status');
+    if (statusEl) {
+        statusEl.textContent = message;
+        setTimeout(() => {
+            statusEl.textContent = 'Ready';
+        }, 3000);
+    }
+}
+
+function formatHTML(html) {
+    let formatted = '';
+    let indent = 0;
+    const lines = html.split('\n');
+    
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        
+        if (line.includes('</')) {
+            indent--;
+        }
+        
+        formatted += '    '.repeat(Math.max(0, indent)) + line + '\n';
+        
+        if (line.includes('<') && !line.includes('/>') && !line.includes('</')) {
+            indent++;
+        }
+    }
+    
+    return formatted;
+}
+
+function formatJavaScript(js) {
+    js = js.replace(/{/g, ' {\n');
+    js = js.replace(/}/g, '\n}\n');
+    js = js.replace(/;/g, ';\n');
+    
+    let formatted = '';
+    let indent = 0;
+    const lines = js.split('\n');
+    
+    for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        
+        if (line.includes('}')) {
+            indent--;
+        }
+        
+        formatted += '    '.repeat(Math.max(0, indent)) + line + '\n';
+        
+        if (line.includes('{')) {
+            indent++;
+        }
+    }
+    
+    return formatted;
+}
+
+// =============================================
+// FUNCIONES DE HEX DECODER
+// =============================================
+
+function autoDetectAndConvert() {
+    const input = document.getElementById('hex-decoder-input');
+    const output = document.getElementById('hex-decoder-output');
+    if (!input || !output) return;
+    
+    const value = input.value.trim();
+    
+    if (!value) {
+        output.value = '';
+        return;
+    }
+    
+    if (/^[0-9a-fA-F\s]+$/.test(value.replace(/\s/g, ''))) {
+        convertHexToText();
+    } else if (/^[\x00-\x7F\s]+$/.test(value)) {
+        convertTextToHex();
+    }
+}
+
+function convertTextToHex() {
+    const input = document.getElementById('hex-decoder-input');
+    const output = document.getElementById('hex-decoder-output');
+    if (!input || !output) return;
+    
+    const value = input.value;
+    let result = '';
+    
+    for (let i = 0; i < value.length; i++) {
+        const hex = value.charCodeAt(i).toString(16).toUpperCase().padStart(2, '0');
+        result += hex + ' ';
+        
+        if ((i + 1) % 8 === 0) {
+            result += ' ';
+        }
+        
+        if ((i + 1) % 32 === 0) {
+            result += '\n';
+        }
+    }
+    
+    result += '\n\nASCII: ';
+    for (let i = 0; i < Math.min(value.length, 64); i++) {
+        const char = value[i];
+        result += (char >= ' ' && char <= '~') ? char : '.';
+    }
+    
+    output.value = result.trim();
+    updateMonitor("📝 Converted text to HEX", "info");
+}
+
+function convertHexToText() {
+    const input = document.getElementById('hex-decoder-input');
+    const output = document.getElementById('hex-decoder-output');
+    if (!input || !output) return;
+    
+    const value = input.value;
+    const hex = value.replace(/[^0-9a-fA-F]/g, '');
+    
+    let result = '';
+    for (let i = 0; i < hex.length; i += 2) {
+        const hexByte = hex.substr(i, 2);
+        if (hexByte) {
+            const charCode = parseInt(hexByte, 16);
+            if (!isNaN(charCode)) {
+                result += String.fromCharCode(charCode);
+            }
+        }
+    }
+    
+    const info = [
+        `Length: ${result.length} characters`,
+        `Hex bytes: ${Math.ceil(hex.length / 2)}`,
+        '',
+        'Decoded text:',
+        '-------------',
+        result
+    ].join('\n');
+    
+    output.value = info;
+    updateMonitor("🔓 Converted HEX to text", "info");
+}
+
+function decodeBase64() {
+    const input = document.getElementById('hex-decoder-input');
+    const output = document.getElementById('hex-decoder-output');
+    if (!input || !output) return;
+    
+    const value = input.value.trim();
+    
+    try {
+        const decoded = atob(value);
+        output.value = decoded;
+        updateMonitor("🔓 Decoded Base64", "info");
+    } catch (error) {
+        output.value = `Error decoding Base64: ${error.message}`;
+        updateMonitor("❌ Base64 decode failed", "error");
+    }
+}
+
+function clearDecoder() {
+    const input = document.getElementById('hex-decoder-input');
+    const output = document.getElementById('hex-decoder-output');
+    
+    if (input) input.value = '';
+    if (output) output.value = '';
+    
+    updateMonitor("🧹 Decoder cleared", "info");
+}
+
+// =============================================
+// SISTEMA DE MÓDULOS Y COCKPIT
+// =============================================
+
 function handleCockpitClick(modulo) {
     document.querySelectorAll('.btn-cockpit').forEach(b => b.classList.remove('active'));
-    document.getElementById('btn-' + modulo.toLowerCase()).classList.add('active');
+    const btn = document.getElementById('btn-' + modulo.toLowerCase());
+    if (btn) btn.classList.add('active');
     
     if (modulo === 'COM') {
         closeModal680();
@@ -10640,10 +9072,6 @@ function handleCockpitClick(modulo) {
         openModuleWindow(modulo);
     }
 }
-
-
-        // ====== Mapa modulo ======
-
 
 function openModuleWindow(modulo) {
     const modal = document.getElementById('modal-680');
@@ -10696,16 +9124,13 @@ function openModuleWindow(modulo) {
     }
 }
 
-
-
-// Función de cierre reforzada
 function closeModal680() {
     const modal = document.getElementById('modal-680');
     if (modal) {
         modal.style.display = 'none';
-        document.getElementById('modal-body').innerHTML = ''; // Limpia memoria
+        const body = document.getElementById('modal-body');
+        if (body) body.innerHTML = '';
         
-        // Reset de botones en el sidebar
         document.querySelectorAll('.btn-cockpit').forEach(b => b.classList.remove('active'));
         const btnCom = document.getElementById('btn-com');
         if (btnCom) btnCom.classList.add('active');
@@ -10714,97 +9139,55 @@ function closeModal680() {
     }
 }
 
-function closeModal680() {
-    document.getElementById('modal-680').style.display = 'none';
-    document.getElementById('modal-body').innerHTML = "";
-    handleCockpitClick('COM');
-}
+// =============================================
+// MANEJO DE EVENTOS DE VISIBILIDAD
+// =============================================
 
-// Inicializar consola cuando se carga la página
-
-
-setTimeout(() => {
-    console.log("🚀 RADCOM CONSOLE v5.6.1 ready");
-}, 1000);
-
-
-setTimeout(finalInitialization, 1200);
-
-
-
-        // Exportar nuevas funciones
-        window.forceUpdateSatelliteData = forceUpdateSatelliteData;
-        window.sendSatelliteEmergency = sendSatelliteEmergency;
-        window.sendPositionToChat = sendPositionToChat;
-        window.getCurrentGPSPosition = getCurrentGPSPosition;
-        window.initSatelliteSystem = initSatelliteSystem;
-                window.addEventListener('load', force720);
-
-        
-
-// ====== INICIALIZAR SISTEMA DE COLAS ======
-function initQueue() {
-    updateQueueCounter();
+document.addEventListener('visibilitychange', function() {
+    isBackground = document.hidden;
     
-    if (messageQueue.length > 0) {
-        updateMonitor(`📨 ${messageQueue.length} mensaje(s) en cola`);
+    console.log(`📱 App ${isBackground ? 'en segundo plano' : 'en primer plano'}`);
+    
+    if (!isBackground) {
+        updateMonitor("⚡ APP REACTIVADA - VERIFICANDO CONEXIONES...");
+        playStrongBeep(800, 100);
         
-        if (!queueRetryInterval) {
-            startQueueSystem();
+        if (fastRecovery) {
+            setTimeout(() => { reviveAllConnections(); }, 500);
+        } else {
+            checkConnectionsHealth();
         }
-    }
-}
-
-
-// ====== INICIALIZACIÓN ======
         
-        window.onload = function() {
-            console.log(`🚀 Iniciando RADCOM MASTER v${VERSION}`);
-
-            try {
-        const peers = JSON.parse(localStorage.getItem('radcom_peers') || '[]');
-        const validPeers = peers.filter(id => 
-            typeof id === 'string' && id.length < 30 && /^[a-zA-Z0-9\-]+$/.test(id)
-        );
-        localStorage.setItem('radcom_peers', JSON.stringify(validPeers));
-        savedIds = validPeers;
-    } catch (e) {
-        localStorage.removeItem('radcom_peers');
-        savedIds = [];
+        if (satelliteSystem.lastKnownPosition) {
+            updateSatelliteUI();
+        } else {
+            setTimeout(() => {
+                if (!watchId) getCurrentGPSPosition(true);
+            }, 800);
+        }
+    } else {
+        updateMonitor("⏸️ APP EN SEGUNDO PLANO");
+        stopWatchingPosition();
     }
-            
-            // Inicializar sistemas originales
-            buildAsciiTable();
-            buildMorseTable();
-            initRadioSystem();
-            loadSettings();
-            updatePeerList();
-            initResizableSeparator();
-            initMorseAudio();
-            initVoiceRecognition();
-            initPeerJSEnhanced()
-            
-            // Inicializar sistema satelital mejorado
-            initSatelliteSystem();
-            
-        
-            
-            // Iniciar health checks
-            setTimeout(startHealthCheckSystem, 5000);
-            
-            updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | SATÉLITE ACTIVO`);
+});
 
-            // Iniciar seguimiento automático de posición (modo "fijo")
-            startWatchingPosition();
-        };
-
-        // In the file where the function is defined
-window.initializeSatelliteWeather = function() {
-    // Your logic here
-    console.log("Satellite weather initialized");
+// Sobrescribir handleReceivedData para emergencias
+const originalHandleReceivedData = window.handleReceivedData;
+window.handleReceivedData = function(senderId, data) {
+    if (data.type === 'emergency') {
+        handleEmergencyMessage(senderId, data);
+        return;
+    }
+    
+    if (originalHandleReceivedData) {
+        originalHandleReceivedData(senderId, data);
+    }
 };
 
-// === INICIALIZACIÓN FINAL (reemplaza tu window.onload) ===
+// =============================================
+// INICIALIZACIÓN
+// =============================================
+
 window.onload = function() {
     console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura`);
 
@@ -10820,7 +9203,7 @@ window.onload = function() {
         savedIds = [];
     }
 
-    // Inicializaciones originales (mantengo todo)
+    // Inicializaciones
     buildAsciiTable();
     buildMorseTable();
     initRadioSystem();
@@ -10836,29 +9219,83 @@ window.onload = function() {
     startHealthCheckSystem();
 
     // Versión en badge
-    document.querySelector('.version-badge').textContent = `v${VERSION}`;
+    const versionBadge = document.querySelector('.version-badge');
+    if (versionBadge) versionBadge.textContent = `v${VERSION}`;
 
     updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO`);
+    
+    // Inicializar seguridad
+    setTimeout(initSecurity, 1000);
+    
+    // Inicializar cola
+    setTimeout(initQueue, 2000);
+    
+    // Inicialización final
+    setTimeout(finalInitialization, 1200);
+    
+    // Iniciar seguimiento automático
+    startWatchingPosition();
 };
 
-
-
-// Ejecutar después de cargar
-setTimeout(initQueue, 2000); 
-
-function force720() {
-    const container = document.querySelector('.container');
-    if (container) {
-        container.style.width = '720px';
-        container.style.height = '720px';
+// Inicializar seguridad
+function initSecurity() {
+    console.log("🔐 Inicializando seguridad v5.2...");
+    
+    const encryptionSelect = document.getElementById('encryptionMode');
+    if (encryptionSelect) {
+        encryptionSelect.addEventListener('change', updateSecurityBadge);
+    }
+    
+    updateSecurityBadge();
+    
+    updateMonitor("🔐 SISTEMA DE SEGURIDAD v5.2 ACTIVADO");
+    
+    const monitor = document.getElementById('monitor-decoded');
+    if (monitor) {
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble message-system';
+        bubble.innerHTML = `
+            <i class="fas fa-shield-alt"></i> SEGURIDAD v5.2 ACTIVADA<br>
+            <small style="color:#88ffaa; font-size:0.7rem;">
+                Selecciona cifrado: AES-256-GCM | XOR | Sin cifrado
+            </small>
+        `;
+        monitor.appendChild(bubble);
+        monitor.scrollTop = monitor.scrollHeight;
     }
 }
 
+// Inicializar consola
+setTimeout(() => {
+    console.log("🚀 RADCOM CONSOLE v5.6.1 ready");
+}, 1000);
 
-
-
-
-      
-    </script>
+// Exportar funciones al ámbito global
+window.forceUpdateSatelliteData = forceUpdateSatelliteData;
+window.sendSatelliteEmergency = sendSatelliteEmergency;
+window.sendPositionToChat = sendPositionToChat;
+window.getCurrentGPSPosition = getCurrentGPSPosition;
+window.initSatelliteSystem = initSatelliteSystem;
+window.initializeSatelliteWeather = initializeSatelliteWeather;
+window.openConsole = openConsole;
+window.closeConsole = closeConsole;
+window.switchConsoleTab = switchConsoleTab;
+window.handleCMDCommand = handleCMDCommand;
+window.executeCMDCommand = executeCMDCommand;
+window.clearCMDConsole = clearCMDConsole;
+window.hexLoadCurrentPage = hexLoadCurrentPage;
+window.hexSaveChanges = hexSaveChanges;
+window.hexFind = hexFind;
+window.hexFormat = hexFormat;
+window.hexMinify = hexMinify;
+window.autoDetectAndConvert = autoDetectAndConvert;
+window.convertTextToHex = convertTextToHex;
+window.convertHexToText = convertHexToText;
+window.decodeBase64 = decodeBase64;
+window.clearDecoder = clearDecoder;
+window.showSecurityInfo = showSecurityInfo;
+window.handleCockpitClick = handleCockpitClick;
+window.closeModal680 = closeModal680;
+</script>
 </body>
 </html>
