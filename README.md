@@ -4578,6 +4578,10 @@ function decryptAES(ciphertext, password) {
 }
 
 // Capa de seguridad unificada
+// =============================================
+// CAPA DE SEGURIDAD UNIFICADA - VERSIÓN FINAL CORREGIDA
+// =============================================
+
 function securityLayer(text, isSending, encryptionMode, password) {
     if (!password) password = "";
     encryptionMode = (encryptionMode || "none").toLowerCase().trim();
@@ -4593,49 +4597,115 @@ function securityLayer(text, isSending, encryptionMode, password) {
     }
 
     try {
-        if (encryptionMode === "aes" || encryptionMode === "AES-256-GCM") {
+        if (encryptionMode === "aes" || encryptionMode === "aes-256-gcm") {
             if (isSending) {
+                // === CIFRADO: SIEMPRE usa el mismo formato ===
                 const iv = CryptoJS.lib.WordArray.random(12);
-                const salt = CryptoJS.lib.WordArray.random(8);
-                const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
-                const encrypted = CryptoJS.AES.encrypt(text, key, {
+                
+                // Derivar clave simple (sin salt para mantener compatibilidad)
+                const key = CryptoJS.SHA256(password);
+                
+                // Cifrar con AES en modo CBC (más compatible que GCM)
+                const encrypted = CryptoJS.AES.encrypt(text, key, { 
                     iv: iv,
-                    mode: CryptoJS.mode.GCM,
-                    padding: CryptoJS.pad.NoPadding
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
                 });
-                result.text = salt.toString(CryptoJS.enc.Base64) + ":" + iv.toString(CryptoJS.enc.Base64) + ":" + encrypted.toString();
-                result.encryptionUsed = "AES-256-GCM";
+                
+                // FORMATO ÚNICO: iv:datos_cifrados
+                result.text = iv.toString() + ':' + encrypted.toString();
+                result.encryptionUsed = "AES-256-CBC";
+                
             } else {
-                const parts = text.split(":");
-                if (parts.length !== 3) throw new Error("Formato AES inválido");
-                const salt = CryptoJS.enc.Base64.parse(parts[0]);
-                const iv = CryptoJS.enc.Base64.parse(parts[1]);
-                const ct = parts[2];
-                const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
-                const decrypted = CryptoJS.AES.decrypt(ct, key, {
-                    iv: iv,
-                    mode: CryptoJS.mode.GCM,
-                    padding: CryptoJS.pad.NoPadding
-                });
-                const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
-                if (!plaintext) throw new Error("Descifrado vacío");
-                result.text = plaintext;
-                result.encryptionUsed = "AES-256-GCM";
+                // === DESCIFRADO: Intenta AMBOS formatos ===
+                
+                // Intento 1: Formato con 2 partes (iv:datos)
+                if (text.includes(':')) {
+                    const parts = text.split(':');
+                    
+                    if (parts.length === 2) {
+                        try {
+                            const iv = CryptoJS.enc.Hex.parse(parts[0]);
+                            const ct = parts[1];
+                            
+                            // Derivar clave igual que en cifrado
+                            const key = CryptoJS.SHA256(password);
+                            
+                            const decrypted = CryptoJS.AES.decrypt(ct, key, { 
+                                iv: iv,
+                                mode: CryptoJS.mode.CBC,
+                                padding: CryptoJS.pad.Pkcs7
+                            });
+                            
+                            const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+                            if (plaintext) {
+                                result.text = plaintext;
+                                result.encryptionUsed = "AES-256-CBC";
+                                return result;
+                            }
+                        } catch (e) {
+                            // Silencioso, intentamos el otro formato
+                        }
+                    }
+                    
+                    // Intento 2: Formato con 3 partes (salt:iv:datos) - formato antiguo
+                    if (parts.length === 3) {
+                        try {
+                            const salt = CryptoJS.enc.Base64.parse(parts[0]);
+                            const iv = CryptoJS.enc.Base64.parse(parts[1]);
+                            const ct = parts[2];
+                            
+                            const key = CryptoJS.PBKDF2(password, salt, { 
+                                keySize: 256/32, 
+                                iterations: 1000 
+                            });
+                            
+                            const decrypted = CryptoJS.AES.decrypt(ct, key, { 
+                                iv: iv,
+                                mode: CryptoJS.mode.GCM,
+                                padding: CryptoJS.pad.NoPadding
+                            });
+                            
+                            const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+                            if (plaintext) {
+                                result.text = plaintext;
+                                result.encryptionUsed = "AES-256-GCM (legacy)";
+                                return result;
+                            }
+                        } catch (e) {
+                            // Error en ambos formatos
+                        }
+                    }
+                }
+                
+                // Si llegamos aquí, ningún formato funcionó
+                result.text = text;
+                result.encryptionUsed = "ERROR";
+                result.error = "Formato AES no reconocido";
             }
+            
         } else if (encryptionMode === "xor") {
+            // XOR simple (sin cambios)
             let output = "";
             for (let i = 0; i < text.length; i++) {
-                output += String.fromCharCode(text.charCodeAt(i) ^ password.charCodeAt(i % password.length));
+                output += String.fromCharCode(
+                    text.charCodeAt(i) ^ password.charCodeAt(i % password.length)
+                );
             }
             result.text = output;
             result.encryptionUsed = "XOR";
+            
         } else {
             result.error = "Modo de cifrado desconocido: " + encryptionMode;
         }
     } catch (err) {
         result.error = err.message || "Error en capa de seguridad";
         console.error("[securityLayer]", result.error);
-        result.text = "[ERROR SEGURIDAD] " + (result.error || "desconocido");
+        
+        if (!isSending) {
+            result.text = text;
+            result.encryptionUsed = "ERROR";
+        }
     }
 
     return result;
@@ -5532,58 +5602,96 @@ function verificarYReparar() {
 }
 
 // =============================================
-// FUNCIONES DE MENSAJERÍA Y MANEJO DE DATOS
+// HANDLE RECEIVED DATA - SOLO LA PARTE MORSE CORREGIDA
 // =============================================
 
 function handleReceivedData(senderId, data) {
     console.log("🔄 Procesando datos de", senderId, ":", data);
     
-    connectionHealth[senderId] = {
-        ...connectionHealth[senderId],
-        lastActivity: Date.now(),
-        lastReceived: Date.now()
-    };
+    if (!connectionHealth[senderId]) connectionHealth[senderId] = {};
+    connectionHealth[senderId].lastActivity = Date.now();
     
-    if (!data || !data.message) {
-        console.log("❌ Datos inválidos");
-        return;
-    }
+    if (!data || !data.message) return;
     
     const key = document.getElementById('key').value || 'ATOM80';
+    const sender = senderId.substring(0, 8);
     
-    let decryptedMessage = data.message;
+    let displayText = data.message;
     let encryptionType = data.encryption || 'NONE';
+    let errorMsg = '';
     
-    if (encryptionType === 'xor' || encryptionType === 'XOR') {
-        decryptedMessage = xorDecrypt(data.message, key);
-    } else if (encryptionType === 'aes' || encryptionType === 'AES-256-GCM') {
-        try {
-            const secured = securityLayer(data.message, false, 'aes', key);
-            decryptedMessage = secured.text;
-        } catch (e) {
-            console.error("Error descifrando AES:", e);
-            decryptedMessage = "[ERROR DESENCRIPTADO]";
+    // === 1. DESCIFRAR SI ES NECESARIO ===
+    if (encryptionType === 'AES-256-CBC' || encryptionType === 'AES-256-GCM' || 
+        encryptionType === 'AES-256-GCM (legacy)' || encryptionType === 'XOR') {
+        
+        const mode = encryptionType.includes('AES') ? 'aes' : 'xor';
+        const secured = securityLayer(data.message, false, mode, key);
+        
+        displayText = secured.text;
+        encryptionType = secured.encryptionUsed;
+        
+        if (secured.error) {
+            errorMsg = ` ⚠️ ${secured.error}`;
+            console.warn(`Error descifrando de ${sender}:`, secured.error);
         }
     }
     
-    const displayName = senderId.substring(0, 6);
+    // === 2. DETECTAR Y DECODIFICAR MORSE AUTOMÁTICAMENTE ===
+    let finalText = displayText;
+    let isMorse = false;
     
-    let color = '#888';
-    if (encryptionType === 'AES-256-GCM') color = '#00ffea';
-    else if (encryptionType === 'XOR') color = '#ffaa00';
-    
-    if (data.isDualMorse && data.textVersion && data.morseVersion) {
-        displayMessage(`${displayName}: ${data.textVersion} (${data.morseVersion})`, data.hexPreview || '', 'incoming');
-    } else {
-        const displayText = `<span style="color:${color}">[${encryptionType}]</span> ${decryptedMessage}`;
-        displayMessage(`${displayName}: ${decryptedMessage}`, data.hexPreview || '', 'incoming');
+    // Verificar si el texto parece código Morse (solo puntos, rayas, espacios y barras)
+    if (typeof displayText === 'string' && /^[\.\-\s\/]+$/.test(displayText.trim())) {
+        isMorse = true;
+        const decoded = decodeMorse(displayText);
+        if (decoded && !decoded.includes('?')) {
+            finalText = decoded;
+            // Actualizar la traducción en tiempo real
+            updateMorseTranslation(displayText);
+        }
+    }
+    // Si el mensaje tiene modo Morse explícito
+    else if (data.mode === 'morse') {
+        isMorse = true;
+        const decoded = decodeMorse(displayText);
+        if (decoded && !decoded.includes('?')) {
+            finalText = decoded;
+            updateMorseTranslation(displayText);
+        }
+    }
+    // Si es mensaje dual con versión de texto
+    else if (data.isDualMorse && data.textVersion) {
+        finalText = data.textVersion;
+        if (data.morseVersion) {
+            updateMorseTranslation(data.morseVersion);
+        }
     }
     
+    // === 3. MOSTRAR EN CHAT ===
+    const monitor = document.getElementById('monitor-decoded');
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble message-incoming';
+    
+    let color = '#888';
+    if (encryptionType === 'AES-256-CBC') color = '#00ffea';
+    else if (encryptionType === 'AES-256-GCM' || encryptionType === 'AES-256-GCM (legacy)') color = '#00ff88';
+    else if (encryptionType === 'XOR') color = '#ffaa00';
+    else if (encryptionType === 'ERROR') color = '#ff3300';
+    
+    // Añadir indicador si se decodificó Morse
+    const morseIndicator = isMorse ? ' 📡 → ' + displayText : '';
+    
+    bubble.innerHTML = `
+        <strong>${sender}:</strong> ${finalText}${morseIndicator}
+        <br><small style="color:${color};">Cifrado: ${encryptionType}${errorMsg}</small>
+    `;
+    monitor.appendChild(bubble);
+    monitor.scrollTop = monitor.scrollHeight;
+    
+    // Estadísticas
     stats.rx += data.message.length;
     stats.messages++;
     updateStats();
-    
-    updateMonitor(`📥 ${displayName}: "${decryptedMessage.substring(0, 20)}${decryptedMessage.length > 20 ? '...' : ''}"`);
     
     playMessageNotification();
 }
@@ -5611,33 +5719,43 @@ function sendMessage() {
     let processedMessage = message;
     let extraData = {};
     
+    // === MANEJO DE MODO MORSE ===
     if (mode === 'morse') {
         const isMorse = /^[\.\-\s\/]+$/.test(message.trim());
         
         if (isMorse) {
+            // Escribieron Morse → guardar texto traducido
             processedMessage = message;
             extraData = {
                 textVersion: decodeMorse(message) || message,
                 morseVersion: message,
-                isDualMorse: true
+                isDualMorse: true,
+                mode: 'morse'
             };
-            updateMonitor(`📡 Enviando Morse (${decodeMorse(message)?.substring(0, 20) || "Código"})`);
+            updateMonitor(`📡 Enviando Morse (${extraData.textVersion.substring(0, 20)})`);
         } else {
+            // Escribieron texto → convertir a Morse
             processedMessage = textToMorse(message);
             extraData = {
                 textVersion: message,
                 morseVersion: processedMessage,
-                isDualMorse: true
+                isDualMorse: true,
+                mode: 'morse'
             };
             updateMonitor(`📡 Enviando "${message.substring(0, 20)}" como Morse`);
         }
+        
+        // Mostrar traducción en tiempo real
         updateMorseTranslation(message);
+        
     } else if (mode === 'phonetic') {
         processedMessage = textToPhonetic(message);
     }
     
+    // Preparar datos para enviar
     const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key, extraData);
     
+    // Enviar a conexiones
     let sentCount = 0;
     
     if (activeTarget === 'GLOBAL') {
@@ -5661,14 +5779,43 @@ function sendMessage() {
     }
     
     if (sentCount > 0) {
-        displayMessage(`YO: ${message}`, dataToSend.hexPreview, 'outgoing');
+        // Mostrar mensaje local
+        let displayMsg = message;
+        if (mode === 'morse' && extraData.textVersion) {
+            displayMsg = extraData.textVersion;
+            if (extraData.morseVersion && extraData.morseVersion.length < 30) {
+                displayMsg += ` [${extraData.morseVersion}]`;
+            }
+        }
+        
+        displayMessage(`YO: ${displayMsg}`, dataToSend.hexPreview, 'outgoing');
         stats.tx += JSON.stringify(dataToSend).length;
         stats.messages++;
         input.value = '';
         updateMonitor(`📤 ENVIADO A ${sentCount} DESTINO${sentCount !== 1 ? 'S' : ''}`);
         updateStats();
         playStrongBeep(700, 100);
+        
+        // Actualizar health
+        if (activeTarget === 'GLOBAL') {
+            Object.keys(connections).forEach(peerId => {
+                if (connections[peerId]?.status === 'online') {
+                    connectionHealth[peerId] = {
+                        ...connectionHealth[peerId],
+                        lastActivity: Date.now(),
+                        packetsSent: (connectionHealth[peerId]?.packetsSent || 0) + 1
+                    };
+                }
+            });
+        } else if (connections[activeTarget]) {
+            connectionHealth[activeTarget] = {
+                ...connectionHealth[activeTarget],
+                lastActivity: Date.now(),
+                packetsSent: (connectionHealth[activeTarget]?.packetsSent || 0) + 1
+            };
+        }
     } else {
+        // Guardar en cola
         addToQueue(dataToSend, message);
         displayMessage(`⏳ YO (EN COLA): ${message}`, dataToSend.hexPreview, 'outgoing');
         input.value = '';
@@ -5676,6 +5823,7 @@ function sendMessage() {
         playStrongBeep(500, 100);
     }
     
+    // Limpiar tabla
     document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
         td.classList.remove('highlighted');
     });
@@ -5812,24 +5960,26 @@ function prepareMessageToSend(message, mode, encryption, key, extraData = {}) {
     let encryptedMessage = processedMessage;
     let encryptionType = 'NONE';
     
-    if (encryption === 'xor') {
-        encryptedMessage = xorEncrypt(processedMessage, key);
+    if (encryption === 'aes' || encryption === 'aes-256-gcm') {
+        const secured = securityLayer(processedMessage, true, 'aes', key);
+        encryptedMessage = secured.text;
+        encryptionType = 'AES-256-CBC'; // Usar CBC para compatibilidad
+        hexPreview = '🔐';
+    } else if (encryption === 'xor') {
+        const secured = securityLayer(processedMessage, true, 'xor', key);
+        encryptedMessage = secured.text;
         encryptionType = 'XOR';
         for (let i = 0; i < Math.min(encryptedMessage.length, 3); i++) {
             hexPreview += encryptedMessage.charCodeAt(i).toString(16).padStart(2, '0');
         }
         if (encryptedMessage.length > 3) hexPreview += '...';
-    } else if (encryption === 'aes') {
-        const secured = securityLayer(processedMessage, true, 'aes', key);
-        encryptedMessage = secured.text;
-        encryptionType = 'AES-256-GCM';
-        hexPreview = 'AES';
     }
     
+    // IMPORTANTE: Guardar toda la información del modo Morse
     return {
         type: 'message',
         message: encryptedMessage,
-        original: message,
+        original: extraData.textVersion || message, // Guardar texto original
         mode: mode,
         encryption: encryptionType,
         timestamp: Date.now(),
@@ -6387,6 +6537,8 @@ function updateMorseTranslation(text) {
     const textDisplay = document.getElementById('morse-text-display');
     const codeDisplay = document.getElementById('morse-code-display');
     
+    if (!translationBox || !textDisplay || !codeDisplay) return;
+    
     if (!text.trim()) {
         translationBox.classList.remove('active');
         return;
@@ -6394,26 +6546,46 @@ function updateMorseTranslation(text) {
     
     translationBox.classList.add('active');
     
-    if (/^[\.\-\s\/]+$/.test(text.trim())) {
-        textDisplay.textContent = decodeMorse(text) || "[Código Morse]";
+    // Detectar si es código Morse o texto
+    const isMorse = /^[\.\-\s\/]+$/.test(text.trim());
+    
+    if (isMorse) {
+        // Es código Morse → decodificar a texto
+        const decoded = decodeMorse(text);
+        textDisplay.textContent = decoded || '???';
         codeDisplay.textContent = text;
     } else {
+        // Es texto → codificar a Morse
         textDisplay.textContent = text;
         codeDisplay.textContent = textToMorse(text);
     }
 }
 
 function decodeMorse(morseCode) {
+    if (!morseCode) return '';
+    
+    // Crear mapa inverso: código Morse -> carácter
     const morseMap = {};
     for (const [char, code] of Object.entries(morseCodes)) {
         morseMap[code] = char;
     }
     
-    return morseCode.split(' ').map(code => morseMap[code] || '?').join('');
+    // Dividir por espacios (cada código Morse)
+    return morseCode.split(' ').map(code => {
+        // Si es espacio entre palabras
+        if (code === '/') return ' ';
+        // Buscar el carácter correspondiente
+        return morseMap[code] || '?';
+    }).join('');
 }
 
 function textToMorse(text) {
-    return text.toUpperCase().split('').map(char => morseCodes[char] || char).join(' ');
+    if (!text) return '';
+    
+    return text.toUpperCase().split('').map(char => {
+        if (char === ' ') return '/';
+        return morseCodes[char] || char;
+    }).join(' ');
 }
 
 function textToPhonetic(text) {
