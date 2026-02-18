@@ -4577,6 +4577,7 @@ function decryptAES(ciphertext, password) {
     }
 }
 
+// Capa de seguridad unificada
 // =============================================
 // CAPA DE SEGURIDAD UNIFICADA - VERSIÓN FINAL CORREGIDA
 // =============================================
@@ -5601,7 +5602,7 @@ function verificarYReparar() {
 }
 
 // =============================================
-// FUNCIONES DE MENSAJERÍA Y MANEJO DE DATOS
+// HANDLE RECEIVED DATA - SOLO LA PARTE MORSE CORREGIDA
 // =============================================
 
 function handleReceivedData(senderId, data) {
@@ -5619,7 +5620,7 @@ function handleReceivedData(senderId, data) {
     let encryptionType = data.encryption || 'NONE';
     let errorMsg = '';
     
-    // === SI ESTÁ CIFRADO, INTENTAR DESCIFRAR ===
+    // === 1. DESCIFRAR SI ES NECESARIO ===
     if (encryptionType === 'AES-256-CBC' || encryptionType === 'AES-256-GCM' || 
         encryptionType === 'AES-256-GCM (legacy)' || encryptionType === 'XOR') {
         
@@ -5635,7 +5636,38 @@ function handleReceivedData(senderId, data) {
         }
     }
     
-    // === MOSTRAR EN CHAT ===
+    // === 2. DETECTAR Y DECODIFICAR MORSE AUTOMÁTICAMENTE ===
+    let finalText = displayText;
+    let isMorse = false;
+    
+    // Verificar si el texto parece código Morse (solo puntos, rayas, espacios y barras)
+    if (typeof displayText === 'string' && /^[\.\-\s\/]+$/.test(displayText.trim())) {
+        isMorse = true;
+        const decoded = decodeMorse(displayText);
+        if (decoded && !decoded.includes('?')) {
+            finalText = decoded;
+            // Actualizar la traducción en tiempo real
+            updateMorseTranslation(displayText);
+        }
+    }
+    // Si el mensaje tiene modo Morse explícito
+    else if (data.mode === 'morse') {
+        isMorse = true;
+        const decoded = decodeMorse(displayText);
+        if (decoded && !decoded.includes('?')) {
+            finalText = decoded;
+            updateMorseTranslation(displayText);
+        }
+    }
+    // Si es mensaje dual con versión de texto
+    else if (data.isDualMorse && data.textVersion) {
+        finalText = data.textVersion;
+        if (data.morseVersion) {
+            updateMorseTranslation(data.morseVersion);
+        }
+    }
+    
+    // === 3. MOSTRAR EN CHAT ===
     const monitor = document.getElementById('monitor-decoded');
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble message-incoming';
@@ -5646,8 +5678,11 @@ function handleReceivedData(senderId, data) {
     else if (encryptionType === 'XOR') color = '#ffaa00';
     else if (encryptionType === 'ERROR') color = '#ff3300';
     
+    // Añadir indicador si se decodificó Morse
+    const morseIndicator = isMorse ? ' 📡 → ' + displayText : '';
+    
     bubble.innerHTML = `
-        <strong>${sender}:</strong> ${displayText}
+        <strong>${sender}:</strong> ${finalText}${morseIndicator}
         <br><small style="color:${color};">Cifrado: ${encryptionType}${errorMsg}</small>
     `;
     monitor.appendChild(bubble);
@@ -5684,33 +5719,43 @@ function sendMessage() {
     let processedMessage = message;
     let extraData = {};
     
+    // === MANEJO DE MODO MORSE ===
     if (mode === 'morse') {
         const isMorse = /^[\.\-\s\/]+$/.test(message.trim());
         
         if (isMorse) {
+            // Escribieron Morse → guardar texto traducido
             processedMessage = message;
             extraData = {
                 textVersion: decodeMorse(message) || message,
                 morseVersion: message,
-                isDualMorse: true
+                isDualMorse: true,
+                mode: 'morse'
             };
-            updateMonitor(`📡 Enviando Morse (${decodeMorse(message)?.substring(0, 20) || "Código"})`);
+            updateMonitor(`📡 Enviando Morse (${extraData.textVersion.substring(0, 20)})`);
         } else {
+            // Escribieron texto → convertir a Morse
             processedMessage = textToMorse(message);
             extraData = {
                 textVersion: message,
                 morseVersion: processedMessage,
-                isDualMorse: true
+                isDualMorse: true,
+                mode: 'morse'
             };
             updateMonitor(`📡 Enviando "${message.substring(0, 20)}" como Morse`);
         }
+        
+        // Mostrar traducción en tiempo real
         updateMorseTranslation(message);
+        
     } else if (mode === 'phonetic') {
         processedMessage = textToPhonetic(message);
     }
     
+    // Preparar datos para enviar
     const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key, extraData);
     
+    // Enviar a conexiones
     let sentCount = 0;
     
     if (activeTarget === 'GLOBAL') {
@@ -5734,14 +5779,43 @@ function sendMessage() {
     }
     
     if (sentCount > 0) {
-        displayMessage(`YO: ${message}`, dataToSend.hexPreview, 'outgoing');
+        // Mostrar mensaje local
+        let displayMsg = message;
+        if (mode === 'morse' && extraData.textVersion) {
+            displayMsg = extraData.textVersion;
+            if (extraData.morseVersion && extraData.morseVersion.length < 30) {
+                displayMsg += ` [${extraData.morseVersion}]`;
+            }
+        }
+        
+        displayMessage(`YO: ${displayMsg}`, dataToSend.hexPreview, 'outgoing');
         stats.tx += JSON.stringify(dataToSend).length;
         stats.messages++;
         input.value = '';
         updateMonitor(`📤 ENVIADO A ${sentCount} DESTINO${sentCount !== 1 ? 'S' : ''}`);
         updateStats();
         playStrongBeep(700, 100);
+        
+        // Actualizar health
+        if (activeTarget === 'GLOBAL') {
+            Object.keys(connections).forEach(peerId => {
+                if (connections[peerId]?.status === 'online') {
+                    connectionHealth[peerId] = {
+                        ...connectionHealth[peerId],
+                        lastActivity: Date.now(),
+                        packetsSent: (connectionHealth[peerId]?.packetsSent || 0) + 1
+                    };
+                }
+            });
+        } else if (connections[activeTarget]) {
+            connectionHealth[activeTarget] = {
+                ...connectionHealth[activeTarget],
+                lastActivity: Date.now(),
+                packetsSent: (connectionHealth[activeTarget]?.packetsSent || 0) + 1
+            };
+        }
     } else {
+        // Guardar en cola
         addToQueue(dataToSend, message);
         displayMessage(`⏳ YO (EN COLA): ${message}`, dataToSend.hexPreview, 'outgoing');
         input.value = '';
@@ -5749,6 +5823,7 @@ function sendMessage() {
         playStrongBeep(500, 100);
     }
     
+    // Limpiar tabla
     document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
         td.classList.remove('highlighted');
     });
@@ -5888,7 +5963,7 @@ function prepareMessageToSend(message, mode, encryption, key, extraData = {}) {
     if (encryption === 'aes' || encryption === 'aes-256-gcm') {
         const secured = securityLayer(processedMessage, true, 'aes', key);
         encryptedMessage = secured.text;
-        encryptionType = 'AES-256-GCM';
+        encryptionType = 'AES-256-CBC'; // Usar CBC para compatibilidad
         hexPreview = '🔐';
     } else if (encryption === 'xor') {
         const secured = securityLayer(processedMessage, true, 'xor', key);
@@ -5900,10 +5975,11 @@ function prepareMessageToSend(message, mode, encryption, key, extraData = {}) {
         if (encryptedMessage.length > 3) hexPreview += '...';
     }
     
+    // IMPORTANTE: Guardar toda la información del modo Morse
     return {
         type: 'message',
         message: encryptedMessage,
-        original: message,
+        original: extraData.textVersion || message, // Guardar texto original
         mode: mode,
         encryption: encryptionType,
         timestamp: Date.now(),
@@ -6461,6 +6537,8 @@ function updateMorseTranslation(text) {
     const textDisplay = document.getElementById('morse-text-display');
     const codeDisplay = document.getElementById('morse-code-display');
     
+    if (!translationBox || !textDisplay || !codeDisplay) return;
+    
     if (!text.trim()) {
         translationBox.classList.remove('active');
         return;
@@ -6468,26 +6546,46 @@ function updateMorseTranslation(text) {
     
     translationBox.classList.add('active');
     
-    if (/^[\.\-\s\/]+$/.test(text.trim())) {
-        textDisplay.textContent = decodeMorse(text) || "[Código Morse]";
+    // Detectar si es código Morse o texto
+    const isMorse = /^[\.\-\s\/]+$/.test(text.trim());
+    
+    if (isMorse) {
+        // Es código Morse → decodificar a texto
+        const decoded = decodeMorse(text);
+        textDisplay.textContent = decoded || '???';
         codeDisplay.textContent = text;
     } else {
+        // Es texto → codificar a Morse
         textDisplay.textContent = text;
         codeDisplay.textContent = textToMorse(text);
     }
 }
 
 function decodeMorse(morseCode) {
+    if (!morseCode) return '';
+    
+    // Crear mapa inverso: código Morse -> carácter
     const morseMap = {};
     for (const [char, code] of Object.entries(morseCodes)) {
         morseMap[code] = char;
     }
     
-    return morseCode.split(' ').map(code => morseMap[code] || '?').join('');
+    // Dividir por espacios (cada código Morse)
+    return morseCode.split(' ').map(code => {
+        // Si es espacio entre palabras
+        if (code === '/') return ' ';
+        // Buscar el carácter correspondiente
+        return morseMap[code] || '?';
+    }).join('');
 }
 
 function textToMorse(text) {
-    return text.toUpperCase().split('').map(char => morseCodes[char] || char).join(' ');
+    if (!text) return '';
+    
+    return text.toUpperCase().split('').map(char => {
+        if (char === ' ') return '/';
+        return morseCodes[char] || char;
+    }).join(' ');
 }
 
 function textToPhonetic(text) {
