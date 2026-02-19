@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.7.1 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
+    <title>RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -2397,7 +2397,7 @@
                 letter-spacing: 2px;
                 margin-bottom: 25px;
                 opacity: 0.8;
-                ">v5.7.1 SEGURIDAD ACTIVADA cifrando...
+                ">v5.7.2 SEGURIDAD ACTIVADA cifrando...
             </div>
             
             <!-- Barra de progreso blanca -->
@@ -2432,7 +2432,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.7.1</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.7.2</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -3065,7 +3065,7 @@
                 </label>
                 <label style="display:block; margin-bottom:4px; color:#00ff88; font-size:0.75rem;">
                     <input type="checkbox" id="notificationsEnabled" checked style="margin-right:4px;">
-                    Notificaciones en segundo plano
+                    Notificaciones del sistema (como WhatsApp)
                 </label>
                 <label style="display:block; margin-bottom:4px; color:#00ff88; font-size:0.75rem;">
                     <input type="checkbox" id="saveHistory" checked style="margin-right:4px;">
@@ -3111,7 +3111,7 @@
                 <div id="CMD-output" class="CMD-output">
 &gt; RADCOM CMD CONSOLE v5.6.1 INITIALIZED
 &gt; System: RADCOM MASTER
-&gt; Version: 5.7.1
+&gt; Version: 5.7.2
 &gt; Ready for commands...
                 </div>
                 <div class="CMD-input-row">
@@ -4364,12 +4364,12 @@
 
     <script>
 // =============================================
-// RADCOM MASTER v5.7.1 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
-// CON NOTIFICACIONES EN SEGUNDO PLANO Y SONIDO MEJORADO
+// RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
+// CON NOTIFICACIONES DE SISTEMA Y GESTIÓN DE LLAMADAS CORREGIDA
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
-const VERSION = '5.7.1';
+const VERSION = '5.7.2';
 let peer = null;
 let myPeerId = null;
 let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
@@ -4382,7 +4382,7 @@ let queueRetryInterval = null;
 const MAX_QUEUE_SIZE = 100;
 
 // Variables VoIP - CORREGIDAS Y MEJORADAS
-let voipCalls = {}; // { peerId: { id, peerConnection, stream, status, remoteAudio, ringtoneTimeout } }
+let voipCalls = {};
 let voipMediaStream = null;
 let voipActiveCall = null;
 let voipIncomingCall = null;
@@ -4572,56 +4572,79 @@ const phoneticAlphabetFull = {
 };
 
 // =============================================
-// SISTEMA DE NOTIFICACIONES EN SEGUNDO PLANO
+// SISTEMA DE NOTIFICACIONES MEJORADO
 // =============================================
 
-function showNotification(title, message, type = 'info') {
+function showSystemNotification(title, message, type = 'info') {
     if (!notificationsEnabled) return;
     
-    // Verificar si la página está en segundo plano o si es una emergencia
-    if (document.hidden || type === 'emergency' || type === 'voip') {
-        try {
-            // Solicitar permiso si no lo tenemos
-            if (Notification.permission === 'granted') {
-                const options = {
-                    body: message,
-                    icon: type === 'emergency' ? '🔴' : type === 'voip' ? '📞' : '📡',
-                    badge: type === 'emergency' ? '🚨' : '📡',
-                    vibrate: type === 'emergency' ? [500, 200, 500] : [200, 100, 200],
-                    tag: 'radcom-notification',
-                    renotify: true,
-                    silent: !notificationSoundEnabled,
-                    requireInteraction: type === 'emergency' || type === 'voip'
-                };
-                
-                const notification = new Notification('RADCOM ' + title, options);
-                
-                notification.onclick = function() {
-                    window.focus();
-                    this.close();
-                    
-                    // Si es una llamada VoIP, mostrar el panel de llamada
-                    if (type === 'voip' && voipIncomingCall) {
-                        // Aquí puedes agregar lógica para mostrar la llamada
-                        updateMonitor(`📞 Llamada de ${voipIncomingCall.substring(0,8)} - Haz clic para responder`);
-                    }
-                };
-                
-                // Reproducir sonido adicional si está activado
-                if (notificationSoundEnabled && type !== 'voip') {
-                    playNotificationSound(type);
-                }
-                
-            } else if (Notification.permission !== 'denied') {
-                Notification.requestPermission();
+    // Verificar si tenemos permiso
+    if (Notification.permission === 'granted') {
+        const options = {
+            body: message,
+            icon: type === 'emergency' ? '🔴' : type === 'voip' ? '📞' : '📡',
+            badge: type === 'emergency' ? '🚨' : '📡',
+            vibrate: type === 'emergency' ? [500, 200, 500] : [200, 100, 200],
+            tag: 'radcom-' + Date.now(),
+            renotify: true,
+            silent: !notificationSoundEnabled,
+            requireInteraction: type === 'emergency' || type === 'voip',
+            actions: type === 'voip' ? [
+                { action: 'accept', title: '✅ Responder' },
+                { action: 'reject', title: '❌ Rechazar' }
+            ] : undefined
+        };
+        
+        const notification = new Notification('RADCOM ' + title, options);
+        
+        notification.onclick = function(event) {
+            event.preventDefault();
+            window.focus();
+            this.close();
+            
+            // Si es una llamada VoIP, responder automáticamente
+            if (type === 'voip' && voipIncomingCall) {
+                acceptVoIPCall(voipIncomingCall);
             }
-        } catch (e) {
-            console.error('Error mostrando notificación:', e);
+        };
+        
+        // Manejar acciones de botones
+        notification.onaction = function(event) {
+            if (event.action === 'accept' && voipIncomingCall) {
+                window.focus();
+                acceptVoIPCall(voipIncomingCall);
+            } else if (event.action === 'reject' && voipIncomingCall) {
+                window.focus();
+                rejectVoIPCall(voipIncomingCall, 'rejected');
+            }
+            this.close();
+        };
+        
+        // Hacer que la pantalla parpadee
+        if (document.hidden) {
+            tryFlashScreen();
         }
+        
+    } else if (Notification.permission === 'default') {
+        Notification.requestPermission();
     }
+}
+
+function tryFlashScreen() {
+    // Intentar hacer parpadear la pantalla cambiando el título
+    const originalTitle = document.title;
+    let flashCount = 0;
     
-    // Siempre mostrar en el monitor
-    displayMessage(`🔔 ${title}: ${message}`, '', type === 'emergency' ? 'system' : 'system');
+    const flashInterval = setInterval(() => {
+        if (flashCount >= 10 || !document.hidden) {
+            clearInterval(flashInterval);
+            document.title = originalTitle;
+            return;
+        }
+        
+        document.title = flashCount % 2 === 0 ? '🔴 LLAMADA ENTRANTE' : 'RADCOM MASTER';
+        flashCount++;
+    }, 500);
 }
 
 function playNotificationSound(type = 'info') {
@@ -4659,7 +4682,7 @@ function playNotificationSound(type = 'info') {
             gain.connect(audioContext.destination);
             
             osc.frequency.value = 600;
-            osc.type = 'sine';
+            osc.type = 'sawtooth';
             
             gain.gain.setValueAtTime(0.7, now + i * 0.5);
             gain.gain.setValueAtTime(0.7, now + i * 0.5 + 0.3);
@@ -4676,7 +4699,7 @@ function playNotificationSound(type = 'info') {
         gain.connect(audioContext.destination);
         
         osc.frequency.value = 1000;
-        osc.type = 'sine';
+        osc.type = 'sawtooth';
         
         gain.gain.setValueAtTime(0.5, now);
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
@@ -4779,7 +4802,7 @@ function decryptAES(ciphertext, password) {
 }
 
 // =============================================
-// CAPA DE SEGURIDAD UNIFICADA - VERSIÓN FINAL CORREGIDA
+// CAPA DE SEGURIDAD UNIFICADA
 // =============================================
 
 function securityLayer(text, isSending, encryptionMode, password) {
@@ -5070,7 +5093,7 @@ function setupConnection(conn, type) {
         setTimeout(() => sendHealthPing(peerId), 1000);
         
         // Notificar conexión exitosa
-        showNotification('CONEXIÓN', `Conectado a ${peerId.substring(0,8)}`, 'info');
+        showSystemNotification('CONEXIÓN', `Conectado a ${peerId.substring(0,8)}`, 'info');
     });
     
     conn.on('data', (data) => {
@@ -5129,7 +5152,7 @@ function setupConnection(conn, type) {
         updateMonitor(`🔒 DESCONECTADO: ${peerId.substring(0, 8)}`);
         
         // Notificar desconexión
-        showNotification('DESCONEXIÓN', `Desconectado de ${peerId.substring(0,8)}`, 'info');
+        showSystemNotification('DESCONEXIÓN', `Desconectado de ${peerId.substring(0,8)}`, 'info');
         
         if (voipActiveCall === peerId) {
             endVoIPCall(peerId);
@@ -5834,7 +5857,7 @@ function verificarYReparar() {
 }
 
 // =============================================
-// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS CON SONIDO FUERTE)
+// FUNCIONES VoIP CORREGIDAS - SIN RECONEXIONES AUTOMÁTICAS
 // =============================================
 
 function initVoIPAudio() {
@@ -5861,12 +5884,12 @@ function playRingtone() {
     voipRingtoneSource.connect(gainNode);
     gainNode.connect(voipAudioContext.destination);
 
-    voipRingtoneSource.type = 'sawtooth'; // Más fuerte que 'sine'
-    gainNode.gain.setValueAtTime(0.8, now); // Volumen alto
+    voipRingtoneSource.type = 'sawtooth';
+    gainNode.gain.setValueAtTime(0.8, now);
 
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 20; i++) { // Reducido a 20 ciclos
         const cycleStart = now + i * 3;
-        voipRingtoneSource.frequency.setValueAtTime(800, cycleStart); // Frecuencia más alta
+        voipRingtoneSource.frequency.setValueAtTime(800, cycleStart);
         gainNode.gain.setValueAtTime(0.8, cycleStart);
         gainNode.gain.setValueAtTime(0.8, cycleStart + 1);
         gainNode.gain.setValueAtTime(0, cycleStart + 1.01);
@@ -5901,7 +5924,7 @@ function playOutgoingTone() {
     voipOutgoingToneSource.type = 'sawtooth';
     gainNode.gain.setValueAtTime(0.7, now);
 
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 20; i++) { // Reducido a 20 ciclos
         const cycleStart = now + i * 1.5;
         voipOutgoingToneSource.frequency.setValueAtTime(600, cycleStart);
         gainNode.gain.setValueAtTime(0.7, cycleStart);
@@ -5910,7 +5933,7 @@ function playOutgoingTone() {
     }
 
     voipOutgoingToneSource.start(now);
-    voipOutgoingToneSource.stop(now + 60);
+    voipOutgoingToneSource.stop(now + 30);
 }
 
 function stopOutgoingTone() {
@@ -5953,7 +5976,7 @@ async function toggleVoIPCall(peerId) {
     try {
         updateMonitor(`📞 Iniciando llamada VoIP con ${peerId.substring(0, 8)}...`, "info");
         playStrongBeep(800, 100);
-        playOutgoingTone(); // Tono de timbrado mientras esperamos
+        playOutgoingTone();
 
         // Solicitar acceso al micrófono
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -5974,7 +5997,7 @@ async function toggleVoIPCall(peerId) {
             }),
             stream: stream,
             status: 'initiating',
-            remoteAudio: null // Aquí guardaremos el elemento de audio remoto
+            remoteAudio: null
         };
 
         // Añadir pistas de audio locales a la conexión
@@ -5982,31 +6005,25 @@ async function toggleVoIPCall(peerId) {
             voipCalls[peerId].peerConnection.addTrack(track, stream);
         });
 
-        // --- MANEJADOR onTrack CORREGIDO ---
-        // Aquí es donde se recibe el audio del otro peer
+        // MANEJADOR onTrack
         voipCalls[peerId].peerConnection.ontrack = (event) => {
             console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
             
-            // Crear un elemento de audio y asignarle el stream remoto
             const remoteAudio = new Audio();
             remoteAudio.srcObject = event.streams[0];
             remoteAudio.autoplay = true;
-            remoteAudio.volume = 1.0; // Volumen máximo
+            remoteAudio.volume = 1.0;
             
-            // Reproducir de forma segura
             remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
 
-            // Guardar referencia para poder detenerla después
             if (voipCalls[peerId]) {
                 voipCalls[peerId].remoteAudio = remoteAudio;
             }
 
-            // Mostrar indicador en el chat solo si la llamada se ha establecido
             if (voipActiveCall === peerId) {
                 displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
             }
         };
-        // --- FIN MANEJADOR onTrack ---
 
         // Crear oferta
         const offer = await voipCalls[peerId].peerConnection.createOffer();
@@ -6048,12 +6065,21 @@ async function toggleVoIPCall(peerId) {
             }
         };
 
+        // Timeout para la llamada (60 segundos)
+        setTimeout(() => {
+            if (voipCalls[peerId] && voipCalls[peerId].status === 'initiating') {
+                console.log(`⏰ Tiempo de espera agotado para llamada con ${peerId}`);
+                endVoIPCall(peerId);
+                updateMonitor(`⏰ Tiempo de espera agotado para llamada con ${peerId.substring(0, 8)}`, "warning");
+            }
+        }, 60000);
+
     } catch (error) {
         console.error("❌ Error iniciando llamada VoIP:", error);
         updateMonitor(`❌ Error iniciando llamada: ${error.message}`, "error");
         playStrongBeep(300, 200);
         stopOutgoingTone();
-        // Limpiar recursos
+        
         if (voipMediaStream) {
             voipMediaStream.getTracks().forEach(track => track.stop());
             voipMediaStream = null;
@@ -6064,6 +6090,7 @@ async function toggleVoIPCall(peerId) {
 }
 
 function handleVoIPOffer(senderId, data) {
+    // Si ya hay una llamada activa, rechazar inmediatamente
     if (voipActiveCall) {
         if (connections[senderId] && connections[senderId].conn) {
             connections[senderId].conn.send({
@@ -6076,6 +6103,7 @@ function handleVoIPOffer(senderId, data) {
         return;
     }
 
+    // Si ya hay una llamada entrante, rechazar la nueva
     if (voipIncomingCall) {
         if (connections[senderId] && connections[senderId].conn) {
             connections[senderId].conn.send({
@@ -6091,8 +6119,8 @@ function handleVoIPOffer(senderId, data) {
     updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)}...`, "info");
     playRingtone();
     
-    // Mostrar notificación
-    showNotification('📞 LLAMADA VoIP', `Llamada entrante de ${senderId.substring(0,8)}`, 'voip');
+    // Mostrar notificación del sistema
+    showSystemNotification('📞 LLAMADA VoIP', `Llamada entrante de ${senderId.substring(0,8)}`, 'voip');
 
     displayMessage(`📞 LLAMADA VoIP ENTRANTE de ${senderId.substring(0, 8)}`, '', 'voip');
 
@@ -6111,18 +6139,78 @@ function handleVoIPOffer(senderId, data) {
 
     updatePeerList();
 
-    // Si estamos en segundo plano, la notificación ya se mostró
-    // Si no, mostrar confirmación
+    // Si estamos en segundo plano, ya se mostró la notificación
+    // Solo mostrar confirmación si estamos en primer plano
     if (!document.hidden) {
-        if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
-            acceptVoIPCall(senderId);
-        } else {
-            rejectVoIPCall(senderId, 'rejected');
-        }
+        // Crear un panel flotante para aceptar/rechazar
+        showIncomingCallPanel(senderId);
     }
 }
 
+function showIncomingCallPanel(peerId) {
+    // Eliminar panel existente si lo hay
+    const existingPanel = document.getElementById('incoming-call-panel');
+    if (existingPanel) existingPanel.remove();
+    
+    const panel = document.createElement('div');
+    panel.id = 'incoming-call-panel';
+    panel.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(145deg, #0a0a0a, #1a1a1a);
+        border: 2px solid #ff3300;
+        border-radius: 8px;
+        padding: 15px;
+        z-index: 10000;
+        color: #00ff88;
+        font-family: 'Courier New', monospace;
+        box-shadow: 0 0 20px rgba(255, 51, 0, 0.5);
+        animation: slideIn 0.3s ease;
+        min-width: 250px;
+    `;
+    
+    panel.innerHTML = `
+        <style>
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        </style>
+        <div style="text-align: center; margin-bottom: 10px;">
+            <i class="fas fa-phone-alt" style="color: #ff3300; font-size: 1.5rem;"></i>
+        </div>
+        <div style="text-align: center; margin-bottom: 15px;">
+            <strong>LLAMADA ENTRANTE</strong><br>
+            <span style="color: #ff3300;">${peerId.substring(0, 8)}</span>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="acceptVoIPCall('${peerId}')" 
+                    style="flex: 1; padding: 8px; background: #00ff88; color: #000; border: none; 
+                           border-radius: 4px; cursor: pointer; font-weight: bold;">
+                <i class="fas fa-check"></i> RESPONDER
+            </button>
+            <button onclick="rejectVoIPCall('${peerId}', 'rejected')" 
+                    style="flex: 1; padding: 8px; background: #ff3300; color: #fff; border: none; 
+                           border-radius: 4px; cursor: pointer; font-weight: bold;">
+                <i class="fas fa-times"></i> RECHAZAR
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    // Auto-ocultar después de 30 segundos
+    setTimeout(() => {
+        if (panel.parentNode) panel.remove();
+    }, 30000);
+}
+
 async function acceptVoIPCall(peerId) {
+    // Eliminar panel de llamada entrante
+    const panel = document.getElementById('incoming-call-panel');
+    if (panel) panel.remove();
+    
     if (!voipCalls[peerId] || voipCalls[peerId].status !== 'incoming') {
         console.error("No hay llamada pendiente de", peerId);
         return;
@@ -6158,31 +6246,25 @@ async function acceptVoIPCall(peerId) {
             voipCalls[peerId].peerConnection.addTrack(track, stream);
         });
 
-        // --- MANEJADOR onTrack CORREGIDO ---
-        // Aquí es donde se recibe el audio del otro peer
+        // MANEJADOR onTrack
         voipCalls[peerId].peerConnection.ontrack = (event) => {
             console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
             
-            // Crear un elemento de audio y asignarle el stream remoto
             const remoteAudio = new Audio();
             remoteAudio.srcObject = event.streams[0];
             remoteAudio.autoplay = true;
-            remoteAudio.volume = 1.0; // Volumen máximo
+            remoteAudio.volume = 1.0;
             
-            // Reproducir de forma segura
             remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
 
-            // Guardar referencia para poder detenerla después
             if (voipCalls[peerId]) {
                 voipCalls[peerId].remoteAudio = remoteAudio;
             }
 
-            // Mostrar indicador en el chat solo si la llamada se ha establecido
             if (voipActiveCall === peerId) {
                 displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
             }
         };
-        // --- FIN MANEJADOR onTrack ---
 
         // Establecer descripción remota con la oferta
         await voipCalls[peerId].peerConnection.setRemoteDescription(
@@ -6241,6 +6323,10 @@ async function acceptVoIPCall(peerId) {
 }
 
 function rejectVoIPCall(peerId, reason = 'rejected') {
+    // Eliminar panel de llamada entrante
+    const panel = document.getElementById('incoming-call-panel');
+    if (panel) panel.remove();
+    
     if (!voipCalls[peerId]) return;
 
     stopRingtone();
@@ -6370,7 +6456,7 @@ function endVoIPCall(peerId = null) {
 }
 
 // =============================================
-// HANDLE RECEIVED DATA - SOLO LA PARTE MORSE CORREGIDA
+// HANDLE RECEIVED DATA
 // =============================================
 
 function handleReceivedData(senderId, data) {
@@ -6455,7 +6541,9 @@ function handleReceivedData(senderId, data) {
     playMessageNotification();
     
     // Mostrar notificación de mensaje recibido
-    showNotification('📩 MENSAJE', `De ${sender}: ${finalText.substring(0, 30)}${finalText.length > 30 ? '...' : ''}`, 'info');
+    if (document.hidden) {
+        showSystemNotification('📩 MENSAJE', `De ${sender}: ${finalText.substring(0, 50)}${finalText.length > 50 ? '...' : ''}`, 'info');
+    }
 }
 
 function sendMessage() {
@@ -7502,7 +7590,7 @@ function loadHistoryFromLocal() {
 }
 
 // =============================================
-// FUNCIONES DE SONIDO Y AUDIO (MEJORADAS)
+// FUNCIONES DE SONIDO Y AUDIO
 // =============================================
 
 function initMorseAudio() {
@@ -7539,9 +7627,9 @@ function playStrongBeep(freq, duration) {
     gainNode.connect(audioContext.destination);
     
     oscillator.frequency.value = freq;
-    oscillator.type = 'sawtooth'; // Más fuerte que 'sine'
+    oscillator.type = 'sawtooth';
     
-    gainNode.gain.setValueAtTime(0.8, audioContext.currentTime); // Volumen más alto
+    gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
     
     oscillator.start(audioContext.currentTime);
@@ -7567,7 +7655,7 @@ function playMessageNotification() {
         oscillator.frequency.value = freq;
         oscillator.type = 'sawtooth';
         
-        gainNode.gain.setValueAtTime(0.7, currentTime); // Volumen más alto
+        gainNode.gain.setValueAtTime(0.7, currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.15);
         
         oscillator.start(currentTime);
@@ -7807,10 +7895,10 @@ function playMorseCodeSound(code) {
             gainNode.connect(morseAudioContext.destination);
             
             oscillator.frequency.value = 700;
-            oscillator.type = 'sawtooth'; // Más fuerte que 'sine'
+            oscillator.type = 'sawtooth';
             
             gainNode.gain.setValueAtTime(0, time);
-            gainNode.gain.linearRampToValueAtTime(0.7, time + 0.01); // Volumen más alto
+            gainNode.gain.linearRampToValueAtTime(0.7, time + 0.01);
             gainNode.gain.setValueAtTime(0.7, time + duration - 0.01);
             gainNode.gain.linearRampToValueAtTime(0, time + duration);
             
@@ -8731,7 +8819,9 @@ function handleEmergencyMessage(senderId, data) {
     updateMonitor(`🚨 EMERGENCIA RECIBIDA DE ${senderId.substring(0,6)}`);
     
     // Mostrar notificación de emergencia
-    showNotification('🚨 EMERGENCIA', `De ${senderId.substring(0,8)}: ${decryptedMessage.substring(0,50)}...`, 'emergency');
+    if (document.hidden) {
+        showSystemNotification('🚨 EMERGENCIA', `De ${senderId.substring(0,8)}: ${decryptedMessage.substring(0,50)}...`, 'emergency');
+    }
     
     stats.rx += data.message.length;
     updateStats();
@@ -10227,9 +10317,10 @@ window.handleCockpitClick = handleCockpitClick;
 window.closeModal680 = closeModal680;
 window.toggleVoIPCall = toggleVoIPCall;
 window.endVoIPCall = endVoIPCall;
+window.acceptVoIPCall = acceptVoIPCall;
+window.rejectVoIPCall = rejectVoIPCall;
 
-// ===== CONTROL DEL SPLASH SCREEN (CORREGIDO) =====
-// Esta función debe ejecutarse después de que el DOM esté listo
+// ===== CONTROL DEL SPLASH SCREEN =====
 document.addEventListener('DOMContentLoaded', function() {
     const splashScreen = document.getElementById('splash-screen');
     
@@ -10240,21 +10331,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log("Splash screen encontrado, iniciando cuenta atrás...");
     
-    // Función para ocultar el splash con fade out
     function hideSplash() {
         splashScreen.style.opacity = '0';
         
-        // Después de la transición, ocultar completamente
         setTimeout(() => {
             splashScreen.style.display = 'none';
             console.log("Splash screen ocultado");
-        }, 800); // Debe coincidir con transition: opacity 0.8s ease
+        }, 800);
     }
     
-    // Esperar 7 segundos y ocultar
     setTimeout(hideSplash, 7000);
     
-    // Opcional: Cambiar el texto periódicamente para dar sensación de actividad
     const loadingText = splashScreen.querySelector('div:last-child div:last-child');
     if (loadingText) {
         const texts = [
@@ -10269,7 +10356,6 @@ document.addEventListener('DOMContentLoaded', function() {
             index = (index + 1) % texts.length;
             if (loadingText) loadingText.textContent = texts[index];
             
-            // Detener el intervalo cuando se oculte el splash
             if (index === texts.length - 1) {
                 setTimeout(() => {
                     clearInterval(textInterval);
