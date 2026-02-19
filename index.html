@@ -5669,22 +5669,26 @@ function stopOutgoingTone() {
 }
 
 async function toggleVoIPCall(peerId) {
+    // Si es la llamada activa, colgar
     if (voipActiveCall === peerId) {
         endVoIPCall(peerId);
         return;
     }
 
+    // Si es una llamada entrante, aceptar
     if (voipIncomingCall === peerId) {
         acceptVoIPCall(peerId);
         return;
     }
 
+    // Si ya hay una llamada activa con otro, no se puede iniciar una nueva
     if (voipActiveCall) {
         updateMonitor(`⚠️ Ya hay una llamada activa con ${voipActiveCall.substring(0, 8)}`, "warning");
         playStrongBeep(300, 200);
         return;
     }
 
+    // Verificar que el peer esté online
     if (!connections[peerId] || connections[peerId].status !== 'online') {
         updateMonitor(`⚠️ ${peerId.substring(0, 8)} no está conectado`, "warning");
         playStrongBeep(300, 200);
@@ -5694,13 +5698,16 @@ async function toggleVoIPCall(peerId) {
     try {
         updateMonitor(`📞 Iniciando llamada VoIP con ${peerId.substring(0, 8)}...`, "info");
         playStrongBeep(800, 100);
-        playOutgoingTone();
+        playOutgoingTone(); // Tono de timbrado mientras esperamos
 
+        // Solicitar acceso al micrófono
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         voipMediaStream = stream;
 
+        // Inicializar audio context si es necesario
         initVoIPAudio();
 
+        // Crear nueva conexión VoIP
         const callId = `voip_${Date.now()}`;
         voipCalls[peerId] = {
             id: callId,
@@ -5712,32 +5719,44 @@ async function toggleVoIPCall(peerId) {
             }),
             stream: stream,
             status: 'initiating',
-            remoteAudio: null
+            remoteAudio: null // Aquí guardaremos el elemento de audio remoto
         };
 
+        // Añadir pistas de audio locales a la conexión
         stream.getTracks().forEach(track => {
             voipCalls[peerId].peerConnection.addTrack(track, stream);
         });
 
+        // --- MANEJADOR onTrack CORREGIDO ---
+        // Aquí es donde se recibe el audio del otro peer
         voipCalls[peerId].peerConnection.ontrack = (event) => {
             console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
+            
+            // Crear un elemento de audio y asignarle el stream remoto
             const remoteAudio = new Audio();
             remoteAudio.srcObject = event.streams[0];
             remoteAudio.autoplay = true;
+            
+            // Reproducir de forma segura
             remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
 
+            // Guardar referencia para poder detenerla después
             if (voipCalls[peerId]) {
                 voipCalls[peerId].remoteAudio = remoteAudio;
             }
 
+            // Mostrar indicador en el chat solo si la llamada se ha establecido
             if (voipActiveCall === peerId) {
                 displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
             }
         };
+        // --- FIN MANEJADOR onTrack ---
 
+        // Crear oferta
         const offer = await voipCalls[peerId].peerConnection.createOffer();
         await voipCalls[peerId].peerConnection.setLocalDescription(offer);
 
+        // Enviar oferta al peer
         connections[peerId].conn.send({
             type: 'voip_offer',
             offer: offer,
@@ -5746,8 +5765,10 @@ async function toggleVoIPCall(peerId) {
         });
 
         updatePeerList();
+
         updateMonitor(`📞 Llamada iniciada con ${peerId.substring(0, 8)} - Esperando respuesta...`, "info");
 
+        // Manejar eventos ICE
         voipCalls[peerId].peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 connections[peerId].conn.send({
@@ -5759,6 +5780,7 @@ async function toggleVoIPCall(peerId) {
             }
         };
 
+        // Manejar cierre de conexión
         voipCalls[peerId].peerConnection.onconnectionstatechange = () => {
             console.log(`VoIP connection state with ${peerId}: ${voipCalls[peerId].peerConnection.connectionState}`);
             if (voipCalls[peerId].peerConnection.connectionState === 'disconnected' ||
@@ -5775,6 +5797,7 @@ async function toggleVoIPCall(peerId) {
         updateMonitor(`❌ Error iniciando llamada: ${error.message}`, "error");
         playStrongBeep(300, 200);
         stopOutgoingTone();
+        // Limpiar recursos
         if (voipMediaStream) {
             voipMediaStream.getTracks().forEach(track => track.stop());
             voipMediaStream = null;
@@ -5842,7 +5865,9 @@ async function acceptVoIPCall(peerId) {
         return;
     }
 
+    // Detener el ringtone inmediatamente
     stopRingtone();
+    // Limpiar el timeout automático
     if (voipCalls[peerId].ringtoneTimeout) {
         clearTimeout(voipCalls[peerId].ringtoneTimeout);
     }
@@ -5850,11 +5875,14 @@ async function acceptVoIPCall(peerId) {
     try {
         updateMonitor(`📞 Aceptando llamada de ${peerId.substring(0, 8)}...`, "info");
 
+        // Solicitar acceso al micrófono
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         voipMediaStream = stream;
 
+        // Inicializar audio context
         initVoIPAudio();
 
+        // Crear conexión peer
         voipCalls[peerId].peerConnection = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -5862,17 +5890,46 @@ async function acceptVoIPCall(peerId) {
             ]
         });
 
+        // Añadir pistas locales
         stream.getTracks().forEach(track => {
             voipCalls[peerId].peerConnection.addTrack(track, stream);
         });
 
+        // --- MANEJADOR onTrack CORREGIDO ---
+        // Aquí es donde se recibe el audio del otro peer
+        voipCalls[peerId].peerConnection.ontrack = (event) => {
+            console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
+            
+            // Crear un elemento de audio y asignarle el stream remoto
+            const remoteAudio = new Audio();
+            remoteAudio.srcObject = event.streams[0];
+            remoteAudio.autoplay = true;
+            
+            // Reproducir de forma segura
+            remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
+
+            // Guardar referencia para poder detenerla después
+            if (voipCalls[peerId]) {
+                voipCalls[peerId].remoteAudio = remoteAudio;
+            }
+
+            // Mostrar indicador en el chat solo si la llamada se ha establecido
+            if (voipActiveCall === peerId) {
+                displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
+            }
+        };
+        // --- FIN MANEJADOR onTrack ---
+
+        // Establecer descripción remota con la oferta
         await voipCalls[peerId].peerConnection.setRemoteDescription(
             new RTCSessionDescription(voipCalls[peerId].offer)
         );
 
+        // Crear respuesta
         const answer = await voipCalls[peerId].peerConnection.createAnswer();
         await voipCalls[peerId].peerConnection.setLocalDescription(answer);
 
+        // Enviar respuesta
         connections[peerId].conn.send({
             type: 'voip_answer',
             answer: answer,
@@ -5888,22 +5945,7 @@ async function acceptVoIPCall(peerId) {
         updateMonitor(`📞 Llamada aceptada con ${peerId.substring(0, 8)}`, "info");
         displayMessage(`📞 Llamada VoIP aceptada - Conversación con ${peerId.substring(0, 8)}`, '', 'voip');
 
-        voipCalls[peerId].peerConnection.ontrack = (event) => {
-            console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
-            const remoteAudio = new Audio();
-            remoteAudio.srcObject = event.streams[0];
-            remoteAudio.autoplay = true;
-            remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
-
-            if (voipCalls[peerId]) {
-                voipCalls[peerId].remoteAudio = remoteAudio;
-            }
-
-            if (voipActiveCall === peerId) {
-                displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
-            }
-        };
-
+        // Manejar eventos ICE
         voipCalls[peerId].peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 connections[peerId].conn.send({
@@ -5915,12 +5957,13 @@ async function acceptVoIPCall(peerId) {
             }
         };
 
+        // Manejar cierre de conexión
         voipCalls[peerId].peerConnection.onconnectionstatechange = () => {
             console.log(`VoIP connection state with ${peerId}: ${voipCalls[peerId].peerConnection.connectionState}`);
             if (voipCalls[peerId].peerConnection.connectionState === 'disconnected' ||
                 voipCalls[peerId].peerConnection.connectionState === 'failed' ||
                 voipCalls[peerId].peerConnection.connectionState === 'closed') {
-                if (voipActiveCall === peerId) {
+                if (voipActiveCall === peerId || voipIncomingCall === peerId) {
                     endVoIPCall(peerId);
                 }
             }
@@ -6013,9 +6056,11 @@ function endVoIPCall(peerId = null) {
 
     if (!endedPeerId) return;
 
+    // Detener tonos
     stopRingtone();
     stopOutgoingTone();
 
+    // Notificar al otro extremo
     if (connections[endedPeerId] && connections[endedPeerId].conn) {
         try {
             connections[endedPeerId].conn.send({
@@ -6028,20 +6073,27 @@ function endVoIPCall(peerId = null) {
         }
     }
 
+    // Cerrar conexión peer y limpiar audio remoto
     if (voipCalls[endedPeerId]) {
+        // Cerrar la conexión peer
         if (voipCalls[endedPeerId].peerConnection) {
             voipCalls[endedPeerId].peerConnection.close();
         }
+        
+        // Detener y limpiar el audio remoto
         if (voipCalls[endedPeerId].remoteAudio) {
             voipCalls[endedPeerId].remoteAudio.pause();
             voipCalls[endedPeerId].remoteAudio.srcObject = null;
         }
+        
         delete voipCalls[endedPeerId];
     }
 
+    // Limpiar variables de estado
     if (voipActiveCall === endedPeerId) voipActiveCall = null;
     if (voipIncomingCall === endedPeerId) voipIncomingCall = null;
 
+    // Detener pistas de audio locales
     if (voipMediaStream) {
         voipMediaStream.getTracks().forEach(track => track.stop());
         voipMediaStream = null;
