@@ -5617,7 +5617,7 @@ function playRingtone() {
         gainNode.gain.setValueAtTime(0, cycleStart + 1.01);
     }
 
-    voipRingtoneSource.start(now);s
+    voipRingtoneSource.start(now);
     voipRingtoneSource.stop(now + 60);
 }
 
@@ -5625,7 +5625,7 @@ function stopRingtone() {
     if (voipRingtoneSource) {
         try {
             voipRingtoneSource.stop();
-        } catch (e) { /* Ignorar si ya se detuvo */ }
+        } catch (e) {}
         voipRingtoneSource.disconnect();
         voipRingtoneSource = null;
     }
@@ -5808,7 +5808,6 @@ async function toggleVoIPCall(peerId) {
 }
 
 function handleVoIPOffer(senderId, data) {
-    // Si ya hay una llamada activa, rechazar
     if (voipActiveCall) {
         if (connections[senderId] && connections[senderId].conn) {
             connections[senderId].conn.send({
@@ -5821,7 +5820,6 @@ function handleVoIPOffer(senderId, data) {
         return;
     }
 
-    // Si ya hay una llamada entrante, rechazar la nueva
     if (voipIncomingCall) {
         if (connections[senderId] && connections[senderId].conn) {
             connections[senderId].conn.send({
@@ -5835,35 +5833,25 @@ function handleVoIPOffer(senderId, data) {
     }
 
     updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)}...`, "info");
-    
-    // --- TONO DE LLAMADA PARA EL RECEPTOR ---
-    // Asegurarse de que el audio está inicializado
-    initVoIPAudio();
-    // Reproducir el tono de llamada
     playRingtone();
-    // ----------------------------------------
 
-    // Mostrar notificación en chat
     displayMessage(`📞 LLAMADA VoIP ENTRANTE de ${senderId.substring(0, 8)}`, '', 'voip');
 
-    // Guardar información de la llamada entrante
     voipIncomingCall = senderId;
     voipCalls[senderId] = {
         id: data.callId,
         offer: data.offer,
         status: 'incoming',
         ringtoneTimeout: setTimeout(() => {
-            // Auto-rechazar después de 1 minuto
             if (voipIncomingCall === senderId) {
                 console.log(`⏰ Llamada de ${senderId.substring(0,8)} timeout, rechazando.`);
                 rejectVoIPCall(senderId, 'timeout');
             }
-        }, 60000) // 60 segundos
+        }, 60000)
     };
 
     updatePeerList();
 
-    // Preguntar al usuario si quiere aceptar la llamada
     if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
         acceptVoIPCall(senderId);
     } else {
@@ -5991,15 +5979,12 @@ async function acceptVoIPCall(peerId) {
 function rejectVoIPCall(peerId, reason = 'rejected') {
     if (!voipCalls[peerId]) return;
 
-    // Detener el tono de llamada
     stopRingtone();
 
-    // Limpiar el timeout automático
     if (voipCalls[peerId].ringtoneTimeout) {
         clearTimeout(voipCalls[peerId].ringtoneTimeout);
     }
 
-    // Notificar al otro extremo
     if (connections[peerId] && connections[peerId].conn) {
         connections[peerId].conn.send({
             type: 'voip_end',
@@ -6008,7 +5993,6 @@ function rejectVoIPCall(peerId, reason = 'rejected') {
         });
     }
 
-    // Limpiar la llamada
     delete voipCalls[peerId];
     if (voipIncomingCall === peerId) {
         voipIncomingCall = null;
