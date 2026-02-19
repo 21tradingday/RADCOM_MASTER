@@ -1,18 +1,16 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>   
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.7.0- SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
+    <title>RADCOM MASTER v5.7.0 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-    <!-- Cliente HTTP correcto para Open-Meteo (NO es openmeteo) -->
-    <script src="https://cdn.jsdelivr.net/npm/openmeteo​@7.2.0"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/openmeteo@7.2.0"></script> 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
-    <!-- Importación correcta como módulo (necesitarás type="module" en tu script principal) -->
     <script type="importmap">
      {
     "imports": {
@@ -47,8 +45,6 @@
             overflow-x: hidden;
         }
 
-        /* === CONTENEDOR PRINCIPAL 720x720 === */
-        
         .container { 
             width: 720px; 
             height: 720px; 
@@ -123,8 +119,6 @@
             100% { opacity: 1; }
         }
 
-        /* === LAYOUT PRINCIPAL === */
-        
         .main-layout { 
             display: flex; 
             flex: 1; 
@@ -132,8 +126,6 @@
             height: calc(720px - 48px - 120px);
         }
 
-        /* === PANEL LATERAL (150px) === */
-        
         .sidebar { 
             width: 165px;
             border-right: 1px solid #222; 
@@ -226,7 +218,6 @@
             box-shadow: 0 0 4px #0088ff !important;
         }
         
-        /* NUEVO ESTADO: NARANJA PARA INACTIVO/SEGUNDO PLANO */
         .st-warning { 
             background: #ffaa00 !important; 
             box-shadow: 0 0 6px #ffaa00 !important;
@@ -256,7 +247,6 @@
             color: white;
         }
 
-        /* === NUEVOS ESTILOS PARA BOTÓN VOIP === */
         .voip-btn {
             background: none;
             border: 1px solid #00ff88;
@@ -322,8 +312,6 @@
             gap: 2px;
         }
 
-        /* === ÁREA DE CONTENIDO === */
-
         .content-area { 
             flex: 1; 
             display: flex; 
@@ -332,8 +320,6 @@
             overflow: hidden;
         }
 
-        /* === MONITOR SUPERIOR === */
-        
         .monitor-container {
             display: flex;
             flex-direction: column;
@@ -383,8 +369,6 @@
             opacity: 0.7;
         }
 
-        /* === TABLA CENTRAL === */
-        
         .table-container {
             flex: 1;
             display: flex;
@@ -527,8 +511,6 @@
             font-size: 0.45rem;
         }
 
-        /* === MONITOR DE CHAT === */
-        
         #monitor-decoded { 
             flex: 1; 
             padding: 3px 6px;
@@ -597,7 +579,6 @@
             font-size: 0.6rem;
         }
 
-        /* Mensajes VoIP */
         .message-voip {
             background: linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0, 136, 255, 0.1));
             border-left: 2px solid #00ff88;
@@ -605,9 +586,6 @@
             font-weight: bold;
         }
 
-        /* === Original Todo anterio === */
-        /* === PIE DE PÁGINA MEJORADO === */
-        
         .footer-pro { 
             background: linear-gradient(180deg, #111 0%, #000 100%);
             border-top: 1px solid #00ff88;
@@ -855,7 +833,6 @@
             text-align: center;
         }
         
-        /* === BOTÓN REFRESCAR PEQUEÑO COMO ANTES === */
         .btn-refresh {
             background: linear-gradient(135deg, #ff6600 0%, #ff3300 100%) !important;
             color: white !important;
@@ -870,7 +847,6 @@
             transform: scale(1.05);
         }
         
-        /* === AÑADIDO: CSS PARA EL SCROLL === */
         #saved-peers-container {
             max-height: 200px;
             overflow-y: auto;
@@ -902,7 +878,6 @@
             background: rgba(0, 255, 136, 0.7);
         }
 
-        /* === BOTÓN REVIVIR CONEXIONES MEJORADO === */
         .revive-btn {
             width: 100%;
             padding: 3px;
@@ -928,7 +903,6 @@
             transform: translateY(0);
         }
 
-        /* === INDICADOR DE REVIVIR ACTIVO === */
         .reviving {
             animation: revivingPulse 0.5s infinite;
         }
@@ -939,7 +913,6 @@
             100% { opacity: 1; }
         }
 
-        /* Nuevos estilos para pestañas */
         .tab-container {
             display: flex;
             background: rgba(0, 0, 0, 0.8);
@@ -986,14 +959,12 @@
             font-size: 0.45rem;
         }
 
-        /* === NUEVOS ESTILOS PARA TABLA MORSE MEJORADA === */
         .morse-table-container {
             padding: 3px;
             height: 100%;
             overflow-y: auto;
         }
 
-        /* SCROLL ESTILIZADO PARA LAS PESTAÑAS */
         .morse-table-container::-webkit-scrollbar,
         .tab-content::-webkit-scrollbar {
             width: 4px;
@@ -1076,7 +1047,6 @@
             transform: scale(1.05);
         }
 
-        /* === CONTROLES DE SONIDO MORSE === */
         .morse-controls {
             display: flex;
             justify-content: space-between;
@@ -1143,7 +1113,6 @@
             font-size: 0.6rem;
         }
 
-        /* === ESTILOS ORIGINALES PARA PESTAÑA RADIO v4.6 === */
         .radio-container {
             display: flex;
             flex-direction: column;
@@ -1338,7 +1307,6 @@
             font-weight: bold;
         }
 
-        /* === NUEVOS ESTILOS PARA CANALES CB/PMR (MANTENIENDO DISEÑO ORIGINAL) === */
         .pmr-cb-section {
             margin-top: 5px;
             border: 1px solid #333;
@@ -1442,7 +1410,6 @@
             font-weight: bold;
         }
 
-        /* === CONTENEDOR FONÉTICO MEJORADO (SCROLL ARREGLADO) === */
         .phonetic-table-container {
             flex: 1;
             display: flex;
@@ -1522,7 +1489,6 @@
             font-style: italic;
         }
 
-        /* === SCROLL ESTILIZADO PARA EL FONÉTICO === */
         .phonetic-grid-container::-webkit-scrollbar {
             width: 5px;
         }
@@ -1573,7 +1539,6 @@
             background: rgba(255, 51, 0, 0.1);
         }
 
-        /* Transmisión activa */
         .transmission-active {
             animation: transmissionPulse 1s infinite;
         }
@@ -1584,7 +1549,6 @@
             100% { opacity: 1; }
         }
 
-        /* Sonido de estática */
         .static-overlay {
             position: absolute;
             top: 0;
@@ -1606,9 +1570,6 @@
         .static-active {
             opacity: 0.3;
         }        
-
-        /* === NUEVOS ESTILOS PARA SATÉLITE v4.7.2 === */
-      
 
         .satellite-header-v2 {
             background: linear-gradient(90deg, rgba(0, 20, 40, 0.95), rgba(0, 40, 80, 0.7));
@@ -1800,7 +1761,6 @@
             box-shadow: 0 0 8px #ff3300;
         }
 
-        /* === NUEVOS ESTILOS PARA MICRÓFONO v4.7 === */
         .mic-btn {
             width: 36px;
             height: 28px;
@@ -1838,7 +1798,6 @@
             color: #ff6600;
         }
 
-        /* === MEJORAS PARA EL INDICADOR DE VOZ v4.7 === */
         #mic-status.active {
             color: #ff6600;
             font-weight: bold;
@@ -1867,7 +1826,6 @@
             }
         }
 
-        /* === VISUALIZACIÓN DE TRADUCCIÓN MORSE === */
 .morse-translation {
     background: rgba(0, 20, 0, 0.3);
     border: 1px solid #ffaa00;
@@ -1890,8 +1848,6 @@
     margin-right: 5px;
 }
 
-        /* === NUEVOS ESTILOS PARA SATÉLITE MEJORADO === */
-    /* Fuerza verde fino en TODOS los scrollbars de la página */
 ::-webkit-scrollbar {
     width: 3px !important;
     height: 3px !important;
@@ -1903,18 +1859,15 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #00ff88 !important;           /* Verde puro del tema */
+    background: #00ff88 !important;
     border-radius: 10px !important;
-    border: 1px solid rgba(0, 255, 136, 0.2) !important;  /* borde sutil opcional */
+    border: 1px solid rgba(0, 255, 136, 0.2) !important;
 }
 
 ::-webkit-scrollbar-thumb:hover {
     background: #33ff99 !important;
 }
 
-
-
-/* === SEGURIDAD REAL v5.1 === */
 .security-badge {
     display: inline-flex;
     align-items: center;
@@ -1938,14 +1891,10 @@
     box-shadow: 0 0 4px #00ff88;
 }
 
-/* Colores para diferentes tipos de cifrado */
 .security-aes { color: #00ffea !important; }
 .security-xor { color: #ffaa00 !important; }
 .security-none { color: #ff3300 !important; }
 
-
-
-        /* === NUEVOS ESTILOS PARA BOTÓN CONSOLA v5.6.1 === */
 .console-btn {
     width: 36px;
     height: 28px;
@@ -1967,7 +1916,6 @@
     background: linear-gradient(135deg, #333 0, #444 100%);
 }
 
-/* === VENTANA CONSOLA 680x680 === */
 .console-modal-overlay {
     display: none;
     position: fixed;
@@ -2029,7 +1977,6 @@
     background: rgba(255, 51, 0, 0.2);
 }
 
-/* === PESTAÑAS CONSOLA === */
 .console-tabs {
     display: flex;
     background: rgba(0, 0, 0, 0.9);
@@ -2064,7 +2011,6 @@
     border-bottom: 2px solid #00ff88;
 }
 
-/* === CONTENIDO PESTAÑAS === */
 .console-tab-content {
     display: none;
     flex: 1;
@@ -2077,7 +2023,6 @@
     flex-direction: column;
 }
 
-/* === PESTAÑA 1: CMD CONSOLE === */
 .CMD-console-container {
     flex: 1;
     display: flex;
@@ -2144,7 +2089,6 @@
     color: white;
 }
 
-/* === PESTAÑA 2: HEX EDITOR === */
 .hex-editor-container {
     flex: 1;
     display: flex;
@@ -2214,7 +2158,6 @@
     justify-content: space-between;
 }
 
-/* === PESTAÑA 3: HEX DECODER === */
 .hex-decoder-container {
     flex: 1;
     display: flex;
@@ -2289,7 +2232,6 @@
     color: #000;
 }
 
-/* === SCROLLBAR ESTILIZADO === */
 .hex-editor::-webkit-scrollbar,
 .CMD-output::-webkit-scrollbar,
 .hex-decoder-textarea::-webkit-scrollbar {
@@ -2317,7 +2259,6 @@
     background: #33ff99;
 }
 
-/* === MODO HEX HIGHLIGHTING === */
 .hex-byte {
     padding: 0 1px;
     border-radius: 1px;
@@ -2333,10 +2274,6 @@
     color: #ffaa00;
     font-weight: bold;
 }
-
-
-
-/* === botones 6 nuevos com nav mapas === */
 
 .glass-cockpit-container {
     margin-top: 15px;
@@ -2363,7 +2300,7 @@
     cursor: pointer;
     transition: all 0.2s;
     border-radius: 4px;
-    font-family: 'Orbitron', sans-serif; /* Si la usas */
+    font-family: 'Orbitron', sans-serif;
 }
 
 .btn-cockpit i {
@@ -2401,7 +2338,6 @@
     <span>RADCOM MASTER <span class="version-badge">v5.7.0</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
-    <!-- NUEVO: BADGE DE SEGURIDAD -->
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
         <span class="security-dot"></span>
         <span style="color:#00ffea;">AES-256-GCM</span>
@@ -2409,7 +2345,6 @@
 </div>
             <div id="display-id" style="font-size:0.6rem; color:lch(88.59% 86.83 150.39); font-family:monospace;">INICIANDO...</div>
             <div style="display:flex; gap:4px; align-items:center;">
-                <!-- BOTÓN REFRESCAR PEQUEÑO COMO ANTES -->
                 <button class="btn-header btn-refresh" onclick="refreshAllConnections()" title="Refrescar conexiones">
                     <i class="fas fa-sync-alt"></i>
                 </button>
@@ -2492,7 +2427,6 @@
                             <span id="stats-latency" style="color:#00ff88; float:right;">-- ms</span>
                         </div>
                         
-                        <!-- BOTÓN REVIVIR MEJORADO -->
                         <button class="revive-btn" onclick="reviveAllConnections()" title="Reactivar conexiones inactivas" id="reviveBtn">
                             <i class="fas fa-heartbeat"></i> REVIVIR CONEXIONES
                         </button>
@@ -2557,7 +2491,6 @@
                                     <div id="current-pos" class="preview-value" style="color:#00ff88;">V:-- H:--</div>
                                 </div>
                             </div>
-                            <!-- NUEVO BOTÓN CONSOLA -->
     <button id="consoleBtn" class="console-btn" title="Consola & Programación HEX" onclick="openConsole()">
         <i class="fas fa-terminal"></i>
     </button>
@@ -2579,7 +2512,6 @@
                                 <table id="ansiTable"></table>
                             </div>
                             <div id="morse-table" class="tab-content">
-                                <!-- Controles de sonido Morse -->
                                 <div class="morse-controls">
                                     <div class="audio-status">
                                         <i class="fas fa-volume-up"></i>
@@ -2596,17 +2528,13 @@
                                     </button>
                                 </div>
                                 
-                                <!-- Tabla Morse mejorada -->
                                 <div class="morse-table-container">
                                     <table id="morseTable"></table>
                                 </div>
                             </div>
                             <div id="radio-table" class="tab-content">
-                                <!-- SISTEMA DE RADIO v4.6 ORIGINAL MEJORADO -->
                                 <div class="radio-container">
-                                    <!-- Panel superior: Controles de frecuencia -->
                                     <div class="radio-controls">
-                                        <!-- Entrada de frecuencia (izquierda) -->
                                         <div class="frequency-input-container">
                                             <div class="frequency-label">Frecuencia de Transmisión</div>
                                             <div class="frequency-display" id="radio-frequency-display">142.850 MHz</div>
@@ -2626,7 +2554,6 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Selector de bandas (derecha) -->
                                         <div class="band-selector-container">
                                             <div class="frequency-label">Selector de Banda</div>
                                             <div class="band-buttons">
@@ -2638,7 +2565,6 @@
                                                 <button class="band-btn" data-band="EMERG" onclick="selectBand('EMERG')">EMERG.</button>
                                             </div>
                                             
-                                            <!-- Sub-bandas HF (solo visible cuando HF está seleccionado) -->
                                             <div id="hf-sub-bands" style="display: none;">
                                                 <div style="font-size:0.45rem; color:#ffaa00; margin-bottom:2px;">Bandas HF:</div>
                                                 <div class="hf-bands">
@@ -2653,7 +2579,6 @@
                                                 </div>
                                             </div>
                                             
-                                            <!-- NUEVA SECCIÓN: CB y PMR -->
                                             <div class="pmr-cb-section">
                                                 <div class="pmr-cb-title">
                                                     <i class="fas fa-walkie-talkie"></i> CB27 & PMR446
@@ -2663,7 +2588,6 @@
                                                     <button class="channel-type-btn" onclick="selectChannelType('cb')">CB 27MHz</button>
                                                 </div>
                                                 
-                                                <!-- Canales PMR -->
                                                 <div id="pmr-container" class="channel-container active">
                                                     <div style="font-size:0.45rem; color:#888; margin-bottom:2px;">
                                                         Selecciona tipo:
@@ -2674,25 +2598,20 @@
                                                         </select>
                                                     </div>
                                                     <div class="channel-grid" id="pmr-channels-grid">
-                                                        <!-- Generado por JavaScript -->
                                                     </div>
                                                 </div>
                                                 
-                                                <!-- Canales CB27 -->
                                                 <div id="cb-container" class="channel-container">
                                                     <div class="channel-grid" id="cb-channels-grid">
-                                                        <!-- Generado por JavaScript -->
                                                     </div>
                                                 </div>
                                                 
-                                                <!-- Información del canal -->
                                                 <div class="channel-info">
                                                     <div style="font-size:0.4rem; color:#888;">Canal Activo:</div>
                                                     <div class="channel-display" id="channel-display">VHF 142.850 MHz</div>
                                                 </div>
                                             </div>
                                             
-                                            <!-- Frecuencia activa -->
                                             <div class="active-frequency-display">
                                                 <div class="active-freq-label">Frecuencia Activa</div>
                                                 <div class="active-freq-value" id="active-frequency">142.850 MHz VHF</div>
@@ -2700,36 +2619,29 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Alfabeto fonético interactivo MEJORADO -->
                                     <div class="phonetic-table-container">
                                         <div class="phonetic-header">
                                             <i class="fas fa-broadcast-tower"></i> ALFABETO FONÉTICO RADIO
                                         </div>
                                         <div class="phonetic-grid-container">
                                             <div class="phonetic-grid" id="phonetic-grid">
-                                                <!-- Generado por JavaScript -->
                                             </div>
                                         </div>
                                         
-                                        <!-- Frecuencias de emergencia -->
                                         <div class="emergency-frequencies">
                                             <div class="emergency-title">
                                                 <i class="fas fa-exclamation-triangle"></i> FRECUENCIAS DE EMERGENCIA
                                             </div>
                                             <div class="emergency-list" id="emergency-list">
-                                                <!-- Generado por JavaScript -->
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <!-- Overlay de estática (efecto visual) -->
                                     <div class="static-overlay" id="static-overlay"></div>
                                 </div>
                             </div>
-                            <!-- === NUEVA PESTAÑA SATÉLITE v4.7.2 MEJORADA === -->
                             <div id="satellite-table" class="tab-content active">
                                 <div class="satellite-container-v2">
-                                    <!-- CABECERA -->
                                     <div class="satellite-header-v2">
                                         <div class="satellite-title-v2">
                                             <i class="fas fa-satellite"></i>
@@ -2742,15 +2654,12 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- ESTADO API -->
                                     <div class="api-status-v2">
                                         <span class="status-dot-api status-connected" id="api-status-dot"></span>
                                         <span id="api-status-text">Conectando a API Open-Meteo...</span>
                                     </div>
                                     
-                                    <!-- GRID DE DATOS (12 PARÁMETROS) -->
                                     <div class="satellite-grid-v2">
-                                        <!-- FILA 1 -->
                                         <div class="sat-data-card-v2">
                                             <div class="sat-data-label-v2">Temperatura</div>
                                             <div class="sat-data-value-v2" id="sat-temp">-- °C</div>
@@ -2772,7 +2681,6 @@
                                             <div class="sat-data-value-v2" id="sat-winddirection">-- °</div>
                                         </div>
                                         
-                                        <!-- FILA 2 -->
                                         <div class="sat-data-card-v2">
                                             <div class="sat-data-label-v2">Ráfagas Máx</div>
                                             <div class="sat-data-value-v2" id="sat-windgusts">-- km/h</div>
@@ -2794,7 +2702,6 @@
                                             <div class="sat-data-value-v2" id="sat-rain">-- mm</div>
                                         </div>
                                         
-                                        <!-- FILA 3 -->
                                         <div class="sat-data-card-v2">
                                             <div class="sat-data-label-v2">Punto de Rocío</div>
                                             <div class="sat-data-value-v2" id="sat-dewpoint">-- °C</div>
@@ -2817,7 +2724,6 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- POSICIÓN GPS CON ALTITUD -->
                                     <div class="sat-gps-container-v2">
                                         <div style="font-size:0.6rem; color:#00ff88; margin-bottom:4px;">
                                             <i class="fas fa-map-marker-alt"></i> POSICIÓN GPS ACTUAL
@@ -2833,7 +2739,6 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- PANEL DE EMERGENCIA MEJORADO -->
                                     <div class="emergency-panel-v2">
                                         <div class="emergency-title-v2">
                                             <i class="fas fa-exclamation-triangle"></i>
@@ -2857,7 +2762,6 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- CONTROLES DE ACTUALIZACIÓN -->
                                     <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.45rem;">
                                         <div style="color:#888;">
                                             <input type="checkbox" id="auto-refresh-checkbox" checked>
@@ -2875,7 +2779,7 @@
                 
                 <div id="monitor-decoded">
                     <div class="message-bubble message-system">
-                        <i class="fas fa-satellite"></i> SISTEMA RADCOM MASTER <v4 class="7 6"></v4> INICIADO
+                        <i class="fas fa-satellite"></i> SISTEMA RADCOM MASTER INICIADO
                     </div>
                 </div>
             </div>    
@@ -2915,31 +2819,25 @@
                 </span>
             </div>
             
-            <!-- MODIFICADO: CON MICRÓFONO MEJORADO -->
             <div style="display:flex; height:36px; align-items:center; padding:4px 5px; gap:4px; border-bottom:1px solid #222;">
-                <!-- BOTÓN LIMPIAR -->
                 <button class="clear-chat-btn" onclick="clearChat()" style="flex:0 0 auto; width:36px" title="Limpiar chat">
                     <i class="fas fa-trash"></i>
                 </button>
 
-                <!-- NUEVO: BOTÓN MICRÓFONO A LA IZQUIERDA -->
                 <button id="micBtn" class="mic-btn" title="Dictar por voz" onclick="toggleVoiceInput()">
                     <i class="fas fa-microphone"></i>
                 </button>
 
-                <!-- Campo de texto -->
                 <input type="text" id="inputMsg"
                     placeholder="INYECTAR DATOS SEGUROS..."
                     oninput="validateInput(); realTimePreview(); realTimeTableHighlight();"
                     onkeydown="if(event.key === 'Enter'){ handleSendMessage(event); }"
                     style="height:100%; flex:1;">
 
-                <!-- Botón ENVIAR -->
                 <button id="sendBtn" onclick="sendWithQueue()" style="height:100%">
                     <i class="fas fa-paper-plane"></i> ENVIAR SEGURO
                 </button>
 
-                <!-- Estado voz -->
                 <span id="mic-status">Voz OFF</span>
             </div>
             
@@ -2964,7 +2862,6 @@
         </div>
     </div>
 
-    <!-- Modelo base de configuración (sin cambios) -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <button class="modal-close" onclick="hideSettings()">&times;</button>
@@ -2981,7 +2878,6 @@
                        value="RADCOM-MASTER-v5">
             </div>
             
-            <!-- NUEVA SECCIÓN: CONFIGURACIÓN DE IDENTIFICADOR -->
             <div id="idSettingsSection" style="margin-bottom: 15px; border: 1px solid #333; padding: 10px; border-radius: 3px;">
                 <div style="color: #00ff88; font-size: 0.75rem; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
                     <i class="fas fa-fingerprint"></i> CONFIGURACIÓN DE IDENTIFICADOR
@@ -3092,7 +2988,6 @@
         </div>
     </div>
 
-    <!-- ====== VENTANA CONSOLA v5.6.1 ====== -->
 <div class="console-modal-overlay" id="consoleModal">
     <div class="console-modal-content">
         <div class="console-scan-line"></div>
@@ -3104,14 +2999,12 @@
             <button class="console-close" onclick="closeConsole()">&times;</button>
         </div>
         
-        <!-- Pestañas -->
         <div class="console-tabs">
             <button class="console-tab active" onclick="switchConsoleTab('CMD')">CMD Console</button>
             <button class="console-tab" onclick="switchConsoleTab('hex')">Hex Editor</button>
             <button class="console-tab" onclick="switchConsoleTab('decode')">Hex Decoder</button>
         </div>
         
-        <!-- Contenido de pestañas -->
         <div id="console-tab-CMD" class="console-tab-content active">
             <div class="CMD-console-container">
                 <div id="CMD-output" class="CMD-output">
@@ -3205,7 +3098,6 @@
 </div>
 
 <div id="pfd-source-storage" style="display:none;">
-
     </div>
 
     <div id="util-source-storage" style="display:none;">         
@@ -3213,14 +3105,12 @@
     </div>
 
     <div id="ecm-source-storage" style="display:none;">
-
     </div>
 
 
   <div id="map-source-storage" style="display:none;">
     <div style="display:flex; flex-direction:column; height:100%; width:100%; background:#000; position:relative; overflow:hidden;">
         
-        <!-- BARRA SUPERIOR CON 4 VISTAS + DUAL -->
         <div style="display:flex; background:#111; border-bottom:2px solid #00ff88; height:52px; flex-shrink:0; z-index:1002; align-items:center; padding:0 10px;">
             <div style="display:flex; flex:1; gap:4px;">
                 <button onclick="switchMapLayer('TOPO')" id="tab-topo" style="flex:1; background:#00ff88; color:#000; border:none; font-weight:bold; cursor:pointer; font-size:0.73rem; padding:8px 4px;">TOPOGRÁFICO</button>
@@ -3229,17 +3119,14 @@
                 <button onclick="switchMapLayer('SAT')"  id="tab-sat"  style="flex:1; background:#222; color:#888; border:none; font-weight:bold; cursor:pointer; font-size:0.73rem; padding:8px 4px;">SATÉLITE</button>
             </div>
             
-            <!-- BOTÓN DUAL -->
             <button onclick="toggleDualMode()" id="dual-btn" 
                     style="margin-left:12px; background:#ffaa00; color:#000; border:none; padding:8px 16px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.75rem;">
                 DUAL
             </button>
         </div>
 
-        <!-- MAPA -->
         <div id="map-canvas" style="flex:1; background:#050505; position:relative;"></div>
 
-        <!-- Barra herramientas vertical izquierda -->
         <div style="position:absolute; top:65px; left:10px; background:rgba(0,0,0,0.75); border:1px solid #00ff88; border-radius:3px; padding:5px 3px; z-index:1000; display:flex; flex-direction:column; gap:4px;">
             <button onclick="centerOnMyPosition()" title="Mi posición" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">📍</button>
             <button onclick="toggleLiveTracking()" id="track-btn" title="Live Tracking" style="background:none; border:none; color:#00ff88; font-size:1rem; cursor:pointer; padding:2px;">▶️</button>
@@ -3251,7 +3138,6 @@
             <button onclick="clearAllDrawings()" title="Limpiar" style="background:none; border:none; color:#ff3300; font-size:1rem; cursor:pointer; padding:2px;">🗑️</button>
         </div>
 
-        <!-- PANEL RESCATE -->
         <div id="rescue-panel" style="position:absolute; bottom:50px; left:15px; background:rgba(0,0,0,0.85); border:1px solid #ff3300; border-radius:4px; padding:6px; z-index:1000; width:200px; backdrop-filter:blur(3px);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ff3300; padding-bottom:3px;">
                 <span style="color:#ff3300; font-weight:bold; font-size:0.7rem;">🆘 RESCATE</span>
@@ -3293,7 +3179,6 @@
             </div>
         </div>
 
-        <!-- PANEL DE WAYPOINTS/RUTA - CON RETORNO AL INICIO -->
         <div id="waypoint-panel" style="position:absolute; top:65px; right:190px; background:rgba(0,0,0,0.85); border:1px solid #00ff88; border-radius:4px; padding:8px; z-index:1000; width:230px; display:none; backdrop-filter:blur(3px);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #00ff88; padding-bottom:5px; margin-bottom:6px;">
                 <span style="color:#00ff88; font-weight:bold; font-size:0.75rem;">✍️ WAYPOINTS / RUTA</span>
@@ -3317,7 +3202,6 @@
                 <button onclick="saveWaypointRoute()" style="flex:1; background:#ffaa00; color:#000; border:none; padding:3px; border-radius:2px; font-size:0.6rem;">GUARDAR</button>
             </div>
             
-            <!-- CONTROLES DE RUTA ACTIVA -->
             <div id="active-route-controls" style="background:rgba(0,255,136,0.1); border:1px solid #00ff88; border-radius:3px; padding:5px; margin-bottom:6px; display:none;">
                 <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
                     <span style="color:#00ff88; font-size:0.65rem; font-weight:bold;">🚀 RUTA ACTIVA</span>
@@ -3336,7 +3220,6 @@
             <div id="route-info" style="color:#00ffff; font-size:0.55rem; text-align:center; padding:3px; margin-top:5px; background:rgba(0,255,255,0.05); border-radius:2px;"></div>
         </div>
 
-        <!-- PANEL DE RUTAS GUARDADAS -->
         <div id="track-history-panel" style="position:absolute; bottom:50px; right:15px; background:rgba(0,0,0,0.85); border:1px solid #00ff88; border-radius:4px; padding:8px; z-index:1000; width:240px; display:none; backdrop-filter:blur(3px);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #00ff88; padding-bottom:5px; margin-bottom:6px;">
                 <span style="color:#00ff88; font-weight:bold; font-size:0.75rem;">📋 RUTAS GUARDADAS</span>
@@ -3346,7 +3229,6 @@
             <button onclick="clearAllTracks()" style="width:100%; background:#ff3300; color:#fff; border:none; padding:4px; border-radius:2px; font-size:0.6rem;">🗑️ BORRAR HISTORIAL</button>
         </div>
 
-        <!-- PANEL BRÚJULA -->
         <div id="compass-container" style="position:absolute; bottom:30px; right:20px; width:160px; height:160px; z-index:2000; pointer-events:none; opacity:0.6; filter:drop-shadow(0 0 8px rgba(0,0,0,0.7));"></div>
         <div id="compass-data-panel" style="position:absolute; top:15px; right:20px; background:rgba(0,0,0,0.7); border:1px solid #00ff88; border-radius:4px; padding:8px; z-index:2001; min-width:130px; backdrop-filter:blur(3px);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -3372,7 +3254,6 @@
             </div>
         </div>
 
-        <!-- Barra de estado inferior -->
         <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:#00ff88; font-family:monospace; font-size:0.7rem; padding:5px 12px; text-align:center; z-index:1000; border-top:1px solid #00ff88;">
             <span style="color:#00ff88;">LAT:</span> <span id="cursor-lat" style="color:#fff;">00.000000</span> 
             <span style="color:#00ff88; margin-left:12px;">|</span> 
@@ -3384,7 +3265,6 @@
         </div>
     </div>
 
-    <!-- LEAFLET Y TURF -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
@@ -3404,13 +3284,11 @@
         let routePoints = [], routeStartPoint = null, locationRouteLine = null;
         let magneticDeclination = 2.5, windDirection = 0, windSpeed = 0;
 
-        // Cargar rutas guardadas
         try {
             const stored = localStorage.getItem('savedRoutes');
             if (stored) savedTracks = JSON.parse(stored);
         } catch(e) {}
 
-        // ===== CAPAS DE MAPA =====
         const layers = {
             'TOPO': L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { 
                 maxZoom: 17,
@@ -3437,9 +3315,7 @@
             })
         };
 
-        // ===== FUNCIÓN CRÍTICA: CAMBIAR MAPAS =====
         function switchMapLayer(type) {
-            // Resetear estilo de todos los botones
             ['topo', 'vfr', 'sea', 'sat'].forEach(id => {
                 const btn = document.getElementById('tab-' + id);
                 if (btn) {
@@ -3448,14 +3324,12 @@
                 }
             });
             
-            // Activar botón seleccionado
             const activeBtn = document.getElementById('tab-' + type.toLowerCase());
             if (activeBtn) {
                 activeBtn.style.background = '#00ff88';
                 activeBtn.style.color = '#000';
             }
             
-            // Cambiar capa
             if (currentLayer) {
                 map.removeLayer(currentLayer);
             }
@@ -3463,7 +3337,6 @@
             currentLayer = layers[type];
             currentLayer.addTo(map);
             
-            // Restaurar modo dual si estaba activo
             if (isDualMode && dualOverlay) {
                 map.addLayer(dualOverlay);
             }
@@ -3471,7 +3344,6 @@
             console.log('Capa cambiada a:', type);
         }
 
-        // ===== INICIALIZACIÓN =====
         function initMap() {
             if (map) return;
             
@@ -3480,7 +3352,6 @@
                 attributionControl: true
             }).setView([40.4167, -3.7033], 13);
             
-            // Capa por defecto: TOPO
             currentLayer = layers['TOPO'].addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -3502,7 +3373,6 @@
             setTimeout(() => getInitialPosition(), 500);
         }
 
-        // ===== MODO DUAL =====
         function toggleDualMode() {
             isDualMode = !isDualMode;
             const btn = document.getElementById('dual-btn');
@@ -3522,7 +3392,6 @@
             }
         }
 
-        // ===== BRÚJULA =====
         function initCompass() {
             const container = document.getElementById('compass-container');
             container.innerHTML = `
@@ -3578,7 +3447,6 @@
             if (spdTxt) spdTxt.textContent = `${spd.toFixed(0)}kt`;
         }
 
-        // ===== POSICIÓN INICIAL =====
         function getInitialPosition() {
             if (!navigator.geolocation) return;
             navigator.geolocation.getCurrentPosition(pos => {
@@ -3596,7 +3464,6 @@
             }).addTo(drawnItems).bindPopup('🚨 BASE - TU POSICIÓN').openPopup();
         }
 
-        // ===== PANEL RESCATE =====
         function updateRescueCoordinatesFromPosition() {
             if (currentPosition) {
                 document.getElementById('manual-lat').value = currentPosition[0].toFixed(6);
@@ -4352,7 +4219,6 @@
 
         function loadSavedTrack() { showTrackHistory(); }
         
-        // ===== EXPORTAR GPX =====
         function exportGPX() {
             let points = [];
             if (routePoints && routePoints.length > 1) points = routePoints;
@@ -4381,10 +4247,8 @@
             setTimeout(() => { document.getElementById('track-status').innerHTML = ''; }, 3000);
         }
         
-        // ===== INICIAR =====
         setTimeout(initMap, 300);
         
-        // Añadir estilos de animación
         const style = document.createElement('style');
         style.innerHTML = `@keyframes pulse { 
             0% { transform: scale(1); opacity: 1; }
@@ -4414,12 +4278,14 @@ let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || '[
 let queueRetryInterval = null;
 const MAX_QUEUE_SIZE = 100;
 
-// Variables VoIP
-let voipCalls = {};
-let voipAudioContext = null;
+// Variables VoIP - CORREGIDAS Y MEJORADAS
+let voipCalls = {}; // { peerId: { id, peerConnection, stream, status, remoteAudio, ringtoneTimeout } }
 let voipMediaStream = null;
 let voipActiveCall = null;
 let voipIncomingCall = null;
+let voipAudioContext = null;
+let voipRingtoneSource = null;
+let voipOutgoingToneSource = null;
 
 // Variables de estado
 let connectionHealth = {};
@@ -4602,7 +4468,6 @@ const phoneticAlphabetFull = {
 // FUNCIONES DE SEGURIDAD Y CRIPTOGRAFÍA
 // =============================================
 
-// Almacenamiento seguro en localStorage
 function secureLocalSet(key, value) {
     try {
         const secret = 'radcom-secure-key-2026';
@@ -4626,7 +4491,6 @@ function secureLocalGet(key, defaultValue = null) {
     }
 }
 
-// Funciones XOR (legacy)
 function xorEncrypt(text, key) {
     let result = '';
     for (let i = 0; i < text.length; i++) {
@@ -4639,7 +4503,6 @@ function xorDecrypt(text, key) {
     return xorEncrypt(text, key);
 }
 
-// Funciones AES (CryptoJS)
 function encryptAES(text, password) {
     try {
         const iv = CryptoJS.lib.WordArray.random(16);
@@ -4666,7 +4529,6 @@ function decryptAES(ciphertext, password) {
     }
 }
 
-// Capa de seguridad unificada
 // =============================================
 // CAPA DE SEGURIDAD UNIFICADA - VERSIÓN FINAL CORREGIDA
 // =============================================
@@ -4688,109 +4550,69 @@ function securityLayer(text, isSending, encryptionMode, password) {
     try {
         if (encryptionMode === "aes" || encryptionMode === "aes-256-gcm") {
             if (isSending) {
-                // === CIFRADO: SIEMPRE usa el mismo formato ===
                 const iv = CryptoJS.lib.WordArray.random(12);
-                
-                // Derivar clave simple (sin salt para mantener compatibilidad)
                 const key = CryptoJS.SHA256(password);
-                
-                // Cifrar con AES en modo CBC (más compatible que GCM)
                 const encrypted = CryptoJS.AES.encrypt(text, key, { 
                     iv: iv,
                     mode: CryptoJS.mode.CBC,
                     padding: CryptoJS.pad.Pkcs7
                 });
-                
-                // FORMATO ÚNICO: iv:datos_cifrados
                 result.text = iv.toString() + ':' + encrypted.toString();
                 result.encryptionUsed = "AES-256-CBC";
-                
             } else {
-                // === DESCIFRADO: Intenta AMBOS formatos ===
-                
-                // Intento 1: Formato con 2 partes (iv:datos)
                 if (text.includes(':')) {
                     const parts = text.split(':');
-                    
                     if (parts.length === 2) {
                         try {
                             const iv = CryptoJS.enc.Hex.parse(parts[0]);
                             const ct = parts[1];
-                            
-                            // Derivar clave igual que en cifrado
                             const key = CryptoJS.SHA256(password);
-                            
                             const decrypted = CryptoJS.AES.decrypt(ct, key, { 
                                 iv: iv,
                                 mode: CryptoJS.mode.CBC,
                                 padding: CryptoJS.pad.Pkcs7
                             });
-                            
                             const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
                             if (plaintext) {
                                 result.text = plaintext;
                                 result.encryptionUsed = "AES-256-CBC";
                                 return result;
                             }
-                        } catch (e) {
-                            // Silencioso, intentamos el otro formato
-                        }
+                        } catch (e) {}
                     }
-                    
-                    // Intento 2: Formato con 3 partes (salt:iv:datos) - formato antiguo
                     if (parts.length === 3) {
                         try {
                             const salt = CryptoJS.enc.Base64.parse(parts[0]);
                             const iv = CryptoJS.enc.Base64.parse(parts[1]);
                             const ct = parts[2];
-                            
-                            const key = CryptoJS.PBKDF2(password, salt, { 
-                                keySize: 256/32, 
-                                iterations: 1000 
-                            });
-                            
-                            const decrypted = CryptoJS.AES.decrypt(ct, key, { 
-                                iv: iv,
-                                mode: CryptoJS.mode.GCM,
-                                padding: CryptoJS.pad.NoPadding
-                            });
-                            
+                            const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 1000 });
+                            const decrypted = CryptoJS.AES.decrypt(ct, key, { iv: iv, mode: CryptoJS.mode.GCM, padding: CryptoJS.pad.NoPadding });
                             const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
                             if (plaintext) {
                                 result.text = plaintext;
                                 result.encryptionUsed = "AES-256-GCM (legacy)";
                                 return result;
                             }
-                        } catch (e) {
-                            // Error en ambos formatos
-                        }
+                        } catch (e) {}
                     }
                 }
-                
-                // Si llegamos aquí, ningún formato funcionó
                 result.text = text;
                 result.encryptionUsed = "ERROR";
                 result.error = "Formato AES no reconocido";
             }
-            
         } else if (encryptionMode === "xor") {
-            // XOR simple (sin cambios)
             let output = "";
             for (let i = 0; i < text.length; i++) {
-                output += String.fromCharCode(
-                    text.charCodeAt(i) ^ password.charCodeAt(i % password.length)
-                );
+                output += String.fromCharCode(text.charCodeAt(i) ^ password.charCodeAt(i % password.length));
             }
             result.text = output;
             result.encryptionUsed = "XOR";
-            
         } else {
             result.error = "Modo de cifrado desconocido: " + encryptionMode;
         }
     } catch (err) {
         result.error = err.message || "Error en capa de seguridad";
         console.error("[securityLayer]", result.error);
-        
         if (!isSending) {
             result.text = text;
             result.encryptionUsed = "ERROR";
@@ -4800,7 +4622,6 @@ function securityLayer(text, isSending, encryptionMode, password) {
     return result;
 }
 
-// Actualizar badge de seguridad
 function updateSecurityBadge() {
     const encryptionSelect = document.getElementById('encryptionMode');
     const securityBadge = document.querySelector('.security-badge span:nth-child(2)');
@@ -4828,7 +4649,6 @@ function updateSecurityBadge() {
     }
 }
 
-// Mostrar panel de información de seguridad
 function showSecurityInfo() {
     const panel = document.createElement('div');
     panel.style.cssText = `
@@ -4889,7 +4709,6 @@ function showSecurityInfo() {
 // FUNCIONES DE PEERJS Y CONEXIONES
 // =============================================
 
-// Generación de IDs
 function generateHardwareBasedId() {
     const sources = [
         navigator.userAgent,
@@ -5057,12 +4876,11 @@ function setupConnection(conn, type) {
         updateConnectedCount();
         updateMonitor(`🔒 DESCONECTADO: ${peerId.substring(0, 8)}`);
         
-        // Finalizar llamada VoIP si estaba activa
         if (voipActiveCall === peerId) {
-            endVoIPCall();
+            endVoIPCall(peerId);
         }
         if (voipIncomingCall === peerId) {
-            rejectVoIPCall(peerId);
+            rejectVoIPCall(peerId, 'closed');
         }
         
         if (document.getElementById('autoReconnect')?.checked) {
@@ -5211,12 +5029,11 @@ function executeRemoveId(id) {
     savedIds = savedIds.filter(savedId => savedId !== id);
     localStorage.setItem('radcom_peers_v4', JSON.stringify(savedIds));
     
-    // Finalizar llamada si estaba activa
     if (voipActiveCall === id) {
-        endVoIPCall();
+        endVoIPCall(id);
     }
     if (voipIncomingCall === id) {
-        rejectVoIPCall(id);
+        rejectVoIPCall(id, 'removed');
     }
     
     if (connections[id]) {
@@ -5268,7 +5085,6 @@ function updatePeerList() {
         
         const displayStyle = (status === 'offline' && !showOffline) ? 'display: none;' : '';
         
-        // Determinar clase del botón VoIP
         let voipBtnClass = 'voip-btn';
         let voipIcon = 'fa-phone';
         let voipTitle = 'Iniciar llamada VoIP';
@@ -5599,12 +5415,11 @@ function refreshAllConnections() {
     updateMonitor("🔄 REFRESCANDO CONEXIONES...", "info");
     playStrongBeep(1000, 200);
     
-    // Finalizar llamadas activas
     if (voipActiveCall) {
-        endVoIPCall();
+        endVoIPCall(voipActiveCall);
     }
     if (voipIncomingCall) {
-        rejectVoIPCall(voipIncomingCall);
+        rejectVoIPCall(voipIncomingCall, 'refresh');
     }
     
     const currentPeers = [...savedIds];
@@ -5624,6 +5439,8 @@ function refreshAllConnections() {
     voipCalls = {};
     voipActiveCall = null;
     voipIncomingCall = null;
+    stopRingtone();
+    stopOutgoingTone();
     
     updatePeerList();
     updateConnectedCount();
@@ -5762,7 +5579,7 @@ function verificarYReparar() {
 }
 
 // =============================================
-// FUNCIONES VoIP (NUEVAS)
+// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS)
 // =============================================
 
 function initVoIPAudio() {
@@ -5777,43 +5594,113 @@ function initVoIPAudio() {
     return voipAudioContext;
 }
 
+function playRingtone() {
+    stopRingtone();
+    initVoIPAudio();
+    if (!voipAudioContext) return;
+
+    const now = voipAudioContext.currentTime;
+    voipRingtoneSource = voipAudioContext.createOscillator();
+    const gainNode = voipAudioContext.createGain();
+
+    voipRingtoneSource.connect(gainNode);
+    gainNode.connect(voipAudioContext.destination);
+
+    voipRingtoneSource.type = 'sine';
+    gainNode.gain.setValueAtTime(0.3, now);
+
+    for (let i = 0; i < 60; i++) {
+        const cycleStart = now + i * 3;
+        voipRingtoneSource.frequency.setValueAtTime(440, cycleStart);
+        gainNode.gain.setValueAtTime(0.3, cycleStart);
+        gainNode.gain.setValueAtTime(0.3, cycleStart + 1);
+        gainNode.gain.setValueAtTime(0, cycleStart + 1.01);
+    }
+
+    voipRingtoneSource.start(now);
+    voipRingtoneSource.stop(now + 60);
+}
+
+function stopRingtone() {
+    if (voipRingtoneSource) {
+        try {
+            voipRingtoneSource.stop();
+        } catch (e) {}
+        voipRingtoneSource.disconnect();
+        voipRingtoneSource = null;
+    }
+}
+
+function playOutgoingTone() {
+    stopOutgoingTone();
+    initVoIPAudio();
+    if (!voipAudioContext) return;
+
+    const now = voipAudioContext.currentTime;
+    voipOutgoingToneSource = voipAudioContext.createOscillator();
+    const gainNode = voipAudioContext.createGain();
+
+    voipOutgoingToneSource.connect(gainNode);
+    gainNode.connect(voipAudioContext.destination);
+
+    voipOutgoingToneSource.type = 'sine';
+    gainNode.gain.setValueAtTime(0.2, now);
+
+    for (let i = 0; i < 40; i++) {
+        const cycleStart = now + i * 1.5;
+        voipOutgoingToneSource.frequency.setValueAtTime(420, cycleStart);
+        gainNode.gain.setValueAtTime(0.2, cycleStart);
+        gainNode.gain.setValueAtTime(0.2, cycleStart + 0.5);
+        gainNode.gain.setValueAtTime(0, cycleStart + 0.51);
+    }
+
+    voipOutgoingToneSource.start(now);
+    voipOutgoingToneSource.stop(now + 60);
+}
+
+function stopOutgoingTone() {
+    if (voipOutgoingToneSource) {
+        try {
+            voipOutgoingToneSource.stop();
+        } catch (e) {}
+        voipOutgoingToneSource.disconnect();
+        voipOutgoingToneSource = null;
+    }
+}
+
 async function toggleVoIPCall(peerId) {
     if (voipActiveCall === peerId) {
-        // Finalizar llamada activa
-        endVoIPCall();
+        endVoIPCall(peerId);
         return;
     }
-    
+
     if (voipIncomingCall === peerId) {
-        // Aceptar llamada entrante
         acceptVoIPCall(peerId);
         return;
     }
-    
+
     if (voipActiveCall) {
         updateMonitor(`⚠️ Ya hay una llamada activa con ${voipActiveCall.substring(0, 8)}`, "warning");
         playStrongBeep(300, 200);
         return;
     }
-    
+
     if (!connections[peerId] || connections[peerId].status !== 'online') {
         updateMonitor(`⚠️ ${peerId.substring(0, 8)} no está conectado`, "warning");
         playStrongBeep(300, 200);
         return;
     }
-    
+
     try {
         updateMonitor(`📞 Iniciando llamada VoIP con ${peerId.substring(0, 8)}...`, "info");
         playStrongBeep(800, 100);
-        
-        // Solicitar acceso al micrófono
+        playOutgoingTone();
+
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         voipMediaStream = stream;
-        
-        // Inicializar audio context si es necesario
+
         initVoIPAudio();
-        
-        // Crear nueva conexión VoIP
+
         const callId = `voip_${Date.now()}`;
         voipCalls[peerId] = {
             id: callId,
@@ -5824,32 +5711,43 @@ async function toggleVoIPCall(peerId) {
                 ]
             }),
             stream: stream,
-            status: 'initiating'
+            status: 'initiating',
+            remoteAudio: null
         };
-        
-        // Añadir pistas de audio a la conexión
+
         stream.getTracks().forEach(track => {
             voipCalls[peerId].peerConnection.addTrack(track, stream);
         });
-        
-        // Crear oferta
+
+        voipCalls[peerId].peerConnection.ontrack = (event) => {
+            console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
+            const remoteAudio = new Audio();
+            remoteAudio.srcObject = event.streams[0];
+            remoteAudio.autoplay = true;
+            remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
+
+            if (voipCalls[peerId]) {
+                voipCalls[peerId].remoteAudio = remoteAudio;
+            }
+
+            if (voipActiveCall === peerId) {
+                displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
+            }
+        };
+
         const offer = await voipCalls[peerId].peerConnection.createOffer();
         await voipCalls[peerId].peerConnection.setLocalDescription(offer);
-        
-        // Enviar oferta al peer
+
         connections[peerId].conn.send({
             type: 'voip_offer',
             offer: offer,
             caller: myPeerId,
             callId: callId
         });
-        
-        voipActiveCall = peerId;
+
         updatePeerList();
-        
         updateMonitor(`📞 Llamada iniciada con ${peerId.substring(0, 8)} - Esperando respuesta...`, "info");
-        
-        // Manejar eventos ICE
+
         voipCalls[peerId].peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 connections[peerId].conn.send({
@@ -5860,137 +5758,152 @@ async function toggleVoIPCall(peerId) {
                 });
             }
         };
-        
-        // Manejar recepción de pistas remotas
-        voipCalls[peerId].peerConnection.ontrack = (event) => {
-            console.log("📡 Recibiendo pista de audio remota");
-            const remoteAudio = new Audio();
-            remoteAudio.srcObject = event.streams[0];
-            remoteAudio.autoplay = true;
-            remoteAudio.play().catch(e => console.log("Error reproduciendo audio:", e));
-            
-            // Mostrar indicador en el chat
-            displayMessage(`📞 Llamada VoIP con ${peerId.substring(0, 8)} - Audio activo`, '', 'voip');
-        };
-        
-        // Manejar cierre de conexión
+
         voipCalls[peerId].peerConnection.onconnectionstatechange = () => {
-            console.log(`VoIP connection state: ${voipCalls[peerId].peerConnection.connectionState}`);
+            console.log(`VoIP connection state with ${peerId}: ${voipCalls[peerId].peerConnection.connectionState}`);
             if (voipCalls[peerId].peerConnection.connectionState === 'disconnected' ||
-                voipCalls[peerId].peerConnection.connectionState === 'failed') {
-                if (voipActiveCall === peerId) {
-                    endVoIPCall();
+                voipCalls[peerId].peerConnection.connectionState === 'failed' ||
+                voipCalls[peerId].peerConnection.connectionState === 'closed') {
+                if (voipActiveCall === peerId || voipIncomingCall === peerId) {
+                    endVoIPCall(peerId);
                 }
             }
         };
-        
+
     } catch (error) {
         console.error("❌ Error iniciando llamada VoIP:", error);
         updateMonitor(`❌ Error iniciando llamada: ${error.message}`, "error");
         playStrongBeep(300, 200);
-        
-        // Limpiar recursos
+        stopOutgoingTone();
         if (voipMediaStream) {
             voipMediaStream.getTracks().forEach(track => track.stop());
             voipMediaStream = null;
         }
         delete voipCalls[peerId];
-        voipActiveCall = null;
         updatePeerList();
     }
 }
 
 function handleVoIPOffer(senderId, data) {
     if (voipActiveCall) {
-        // Ya hay una llamada activa, rechazar
-        connections[senderId].conn.send({
-            type: 'voip_end',
-            reason: 'busy',
-            callId: data.callId
-        });
+        if (connections[senderId] && connections[senderId].conn) {
+            connections[senderId].conn.send({
+                type: 'voip_end',
+                reason: 'busy',
+                callId: data.callId
+            });
+        }
         updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)} rechazada (ocupado)`, "warning");
         return;
     }
-    
+
+    if (voipIncomingCall) {
+        if (connections[senderId] && connections[senderId].conn) {
+            connections[senderId].conn.send({
+                type: 'voip_end',
+                reason: 'busy',
+                callId: data.callId
+            });
+        }
+        updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)} rechazada (ya hay una entrante)`, "warning");
+        return;
+    }
+
     updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)}...`, "info");
-    playStrongBeep(1000, 200);
-    
-    // Mostrar notificación en chat
+    playRingtone();
+
     displayMessage(`📞 LLAMADA VoIP ENTRANTE de ${senderId.substring(0, 8)}`, '', 'voip');
-    
-    // Guardar información de la llamada entrante
+
     voipIncomingCall = senderId;
     voipCalls[senderId] = {
         id: data.callId,
         offer: data.offer,
-        status: 'incoming'
+        status: 'incoming',
+        ringtoneTimeout: setTimeout(() => {
+            if (voipIncomingCall === senderId) {
+                console.log(`⏰ Llamada de ${senderId.substring(0,8)} timeout, rechazando.`);
+                rejectVoIPCall(senderId, 'timeout');
+            }
+        }, 60000)
     };
-    
+
     updatePeerList();
-    
-    // Preguntar al usuario si quiere aceptar la llamada
+
     if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
         acceptVoIPCall(senderId);
     } else {
-        rejectVoIPCall(senderId);
+        rejectVoIPCall(senderId, 'rejected');
     }
 }
 
 async function acceptVoIPCall(peerId) {
-    if (!voipCalls[peerId]) {
+    if (!voipCalls[peerId] || voipCalls[peerId].status !== 'incoming') {
         console.error("No hay llamada pendiente de", peerId);
         return;
     }
-    
+
+    stopRingtone();
+    if (voipCalls[peerId].ringtoneTimeout) {
+        clearTimeout(voipCalls[peerId].ringtoneTimeout);
+    }
+
     try {
         updateMonitor(`📞 Aceptando llamada de ${peerId.substring(0, 8)}...`, "info");
-        
-        // Solicitar acceso al micrófono
+
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         voipMediaStream = stream;
-        
-        // Inicializar audio context
+
         initVoIPAudio();
-        
-        // Crear conexión peer
+
         voipCalls[peerId].peerConnection = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' }
             ]
         });
-        
-        // Añadir pistas locales
+
         stream.getTracks().forEach(track => {
             voipCalls[peerId].peerConnection.addTrack(track, stream);
         });
-        
-        // Establecer descripción remota con la oferta
+
         await voipCalls[peerId].peerConnection.setRemoteDescription(
             new RTCSessionDescription(voipCalls[peerId].offer)
         );
-        
-        // Crear respuesta
+
         const answer = await voipCalls[peerId].peerConnection.createAnswer();
         await voipCalls[peerId].peerConnection.setLocalDescription(answer);
-        
-        // Enviar respuesta
+
         connections[peerId].conn.send({
             type: 'voip_answer',
             answer: answer,
             callId: voipCalls[peerId].id,
             for: peerId
         });
-        
+
         voipActiveCall = peerId;
         voipIncomingCall = null;
         voipCalls[peerId].status = 'active';
         updatePeerList();
-        
+
         updateMonitor(`📞 Llamada aceptada con ${peerId.substring(0, 8)}`, "info");
         displayMessage(`📞 Llamada VoIP aceptada - Conversación con ${peerId.substring(0, 8)}`, '', 'voip');
-        
-        // Manejar eventos ICE
+
+        voipCalls[peerId].peerConnection.ontrack = (event) => {
+            console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
+            const remoteAudio = new Audio();
+            remoteAudio.srcObject = event.streams[0];
+            remoteAudio.autoplay = true;
+            remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
+
+            if (voipCalls[peerId]) {
+                voipCalls[peerId].remoteAudio = remoteAudio;
+            }
+
+            if (voipActiveCall === peerId) {
+                displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
+            }
+        };
+
         voipCalls[peerId].peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 connections[peerId].conn.send({
@@ -6001,48 +5914,47 @@ async function acceptVoIPCall(peerId) {
                 });
             }
         };
-        
-        // Manejar recepción de pistas remotas
-        voipCalls[peerId].peerConnection.ontrack = (event) => {
-            console.log("📡 Recibiendo pista de audio remota");
-            const remoteAudio = new Audio();
-            remoteAudio.srcObject = event.streams[0];
-            remoteAudio.autoplay = true;
-            remoteAudio.play().catch(e => console.log("Error reproduciendo audio:", e));
-        };
-        
-        // Manejar cierre de conexión
+
         voipCalls[peerId].peerConnection.onconnectionstatechange = () => {
-            console.log(`VoIP connection state: ${voipCalls[peerId].peerConnection.connectionState}`);
+            console.log(`VoIP connection state with ${peerId}: ${voipCalls[peerId].peerConnection.connectionState}`);
             if (voipCalls[peerId].peerConnection.connectionState === 'disconnected' ||
-                voipCalls[peerId].peerConnection.connectionState === 'failed') {
+                voipCalls[peerId].peerConnection.connectionState === 'failed' ||
+                voipCalls[peerId].peerConnection.connectionState === 'closed') {
                 if (voipActiveCall === peerId) {
-                    endVoIPCall();
+                    endVoIPCall(peerId);
                 }
             }
         };
-        
+
     } catch (error) {
         console.error("❌ Error aceptando llamada:", error);
         updateMonitor(`❌ Error aceptando llamada: ${error.message}`, "error");
-        rejectVoIPCall(peerId);
+        rejectVoIPCall(peerId, 'accept_failed');
     }
 }
 
-function rejectVoIPCall(peerId) {
+function rejectVoIPCall(peerId, reason = 'rejected') {
     if (!voipCalls[peerId]) return;
-    
-    connections[peerId].conn.send({
-        type: 'voip_end',
-        reason: 'rejected',
-        callId: voipCalls[peerId].id
-    });
-    
+
+    stopRingtone();
+
+    if (voipCalls[peerId].ringtoneTimeout) {
+        clearTimeout(voipCalls[peerId].ringtoneTimeout);
+    }
+
+    if (connections[peerId] && connections[peerId].conn) {
+        connections[peerId].conn.send({
+            type: 'voip_end',
+            reason: reason,
+            callId: voipCalls[peerId].id
+        });
+    }
+
     delete voipCalls[peerId];
     if (voipIncomingCall === peerId) {
         voipIncomingCall = null;
     }
-    
+
     updateMonitor(`📞 Llamada de ${peerId.substring(0, 8)} rechazada`, "info");
     updatePeerList();
 }
@@ -6052,14 +5964,18 @@ function handleVoIPAnswer(senderId, data) {
         console.error("No hay llamada activa con", senderId);
         return;
     }
-    
+
+    stopOutgoingTone();
+
     try {
         voipCalls[senderId].peerConnection.setRemoteDescription(
             new RTCSessionDescription(data.answer)
         );
+        voipActiveCall = senderId;
         voipCalls[senderId].status = 'active';
         updateMonitor(`📞 Llamada establecida con ${senderId.substring(0, 8)}`, "info");
         displayMessage(`📞 Llamada VoIP establecida - Conversación con ${senderId.substring(0, 8)}`, '', 'voip');
+        updatePeerList();
     } catch (error) {
         console.error("❌ Error manejando respuesta VoIP:", error);
     }
@@ -6070,7 +5986,7 @@ function handleVoIPICECandidate(senderId, data) {
         console.error("No hay llamada activa con", senderId, "para candidato ICE");
         return;
     }
-    
+
     try {
         voipCalls[senderId].peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
     } catch (error) {
@@ -6080,51 +5996,61 @@ function handleVoIPICECandidate(senderId, data) {
 
 function handleVoIPEnd(senderId) {
     if (voipActiveCall === senderId) {
-        endVoIPCall();
+        endVoIPCall(senderId);
     } else if (voipIncomingCall === senderId) {
-        rejectVoIPCall(senderId);
+        rejectVoIPCall(senderId, 'remote_end');
     }
-    
     updateMonitor(`📞 Llamada con ${senderId.substring(0, 8)} finalizada`, "info");
     displayMessage(`📞 Llamada VoIP finalizada con ${senderId.substring(0, 8)}`, '', 'voip');
 }
 
-function endVoIPCall() {
-    if (voipActiveCall) {
-        const peerId = voipActiveCall;
-        
-        // Notificar al otro extremo
-        if (connections[peerId] && connections[peerId].conn) {
-            try {
-                connections[peerId].conn.send({
-                    type: 'voip_end',
-                    reason: 'ended',
-                    callId: voipCalls[peerId]?.id
-                });
-            } catch (error) {
-                console.error("Error notificando fin de llamada:", error);
-            }
-        }
-        
-        // Cerrar conexión peer
-        if (voipCalls[peerId] && voipCalls[peerId].peerConnection) {
-            voipCalls[peerId].peerConnection.close();
-        }
-        
-        // Detener pistas de audio
-        if (voipMediaStream) {
-            voipMediaStream.getTracks().forEach(track => track.stop());
-            voipMediaStream = null;
-        }
-        
-        delete voipCalls[peerId];
-        voipActiveCall = null;
-        
-        updatePeerList();
-        updateMonitor(`📞 Llamada finalizada`, "info");
-        displayMessage(`📞 Llamada VoIP finalizada`, '', 'voip');
-        playStrongBeep(600, 100);
+function endVoIPCall(peerId = null) {
+    let endedPeerId = peerId || voipActiveCall;
+
+    if (!endedPeerId && voipIncomingCall) {
+        endedPeerId = voipIncomingCall;
     }
+
+    if (!endedPeerId) return;
+
+    stopRingtone();
+    stopOutgoingTone();
+
+    if (connections[endedPeerId] && connections[endedPeerId].conn) {
+        try {
+            connections[endedPeerId].conn.send({
+                type: 'voip_end',
+                reason: 'ended',
+                callId: voipCalls[endedPeerId]?.id
+            });
+        } catch (error) {
+            console.error("Error notificando fin de llamada:", error);
+        }
+    }
+
+    if (voipCalls[endedPeerId]) {
+        if (voipCalls[endedPeerId].peerConnection) {
+            voipCalls[endedPeerId].peerConnection.close();
+        }
+        if (voipCalls[endedPeerId].remoteAudio) {
+            voipCalls[endedPeerId].remoteAudio.pause();
+            voipCalls[endedPeerId].remoteAudio.srcObject = null;
+        }
+        delete voipCalls[endedPeerId];
+    }
+
+    if (voipActiveCall === endedPeerId) voipActiveCall = null;
+    if (voipIncomingCall === endedPeerId) voipIncomingCall = null;
+
+    if (voipMediaStream) {
+        voipMediaStream.getTracks().forEach(track => track.stop());
+        voipMediaStream = null;
+    }
+
+    updatePeerList();
+    updateMonitor(`📞 Llamada finalizada`, "info");
+    displayMessage(`📞 Llamada VoIP finalizada`, '', 'voip');
+    playStrongBeep(600, 100);
 }
 
 // =============================================
@@ -6146,7 +6072,6 @@ function handleReceivedData(senderId, data) {
     let encryptionType = data.encryption || 'NONE';
     let errorMsg = '';
     
-    // === 1. DESCIFRAR SI ES NECESARIO ===
     if (encryptionType === 'AES-256-CBC' || encryptionType === 'AES-256-GCM' || 
         encryptionType === 'AES-256-GCM (legacy)' || encryptionType === 'XOR') {
         
@@ -6162,21 +6087,17 @@ function handleReceivedData(senderId, data) {
         }
     }
     
-    // === 2. DETECTAR Y DECODIFICAR MORSE AUTOMÁTICAMENTE ===
     let finalText = displayText;
     let isMorse = false;
     
-    // Verificar si el texto parece código Morse (solo puntos, rayas, espacios y barras)
     if (typeof displayText === 'string' && /^[\.\-\s\/]+$/.test(displayText.trim())) {
         isMorse = true;
         const decoded = decodeMorse(displayText);
         if (decoded && !decoded.includes('?')) {
             finalText = decoded;
-            // Actualizar la traducción en tiempo real
             updateMorseTranslation(displayText);
         }
     }
-    // Si el mensaje tiene modo Morse explícito
     else if (data.mode === 'morse') {
         isMorse = true;
         const decoded = decodeMorse(displayText);
@@ -6185,7 +6106,6 @@ function handleReceivedData(senderId, data) {
             updateMorseTranslation(displayText);
         }
     }
-    // Si es mensaje dual con versión de texto
     else if (data.isDualMorse && data.textVersion) {
         finalText = data.textVersion;
         if (data.morseVersion) {
@@ -6193,7 +6113,6 @@ function handleReceivedData(senderId, data) {
         }
     }
     
-    // === 3. MOSTRAR EN CHAT ===
     const monitor = document.getElementById('monitor-decoded');
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble message-incoming';
@@ -6204,7 +6123,6 @@ function handleReceivedData(senderId, data) {
     else if (encryptionType === 'XOR') color = '#ffaa00';
     else if (encryptionType === 'ERROR') color = '#ff3300';
     
-    // Añadir indicador si se decodificó Morse
     const morseIndicator = isMorse ? ' 📡 → ' + displayText : '';
     
     bubble.innerHTML = `
@@ -6214,7 +6132,6 @@ function handleReceivedData(senderId, data) {
     monitor.appendChild(bubble);
     monitor.scrollTop = monitor.scrollHeight;
     
-    // Estadísticas
     stats.rx += data.message.length;
     stats.messages++;
     updateStats();
@@ -6245,12 +6162,10 @@ function sendMessage() {
     let processedMessage = message;
     let extraData = {};
     
-    // === MANEJO DE MODO MORSE ===
     if (mode === 'morse') {
         const isMorse = /^[\.\-\s\/]+$/.test(message.trim());
         
         if (isMorse) {
-            // Escribieron Morse → guardar texto traducido
             processedMessage = message;
             extraData = {
                 textVersion: decodeMorse(message) || message,
@@ -6260,7 +6175,6 @@ function sendMessage() {
             };
             updateMonitor(`📡 Enviando Morse (${extraData.textVersion.substring(0, 20)})`);
         } else {
-            // Escribieron texto → convertir a Morse
             processedMessage = textToMorse(message);
             extraData = {
                 textVersion: message,
@@ -6271,17 +6185,14 @@ function sendMessage() {
             updateMonitor(`📡 Enviando "${message.substring(0, 20)}" como Morse`);
         }
         
-        // Mostrar traducción en tiempo real
         updateMorseTranslation(message);
         
     } else if (mode === 'phonetic') {
         processedMessage = textToPhonetic(message);
     }
     
-    // Preparar datos para enviar
     const dataToSend = prepareMessageToSend(processedMessage, mode, encryption, key, extraData);
     
-    // Enviar a conexiones
     let sentCount = 0;
     
     if (activeTarget === 'GLOBAL') {
@@ -6305,7 +6216,6 @@ function sendMessage() {
     }
     
     if (sentCount > 0) {
-        // Mostrar mensaje local
         let displayMsg = message;
         if (mode === 'morse' && extraData.textVersion) {
             displayMsg = extraData.textVersion;
@@ -6322,7 +6232,6 @@ function sendMessage() {
         updateStats();
         playStrongBeep(700, 100);
         
-        // Actualizar health
         if (activeTarget === 'GLOBAL') {
             Object.keys(connections).forEach(peerId => {
                 if (connections[peerId]?.status === 'online') {
@@ -6341,7 +6250,6 @@ function sendMessage() {
             };
         }
     } else {
-        // Guardar en cola
         addToQueue(dataToSend, message);
         displayMessage(`⏳ YO (EN COLA): ${message}`, dataToSend.hexPreview, 'outgoing');
         input.value = '';
@@ -6349,7 +6257,6 @@ function sendMessage() {
         playStrongBeep(500, 100);
     }
     
-    // Limpiar tabla
     document.querySelectorAll('#ansiTable td.highlighted').forEach(td => {
         td.classList.remove('highlighted');
     });
@@ -6489,7 +6396,7 @@ function prepareMessageToSend(message, mode, encryption, key, extraData = {}) {
     if (encryption === 'aes' || encryption === 'aes-256-gcm') {
         const secured = securityLayer(processedMessage, true, 'aes', key);
         encryptedMessage = secured.text;
-        encryptionType = 'AES-256-CBC'; // Usar CBC para compatibilidad
+        encryptionType = 'AES-256-CBC';
         hexPreview = '🔐';
     } else if (encryption === 'xor') {
         const secured = securityLayer(processedMessage, true, 'xor', key);
@@ -6501,11 +6408,10 @@ function prepareMessageToSend(message, mode, encryption, key, extraData = {}) {
         if (encryptedMessage.length > 3) hexPreview += '...';
     }
     
-    // IMPORTANTE: Guardar toda la información del modo Morse
     return {
         type: 'message',
         message: encryptedMessage,
-        original: extraData.textVersion || message, // Guardar texto original
+        original: extraData.textVersion || message,
         mode: mode,
         encryption: encryptionType,
         timestamp: Date.now(),
@@ -7072,16 +6978,13 @@ function updateMorseTranslation(text) {
     
     translationBox.classList.add('active');
     
-    // Detectar si es código Morse o texto
     const isMorse = /^[\.\-\s\/]+$/.test(text.trim());
     
     if (isMorse) {
-        // Es código Morse → decodificar a texto
         const decoded = decodeMorse(text);
         textDisplay.textContent = decoded || '???';
         codeDisplay.textContent = text;
     } else {
-        // Es texto → codificar a Morse
         textDisplay.textContent = text;
         codeDisplay.textContent = textToMorse(text);
     }
@@ -7090,17 +6993,13 @@ function updateMorseTranslation(text) {
 function decodeMorse(morseCode) {
     if (!morseCode) return '';
     
-    // Crear mapa inverso: código Morse -> carácter
     const morseMap = {};
     for (const [char, code] of Object.entries(morseCodes)) {
         morseMap[code] = char;
     }
     
-    // Dividir por espacios (cada código Morse)
     return morseCode.split(' ').map(code => {
-        // Si es espacio entre palabras
         if (code === '/') return ' ';
-        // Buscar el carácter correspondiente
         return morseMap[code] || '?';
     }).join('');
 }
@@ -9877,11 +9776,9 @@ document.addEventListener('visibilitychange', function() {
     } else {
         updateMonitor("⏸️ APP EN SEGUNDO PLANO");
         stopWatchingPosition();
-        // No finalizar llamadas VoIP al pasar a segundo plano
     }
 });
 
-// Sobrescribir handleReceivedData para emergencias
 const originalHandleReceivedData = window.handleReceivedData;
 window.handleReceivedData = function(senderId, data) {
     if (data.type === 'emergency') {
@@ -9913,7 +9810,6 @@ window.onload = function() {
         savedIds = [];
     }
 
-    // Inicializaciones
     buildAsciiTable();
     buildMorseTable();
     initRadioSystem();
@@ -9923,31 +9819,22 @@ window.onload = function() {
     loadSettings();
     updatePeerList();
 
-    // PeerJS
     peer = new Peer();
     setupPeerEvents();
     startHealthCheckSystem();
 
-    // Versión en badge
     const versionBadge = document.querySelector('.version-badge');
     if (versionBadge) versionBadge.textContent = `v${VERSION}`;
 
     updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO | VoIP ACTIVADO`);
     
-    // Inicializar seguridad
     setTimeout(initSecurity, 1000);
-    
-    // Inicializar cola
     setTimeout(initQueue, 2000);
-    
-    // Inicialización final
     setTimeout(finalInitialization, 1200);
     
-    // Iniciar seguimiento automático
     startWatchingPosition();
 };
 
-// Inicializar seguridad
 function initSecurity() {
     console.log("🔐 Inicializando seguridad v5.2...");
     
@@ -9975,12 +9862,10 @@ function initSecurity() {
     }
 }
 
-// Inicializar consola
 setTimeout(() => {
     console.log("🚀 RADCOM CONSOLE v5.6.1 ready");
 }, 1000);
 
-// Exportar funciones al ámbito global
 window.forceUpdateSatelliteData = forceUpdateSatelliteData;
 window.sendSatelliteEmergency = sendSatelliteEmergency;
 window.sendPositionToChat = sendPositionToChat;
@@ -10006,7 +9891,6 @@ window.clearDecoder = clearDecoder;
 window.showSecurityInfo = showSecurityInfo;
 window.handleCockpitClick = handleCockpitClick;
 window.closeModal680 = closeModal680;
-// Funciones VoIP
 window.toggleVoIPCall = toggleVoIPCall;
 window.endVoIPCall = endVoIPCall;
 </script>
