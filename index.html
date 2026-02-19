@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.7.0 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
+    <title>RADCOM MASTER v5.7.1 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -2397,7 +2397,7 @@
                 letter-spacing: 2px;
                 margin-bottom: 25px;
                 opacity: 0.8;
-                ">v5.7.0 SEGURIDAD ACTIVADA cifrando...
+                ">v5.7.1 SEGURIDAD ACTIVADA cifrando...
             </div>
             
             <!-- Barra de progreso blanca -->
@@ -2432,7 +2432,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.7.0</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.7.1</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -3064,6 +3064,10 @@
                     Efectos de sonido
                 </label>
                 <label style="display:block; margin-bottom:4px; color:#00ff88; font-size:0.75rem;">
+                    <input type="checkbox" id="notificationsEnabled" checked style="margin-right:4px;">
+                    Notificaciones en segundo plano
+                </label>
+                <label style="display:block; margin-bottom:4px; color:#00ff88; font-size:0.75rem;">
                     <input type="checkbox" id="saveHistory" checked style="margin-right:4px;">
                     Guardar historial
                 </label>
@@ -3107,7 +3111,7 @@
                 <div id="CMD-output" class="CMD-output">
 &gt; RADCOM CMD CONSOLE v5.6.1 INITIALIZED
 &gt; System: RADCOM MASTER
-&gt; Version: 5.6.1
+&gt; Version: 5.7.1
 &gt; Ready for commands...
                 </div>
                 <div class="CMD-input-row">
@@ -4360,12 +4364,12 @@
 
     <script>
 // =============================================
-// RADCOM MASTER v5.7.0 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
-// SCRIPT COMPLETAMENTE REORGANIZADO CON VoIP
+// RADCOM MASTER v5.7.1 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
+// CON NOTIFICACIONES EN SEGUNDO PLANO Y SONIDO MEJORADO
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
-const VERSION = '5.7.0';
+const VERSION = '5.7.1';
 let peer = null;
 let myPeerId = null;
 let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
@@ -4407,6 +4411,10 @@ let recognizing = false;
 // Variables para consola
 let currentConsoleTab = 'CMD';
 let hexEditorContent = '';
+
+// Sistema de notificaciones
+let notificationsEnabled = true;
+let notificationSoundEnabled = true;
 
 // Sistema de ID
 const ID_SYSTEM = {
@@ -4562,6 +4570,148 @@ const phoneticAlphabetFull = {
     '8': { word: 'EIGHT', pronunciation: 'AIT' },
     '9': { word: 'NINE', pronunciation: 'NIN-ER' }
 };
+
+// =============================================
+// SISTEMA DE NOTIFICACIONES EN SEGUNDO PLANO
+// =============================================
+
+function showNotification(title, message, type = 'info') {
+    if (!notificationsEnabled) return;
+    
+    // Verificar si la página está en segundo plano o si es una emergencia
+    if (document.hidden || type === 'emergency' || type === 'voip') {
+        try {
+            // Solicitar permiso si no lo tenemos
+            if (Notification.permission === 'granted') {
+                const options = {
+                    body: message,
+                    icon: type === 'emergency' ? '🔴' : type === 'voip' ? '📞' : '📡',
+                    badge: type === 'emergency' ? '🚨' : '📡',
+                    vibrate: type === 'emergency' ? [500, 200, 500] : [200, 100, 200],
+                    tag: 'radcom-notification',
+                    renotify: true,
+                    silent: !notificationSoundEnabled,
+                    requireInteraction: type === 'emergency' || type === 'voip'
+                };
+                
+                const notification = new Notification('RADCOM ' + title, options);
+                
+                notification.onclick = function() {
+                    window.focus();
+                    this.close();
+                    
+                    // Si es una llamada VoIP, mostrar el panel de llamada
+                    if (type === 'voip' && voipIncomingCall) {
+                        // Aquí puedes agregar lógica para mostrar la llamada
+                        updateMonitor(`📞 Llamada de ${voipIncomingCall.substring(0,8)} - Haz clic para responder`);
+                    }
+                };
+                
+                // Reproducir sonido adicional si está activado
+                if (notificationSoundEnabled && type !== 'voip') {
+                    playNotificationSound(type);
+                }
+                
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
+        } catch (e) {
+            console.error('Error mostrando notificación:', e);
+        }
+    }
+    
+    // Siempre mostrar en el monitor
+    displayMessage(`🔔 ${title}: ${message}`, '', type === 'emergency' ? 'system' : 'system');
+}
+
+function playNotificationSound(type = 'info') {
+    if (!notificationSoundEnabled) return;
+    
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    const now = audioContext.currentTime;
+    
+    if (type === 'emergency') {
+        // Sonido de emergencia fuerte
+        for (let i = 0; i < 3; i++) {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.value = 800 + i * 200;
+            osc.type = 'sawtooth';
+            
+            gain.gain.setValueAtTime(0.8, now + i * 0.3);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.3 + 0.2);
+            
+            osc.start(now + i * 0.3);
+            osc.stop(now + i * 0.3 + 0.2);
+        }
+    } else if (type === 'voip') {
+        // Sonido de llamada entrante fuerte
+        for (let i = 0; i < 4; i++) {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.value = 600;
+            osc.type = 'sine';
+            
+            gain.gain.setValueAtTime(0.7, now + i * 0.5);
+            gain.gain.setValueAtTime(0.7, now + i * 0.5 + 0.3);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.5 + 0.4);
+            
+            osc.start(now + i * 0.5);
+            osc.stop(now + i * 0.5 + 0.4);
+        }
+    } else {
+        // Sonido de mensaje
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.value = 1000;
+        osc.type = 'sine';
+        
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        
+        osc.start(now);
+        osc.stop(now + 0.1);
+    }
+}
+
+// Solicitar permiso de notificaciones al inicio
+function initNotifications() {
+    if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }
+    
+    // Configurar el checkbox de notificaciones
+    const notificationsCheck = document.getElementById('notificationsEnabled');
+    if (notificationsCheck) {
+        notificationsEnabled = notificationsCheck.checked;
+        notificationsCheck.addEventListener('change', function() {
+            notificationsEnabled = this.checked;
+        });
+    }
+    
+    // Configurar el checkbox de sonido
+    const soundCheck = document.getElementById('soundEnabled');
+    if (soundCheck) {
+        notificationSoundEnabled = soundCheck.checked;
+        soundCheck.addEventListener('change', function() {
+            notificationSoundEnabled = this.checked;
+        });
+    }
+}
 
 // =============================================
 // FUNCIONES DE SEGURIDAD Y CRIPTOGRAFÍA
@@ -4918,6 +5068,9 @@ function setupConnection(conn, type) {
         setTimeout(() => deliverOnConnect(peerId), 1500);
         saveId(peerId);
         setTimeout(() => sendHealthPing(peerId), 1000);
+        
+        // Notificar conexión exitosa
+        showNotification('CONEXIÓN', `Conectado a ${peerId.substring(0,8)}`, 'info');
     });
     
     conn.on('data', (data) => {
@@ -4974,6 +5127,9 @@ function setupConnection(conn, type) {
         updatePeerList();
         updateConnectedCount();
         updateMonitor(`🔒 DESCONECTADO: ${peerId.substring(0, 8)}`);
+        
+        // Notificar desconexión
+        showNotification('DESCONEXIÓN', `Desconectado de ${peerId.substring(0,8)}`, 'info');
         
         if (voipActiveCall === peerId) {
             endVoIPCall(peerId);
@@ -5678,7 +5834,7 @@ function verificarYReparar() {
 }
 
 // =============================================
-// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS)
+// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS CON SONIDO FUERTE)
 // =============================================
 
 function initVoIPAudio() {
@@ -5705,14 +5861,14 @@ function playRingtone() {
     voipRingtoneSource.connect(gainNode);
     gainNode.connect(voipAudioContext.destination);
 
-    voipRingtoneSource.type = 'sine';
-    gainNode.gain.setValueAtTime(0.3, now);
+    voipRingtoneSource.type = 'sawtooth'; // Más fuerte que 'sine'
+    gainNode.gain.setValueAtTime(0.8, now); // Volumen alto
 
     for (let i = 0; i < 60; i++) {
         const cycleStart = now + i * 3;
-        voipRingtoneSource.frequency.setValueAtTime(440, cycleStart);
-        gainNode.gain.setValueAtTime(0.3, cycleStart);
-        gainNode.gain.setValueAtTime(0.3, cycleStart + 1);
+        voipRingtoneSource.frequency.setValueAtTime(800, cycleStart); // Frecuencia más alta
+        gainNode.gain.setValueAtTime(0.8, cycleStart);
+        gainNode.gain.setValueAtTime(0.8, cycleStart + 1);
         gainNode.gain.setValueAtTime(0, cycleStart + 1.01);
     }
 
@@ -5742,14 +5898,14 @@ function playOutgoingTone() {
     voipOutgoingToneSource.connect(gainNode);
     gainNode.connect(voipAudioContext.destination);
 
-    voipOutgoingToneSource.type = 'sine';
-    gainNode.gain.setValueAtTime(0.2, now);
+    voipOutgoingToneSource.type = 'sawtooth';
+    gainNode.gain.setValueAtTime(0.7, now);
 
     for (let i = 0; i < 40; i++) {
         const cycleStart = now + i * 1.5;
-        voipOutgoingToneSource.frequency.setValueAtTime(420, cycleStart);
-        gainNode.gain.setValueAtTime(0.2, cycleStart);
-        gainNode.gain.setValueAtTime(0.2, cycleStart + 0.5);
+        voipOutgoingToneSource.frequency.setValueAtTime(600, cycleStart);
+        gainNode.gain.setValueAtTime(0.7, cycleStart);
+        gainNode.gain.setValueAtTime(0.7, cycleStart + 0.5);
         gainNode.gain.setValueAtTime(0, cycleStart + 0.51);
     }
 
@@ -5835,6 +5991,7 @@ async function toggleVoIPCall(peerId) {
             const remoteAudio = new Audio();
             remoteAudio.srcObject = event.streams[0];
             remoteAudio.autoplay = true;
+            remoteAudio.volume = 1.0; // Volumen máximo
             
             // Reproducir de forma segura
             remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
@@ -5933,6 +6090,9 @@ function handleVoIPOffer(senderId, data) {
 
     updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)}...`, "info");
     playRingtone();
+    
+    // Mostrar notificación
+    showNotification('📞 LLAMADA VoIP', `Llamada entrante de ${senderId.substring(0,8)}`, 'voip');
 
     displayMessage(`📞 LLAMADA VoIP ENTRANTE de ${senderId.substring(0, 8)}`, '', 'voip');
 
@@ -5951,10 +6111,14 @@ function handleVoIPOffer(senderId, data) {
 
     updatePeerList();
 
-    if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
-        acceptVoIPCall(senderId);
-    } else {
-        rejectVoIPCall(senderId, 'rejected');
+    // Si estamos en segundo plano, la notificación ya se mostró
+    // Si no, mostrar confirmación
+    if (!document.hidden) {
+        if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
+            acceptVoIPCall(senderId);
+        } else {
+            rejectVoIPCall(senderId, 'rejected');
+        }
     }
 }
 
@@ -6003,6 +6167,7 @@ async function acceptVoIPCall(peerId) {
             const remoteAudio = new Audio();
             remoteAudio.srcObject = event.streams[0];
             remoteAudio.autoplay = true;
+            remoteAudio.volume = 1.0; // Volumen máximo
             
             // Reproducir de forma segura
             remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
@@ -6288,6 +6453,9 @@ function handleReceivedData(senderId, data) {
     updateStats();
     
     playMessageNotification();
+    
+    // Mostrar notificación de mensaje recibido
+    showNotification('📩 MENSAJE', `De ${sender}: ${finalText.substring(0, 30)}${finalText.length > 30 ? '...' : ''}`, 'info');
 }
 
 function sendMessage() {
@@ -7334,7 +7502,7 @@ function loadHistoryFromLocal() {
 }
 
 // =============================================
-// FUNCIONES DE SONIDO Y AUDIO
+// FUNCIONES DE SONIDO Y AUDIO (MEJORADAS)
 // =============================================
 
 function initMorseAudio() {
@@ -7371,9 +7539,9 @@ function playStrongBeep(freq, duration) {
     gainNode.connect(audioContext.destination);
     
     oscillator.frequency.value = freq;
-    oscillator.type = 'sawtooth';
+    oscillator.type = 'sawtooth'; // Más fuerte que 'sine'
     
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.8, audioContext.currentTime); // Volumen más alto
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
     
     oscillator.start(audioContext.currentTime);
@@ -7399,7 +7567,7 @@ function playMessageNotification() {
         oscillator.frequency.value = freq;
         oscillator.type = 'sawtooth';
         
-        gainNode.gain.setValueAtTime(0.4, currentTime);
+        gainNode.gain.setValueAtTime(0.7, currentTime); // Volumen más alto
         gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.15);
         
         oscillator.start(currentTime);
@@ -7422,9 +7590,9 @@ function playRadioBeep(freq, duration) {
     gainNode.connect(radioAudioContext.destination);
     
     oscillator.frequency.value = freq;
-    oscillator.type = 'sine';
+    oscillator.type = 'sawtooth';
     
-    gainNode.gain.setValueAtTime(0.3, radioAudioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.7, radioAudioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, radioAudioContext.currentTime + duration / 1000);
     
     oscillator.start(radioAudioContext.currentTime);
@@ -7458,7 +7626,7 @@ function playBandChangeSound(band) {
         oscillator.frequency.value = freq;
         oscillator.type = 'sawtooth';
         
-        gainNode.gain.setValueAtTime(0.4, time);
+        gainNode.gain.setValueAtTime(0.7, time);
         gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
         
         oscillator.start(time);
@@ -7491,7 +7659,7 @@ function playEmergencyTone() {
         oscillator.frequency.value = i % 2 === 0 ? 1000 : 500;
         oscillator.type = 'sawtooth';
         
-        gainNode.gain.setValueAtTime(0.5, time);
+        gainNode.gain.setValueAtTime(0.8, time);
         gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
         
         oscillator.start(time);
@@ -7551,7 +7719,7 @@ function playEmergencySatelliteTone() {
         oscillator.frequency.exponentialRampToValueAtTime(1200, time + 0.3);
         oscillator.type = 'sawtooth';
         
-        gainNode.gain.setValueAtTime(0.6, time);
+        gainNode.gain.setValueAtTime(0.8, time);
         gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.3);
         
         oscillator.start(time);
@@ -7578,7 +7746,7 @@ function playEmergencyAlertSound() {
         oscillator.frequency.value = 1500;
         oscillator.type = 'square';
         
-        gainNode.gain.setValueAtTime(0.5, time);
+        gainNode.gain.setValueAtTime(0.8, time);
         gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
         
         oscillator.start(time);
@@ -7639,11 +7807,11 @@ function playMorseCodeSound(code) {
             gainNode.connect(morseAudioContext.destination);
             
             oscillator.frequency.value = 700;
-            oscillator.type = 'sine';
+            oscillator.type = 'sawtooth'; // Más fuerte que 'sine'
             
             gainNode.gain.setValueAtTime(0, time);
-            gainNode.gain.linearRampToValueAtTime(0.3, time + 0.01);
-            gainNode.gain.setValueAtTime(0.3, time + duration - 0.01);
+            gainNode.gain.linearRampToValueAtTime(0.7, time + 0.01); // Volumen más alto
+            gainNode.gain.setValueAtTime(0.7, time + duration - 0.01);
             gainNode.gain.linearRampToValueAtTime(0, time + duration);
             
             oscillator.start(time);
@@ -8562,6 +8730,9 @@ function handleEmergencyMessage(senderId, data) {
     
     updateMonitor(`🚨 EMERGENCIA RECIBIDA DE ${senderId.substring(0,6)}`);
     
+    // Mostrar notificación de emergencia
+    showNotification('🚨 EMERGENCIA', `De ${senderId.substring(0,8)}: ${decryptedMessage.substring(0,50)}...`, 'emergency');
+    
     stats.rx += data.message.length;
     updateStats();
 }
@@ -8895,6 +9066,13 @@ function loadSettings() {
     const soundEnabled = document.getElementById('soundEnabled');
     if (config.soundEnabled !== undefined && soundEnabled) {
         soundEnabled.checked = config.soundEnabled;
+        notificationSoundEnabled = config.soundEnabled;
+    }
+    
+    const notificationsEnabledCheck = document.getElementById('notificationsEnabled');
+    if (config.notificationsEnabled !== undefined && notificationsEnabledCheck) {
+        notificationsEnabledCheck.checked = config.notificationsEnabled;
+        notificationsEnabled = config.notificationsEnabled;
     }
     
     const saveHistory = document.getElementById('saveHistory');
@@ -8927,6 +9105,7 @@ function saveSettings() {
         connectionType: currentConnectionType,
         autoReconnect: document.getElementById('autoReconnect')?.checked,
         soundEnabled: document.getElementById('soundEnabled')?.checked,
+        notificationsEnabled: document.getElementById('notificationsEnabled')?.checked,
         saveHistory: document.getElementById('saveHistory')?.checked,
         fastRecovery: document.getElementById('fastRecovery')?.checked,
         aggressiveRevive: document.getElementById('aggressiveRevive')?.checked,
@@ -8939,6 +9118,8 @@ function saveSettings() {
     fastRecovery = config.fastRecovery;
     aggressiveRevive = config.aggressiveRevive;
     ID_SYSTEM.useFixedId = config.useFixedId;
+    notificationsEnabled = config.notificationsEnabled;
+    notificationSoundEnabled = config.soundEnabled;
     
     if (config.fixedId && config.useFixedId) {
         ID_SYSTEM.fixedId = config.fixedId;
@@ -9083,7 +9264,7 @@ function finalInitialization() {
         }
     }, 25000);
     
-    updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión estable y segura con VoIP`);
+    updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión estable y segura con VoIP y notificaciones`);
 }
 
 // =============================================
@@ -9899,7 +10080,7 @@ function closeModal680() {
 }
 
 // =============================================
-// MANEJO DE EVENTOS DE VISIBILIDAD
+// MANEJO DE EVENTOS DE VISIBILIDAD Y NOTIFICACIONES
 // =============================================
 
 document.addEventListener('visibilitychange', function() {
@@ -9947,7 +10128,7 @@ window.handleReceivedData = function(senderId, data) {
 // =============================================
 
 window.onload = function() {
-    console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura con VoIP`);
+    console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura con VoIP y notificaciones`);
 
     try {
         const peers = JSON.parse(localStorage.getItem('radcom_peers') || '[]');
@@ -9967,6 +10148,7 @@ window.onload = function() {
     initSatelliteSystem();
     initVoiceRecognition();
     initResizableSeparator();
+    initNotifications(); // Inicializar sistema de notificaciones
     loadSettings();
     updatePeerList();
 
@@ -9977,13 +10159,14 @@ window.onload = function() {
     const versionBadge = document.querySelector('.version-badge');
     if (versionBadge) versionBadge.textContent = `v${VERSION}`;
 
-    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO | VoIP ACTIVADO`);
+    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO | VoIP + NOTIFICACIONES ACTIVADAS`);
     
     setTimeout(initSecurity, 1000);
     setTimeout(initQueue, 2000);
     setTimeout(finalInitialization, 1200);
     
     startWatchingPosition();
+    
 };
 
 function initSecurity() {
