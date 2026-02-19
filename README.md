@@ -2326,12 +2326,109 @@
     border-color: #fff;
 }
 
+        /* ===== ANIMACIONES PARA SPLASH SCREEN ===== */
+        @keyframes neonPulse {
+            from {
+                text-shadow: 0 0 5px #00ff88,
+                             0 0 10px #00ff88,
+                             0 0 20px #00ff88,
+                             0 0 40px #00ff88;
+            }
+            to {
+                text-shadow: 0 0 10px #00ff88,
+                             0 0 20px #00ff88,
+                             0 0 40px #00ff88,
+                             0 0 80px #00ff88,
+                             0 0 120px #0088ff;
+            }
+        }
+
+        @keyframes scanLine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Animación para la barra de carga del splash */
+@keyframes loadingBar {
+    0% { left: -40%; }
+    100% { left: 100%; }
+}
+
     </style>
 </head>
 <body>
-           
     <!-- CABECERA -->
-    <div class="container">
+<div class="container">
+    <!-- ===== SPLASH SCREEN CENTRADO EN 720x720 (NUEVO) ===== -->
+    <div id="splash-screen" style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #0a0a0a;
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        transition: opacity 0.8s ease;
+        opacity: 1;
+        backdrop-filter: blur(0px);
+        ">
+        <div style="text-align: center; width: 95%;">
+            <!-- Logo RADCOM centrado -->
+            <div style="
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 4.5rem;
+                font-weight: bold;
+                color: #ffffff;
+                text-shadow: 0 0 5px rgba(245, 248, 246, 0.7);
+                line-height: 1.2;
+                margin-bottom: 15px;
+                ">
+                RAD<span style="color: #04fc4a;">COM MASTER</span>
+            </div>
+            
+            <!-- Versión y línea decorativa -->
+            <div style="
+                font-size: 0.8rem;
+                color: #ffffff;
+                letter-spacing: 2px;
+                margin-bottom: 25px;
+                opacity: 0.8;
+                ">v5.7.0 SEGURIDAD ACTIVADA cifrando...
+            </div>
+            
+            <!-- Barra de progreso blanca -->
+            <div style="
+                width: 250px;
+                height: 2px;
+                background: rgba(255,255,255,0.2);
+                margin: 15px auto;
+                position: relative;
+                overflow: hidden;
+                ">
+                <div style="
+                    width: 40%;
+                    height: 100%;
+                    background: #29f700;
+                    position: absolute;
+                    left: -40%;
+                    animation: loadingBar 1.5s infinite ease-in-out;
+                    "></div>
+            </div>
+            
+            <!-- Texto de carga -->
+            <div style="
+                color: #ffffff;
+                font-size: 0.65rem;
+                opacity: 0.6;
+                ">SISTEMA RADCOM MASTER INICIANDO.......
+            </div>
+        </div>
+    </div>
+    <!-- ===== FIN SPLASH SCREEN ===== -->
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
@@ -4258,6 +4355,8 @@
         document.head.appendChild(style);
     </script>
 </div>
+
+
 
     <script>
 // =============================================
@@ -9945,6 +10044,57 @@ window.handleCockpitClick = handleCockpitClick;
 window.closeModal680 = closeModal680;
 window.toggleVoIPCall = toggleVoIPCall;
 window.endVoIPCall = endVoIPCall;
+
+// ===== CONTROL DEL SPLASH SCREEN (CORREGIDO) =====
+// Esta función debe ejecutarse después de que el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    const splashScreen = document.getElementById('splash-screen');
+    
+    if (!splashScreen) {
+        console.log("Splash screen no encontrado");
+        return;
+    }
+    
+    console.log("Splash screen encontrado, iniciando cuenta atrás...");
+    
+    // Función para ocultar el splash con fade out
+    function hideSplash() {
+        splashScreen.style.opacity = '0';
+        
+        // Después de la transición, ocultar completamente
+        setTimeout(() => {
+            splashScreen.style.display = 'none';
+            console.log("Splash screen ocultado");
+        }, 800); // Debe coincidir con transition: opacity 0.8s ease
+    }
+    
+    // Esperar 7 segundos y ocultar
+    setTimeout(hideSplash, 7000);
+    
+    // Opcional: Cambiar el texto periódicamente para dar sensación de actividad
+    const loadingText = splashScreen.querySelector('div:last-child div:last-child');
+    if (loadingText) {
+        const texts = [
+            "INICIALIZANDO SISTEMA...",
+            "CARGANDO MÓDULOS...",
+            "ESTABLECIENDO CONEXIONES...",
+            "SISTEMA LISTO"
+        ];
+        
+        let index = 0;
+        const textInterval = setInterval(() => {
+            index = (index + 1) % texts.length;
+            if (loadingText) loadingText.textContent = texts[index];
+            
+            // Detener el intervalo cuando se oculte el splash
+            if (index === texts.length - 1) {
+                setTimeout(() => {
+                    clearInterval(textInterval);
+                }, 7000);
+            }
+        }, 1200);
+    }
+});
 </script>
 </body>
 </html>
