@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.7.1 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
+    <title>RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -281,10 +281,9 @@
         }
         
         .voip-btn.in-call {
-            background: #ff3300;
-            border-color: #ff3300;
-            color: white;
-            animation: pulseVoip 1.5s infinite;
+            background: #ff3300 !important; /* Rojo para colgar */
+            border-color: #ff3300 !important;
+            color: white !important;
         }
         
         @keyframes pulseVoip {
@@ -318,6 +317,7 @@
             flex-direction: column; 
             background: #000; 
             overflow: hidden;
+            position: relative; /* Para el panel VoIP */
         }
 
         .monitor-container {
@@ -2354,6 +2354,107 @@
     100% { left: 100%; }
 }
 
+/* ===== NUEVO PANEL DE CONTROL VoIP ===== */
+.voip-control-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #ff3300;
+    border-radius: 8px;
+    padding: 15px;
+    z-index: 5000;
+    box-shadow: 0 0 30px rgba(255, 51, 0, 0.5);
+    backdrop-filter: blur(5px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    animation: panelFadeIn 0.3s ease;
+}
+
+@keyframes panelFadeIn {
+    from { opacity: 0; transform: translate(-50%, -60%); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.voip-panel-title {
+    color: #ff3300;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #ff3300;
+    padding-bottom: 5px;
+    width: 100%;
+    text-align: center;
+}
+
+.voip-panel-peer {
+    color: #00ff88;
+    font-size: 0.9rem;
+    font-weight: bold;
+    background: rgba(0, 255, 136, 0.1);
+    padding: 5px 10px;
+    border-radius: 20px;
+    width: 100%;
+    text-align: center;
+    word-break: break-all;
+}
+
+.voip-panel-status {
+    color: #ffaa00;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+
+.voip-panel-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+    width: 100%;
+    justify-content: center;
+}
+
+.voip-panel-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
+
+.voip-panel-btn-accept {
+    background: #00ff88;
+    color: #000;
+}
+
+.voip-panel-btn-accept:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px #00ff88;
+}
+
+.voip-panel-btn-reject, .voip-panel-btn-end {
+    background: #ff3300;
+    color: white;
+}
+
+.voip-panel-btn-reject:hover, .voip-panel-btn-end:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px #ff3300;
+}
+
+.voip-panel-btn:active {
+    transform: scale(0.95);
+}
     </style>
 </head>
 <body>
@@ -2397,7 +2498,7 @@
                 letter-spacing: 2px;
                 margin-bottom: 25px;
                 opacity: 0.8;
-                ">v5.7.1 SEGURIDAD ACTIVADA + VoIP
+                ">v5.7.2 SEGURIDAD ACTIVADA + VoIP
             </div>
             
             <!-- Barra de progreso blanca -->
@@ -2432,7 +2533,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.7.1</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.7.2</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -2553,7 +2654,7 @@
 </div>
             </div>
 
-            <div class="content-area">
+            <div class="content-area" id="content-area">
                 <div class="monitor-container" id="monitorContainer">
                     <div id="monitor-raw">SISTEMA INICIADO | ESCUCHANDO CONEXIONES...</div>
                         <div class="morse-translation" id="morse-translation">
@@ -4360,12 +4461,12 @@
 
     <script>
 // =============================================
-// RADCOM MASTER v5.7.1 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
-// CORRECCIONES: SONIDO RINGTONE, RECHAZO LLAMADA, DESTINO INDIVIDUAL, NOTIFICACIONES PUSH
+// RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
+// CORRECCIONES: PANEL VoIP, BOTONES DE ESTADO, RECHAZO DE LLAMADA FIJO
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
-const VERSION = '5.7.1';
+const VERSION = '5.7.2';
 let peer = null;
 let myPeerId = null;
 let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
@@ -4377,7 +4478,7 @@ let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || '[
 let queueRetryInterval = null;
 const MAX_QUEUE_SIZE = 100;
 
-// Variables VoIP - CORREGIDAS Y MEJORADAS
+// Variables VoIP - CORREGIDAS Y MEJORADAS v5.7.2
 let voipCalls = {}; // { peerId: { id, peerConnection, stream, status, remoteAudio, ringtoneTimeout } }
 let voipMediaStream = null;
 let voipActiveCall = null;
@@ -5188,12 +5289,13 @@ function updatePeerList() {
         let voipIcon = 'fa-phone';
         let voipTitle = 'Iniciar llamada VoIP';
         
+        // --- CORRECCIÓN: Lógica de botones VoIP v5.7.2 ---
         if (voipActiveCall === id) {
-            voipBtnClass += ' in-call';
+            voipBtnClass += ' in-call'; // Clase para colgar (rojo)
             voipIcon = 'fa-phone-slash';
             voipTitle = 'Finalizar llamada';
         } else if (voipIncomingCall === id) {
-            voipBtnClass += ' active';
+            voipBtnClass += ' active'; // Clase para entrante (rojo pulsante)
             voipIcon = 'fa-phone-alt';
             voipTitle = 'Llamada entrante';
         } else if (status !== 'online') {
@@ -5678,7 +5780,7 @@ function verificarYReparar() {
 }
 
 // =============================================
-// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS v5.7.1)
+// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS v5.7.2)
 // =============================================
 
 function initVoIPAudio() {
@@ -5777,6 +5879,64 @@ function stopOutgoingTone() {
     }
 }
 
+// Función para mostrar el panel de control VoIP
+function showVoIPPanel(status, peerId) {
+    const contentArea = document.getElementById('content-area');
+    // Eliminar panel existente si lo hay
+    const existingPanel = document.getElementById('voip-control-panel');
+    if (existingPanel) {
+        existingPanel.remove();
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'voip-control-panel';
+    panel.className = 'voip-control-panel';
+
+    let title = '';
+    let buttons = '';
+
+    if (status === 'incoming') {
+        title = '📞 LLAMADA ENTRANTE';
+        buttons = `
+            <div class="voip-panel-buttons">
+                <button class="voip-panel-btn voip-panel-btn-accept" onclick="acceptVoIPCall('${peerId}')"><i class="fas fa-phone-alt"></i></button>
+                <button class="voip-panel-btn voip-panel-btn-reject" onclick="rejectVoIPCall('${peerId}', 'rejected')"><i class="fas fa-phone-slash"></i></button>
+            </div>
+        `;
+    } else if (status === 'active') {
+        title = '🔴 LLAMADA EN CURSO';
+        buttons = `
+            <div class="voip-panel-buttons">
+                <button class="voip-panel-btn voip-panel-btn-end" onclick="endVoIPCall('${peerId}')"><i class="fas fa-phone-slash"></i></button>
+            </div>
+        `;
+    } else if (status === 'outgoing') {
+        title = '📞 LLAMANDO...';
+        buttons = `
+            <div class="voip-panel-buttons">
+                <button class="voip-panel-btn voip-panel-btn-end" onclick="endVoIPCall('${peerId}')"><i class="fas fa-times"></i></button>
+            </div>
+        `;
+    }
+
+    panel.innerHTML = `
+        <div class="voip-panel-title">${title}</div>
+        <div class="voip-panel-peer">${peerId.substring(0, 12)}...</div>
+        <div class="voip-panel-status">${status === 'active' ? 'En curso' : (status === 'incoming' ? 'Llamada entrante' : 'Estableciendo...')}</div>
+        ${buttons}
+    `;
+
+    contentArea.appendChild(panel);
+}
+
+// Función para ocultar el panel VoIP
+function hideVoIPPanel() {
+    const panel = document.getElementById('voip-control-panel');
+    if (panel) {
+        panel.remove();
+    }
+}
+
 async function toggleVoIPCall(peerId) {
     // Si es la llamada activa, colgar
     if (voipActiveCall === peerId) {
@@ -5808,6 +5968,7 @@ async function toggleVoIPCall(peerId) {
         updateMonitor(`📞 Iniciando llamada VoIP con ${peerId.substring(0, 8)}...`, "info");
         playStrongBeep(800, 100);
         playOutgoingTone(); // Tono de timbrado mientras esperamos
+        showVoIPPanel('outgoing', peerId); // Mostrar panel de llamada saliente
 
         // Solicitar acceso al micrófono
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -5906,6 +6067,7 @@ async function toggleVoIPCall(peerId) {
         updateMonitor(`❌ Error iniciando llamada: ${error.message}`, "error");
         playStrongBeep(300, 200);
         stopOutgoingTone();
+        hideVoIPPanel();
         // Limpiar recursos
         if (voipMediaStream) {
             voipMediaStream.getTracks().forEach(track => track.stop());
@@ -5962,6 +6124,9 @@ function handleVoIPOffer(senderId, data) {
 
     updatePeerList();
 
+    // Mostrar panel de llamada entrante
+    showVoIPPanel('incoming', senderId);
+
     // --- CORRECCIÓN: Usar setTimeout para no bloquear y mostrar notificación ---
     setTimeout(() => {
         const notification = showNotification(
@@ -5971,11 +6136,7 @@ function handleVoIPOffer(senderId, data) {
         if (notification) {
             notification.onclick = function() {
                 window.focus();
-                if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
-                    acceptVoIPCall(senderId);
-                } else {
-                    rejectVoIPCall(senderId, 'rejected');
-                }
+                // El panel ya está visible, no necesitamos un confirm adicional
             };
         }
     }, 100);
@@ -6063,6 +6224,7 @@ async function acceptVoIPCall(peerId) {
         voipIncomingCall = null;
         voipCalls[peerId].status = 'active';
         updatePeerList();
+        showVoIPPanel('active', peerId); // Actualizar panel a activo
 
         updateMonitor(`📞 Llamada aceptada con ${peerId.substring(0, 8)}`, "info");
         displayMessage(`📞 Llamada VoIP aceptada - Conversación con ${peerId.substring(0, 8)}`, '', 'voip');
@@ -6121,6 +6283,7 @@ function rejectVoIPCall(peerId, reason = 'rejected') {
         voipIncomingCall = null;
     }
 
+    hideVoIPPanel(); // Ocultar panel
     updateMonitor(`📞 Llamada de ${peerId.substring(0, 8)} rechazada`, "info");
     updatePeerList();
 }
@@ -6139,6 +6302,7 @@ function handleVoIPAnswer(senderId, data) {
         );
         voipActiveCall = senderId;
         voipCalls[senderId].status = 'active';
+        showVoIPPanel('active', senderId); // Mostrar panel activo
         updateMonitor(`📞 Llamada establecida con ${senderId.substring(0, 8)}`, "info");
         displayMessage(`📞 Llamada VoIP establecida - Conversación con ${senderId.substring(0, 8)}`, '', 'voip');
         updatePeerList();
@@ -6222,6 +6386,7 @@ function endVoIPCall(peerId = null) {
         voipMediaStream = null;
     }
 
+    hideVoIPPanel(); // Ocultar panel
     updatePeerList();
     updateMonitor(`📞 Llamada finalizada`, "info");
     displayMessage(`📞 Llamada VoIP finalizada`, '', 'voip');
