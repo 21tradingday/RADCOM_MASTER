@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
+    <title>RADCOM MASTER v5.7.3 - SISTEMA DE COMUNICACIÓN GLOBAL AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -970,20 +970,17 @@
             width: 4px;
         }
 
-        .morse-table-container::-webkit-scrollbar-track,
-        .tab-content::-webkit-scrollbar-track {
+        .morse-table-container::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 2px;
         }
 
-        .morse-table-container::-webkit-scrollbar-thumb,
-        .tab-content::-webkit-scrollbar-thumb {
+        .morse-table-container::-webkit-scrollbar-thumb {
             background: rgba(0, 255, 136, 0.5);
             border-radius: 2px;
         }
 
-        .morse-table-container::-webkit-scrollbar-thumb:hover,
-        .tab-content::-webkit-scrollbar-thumb:hover {
+        .morse-table-container::-webkit-scrollbar-thumb:hover {
             background: rgba(0, 255, 136, 0.7);
         }
 
@@ -2498,7 +2495,7 @@
                 letter-spacing: 2px;
                 margin-bottom: 25px;
                 opacity: 0.8;
-                ">v5.7.2 SEGURIDAD ACTIVADA + VoIP
+                ">v5.7.3 GLOBAL + VoIP
             </div>
             
             <!-- Barra de progreso blanca -->
@@ -2533,7 +2530,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.7.2</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.7.3</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -3064,7 +3061,7 @@
         <div class="modal-content">
             <button class="modal-close" onclick="hideSettings()">&times;</button>
             <div class="modal-title">
-                <i class="fas fa-cog"></i> CONFIGURACIÓN v4.7
+                <i class="fas fa-cog"></i> CONFIGURACIÓN v5.7.3
             </div>
             
             <div style="margin-bottom:10px;">
@@ -3122,6 +3119,72 @@
                             style="padding: 6px 10px; background: #333; color: #ff3300; 
                                    border: 1px solid #444; border-radius: 2px; cursor: pointer; font-size: 0.7rem;">
                         <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:10px;">
+                <div style="color:#00ff88; font-size:0.75rem; margin-bottom:6px;">
+                    <i class="fas fa-globe"></i> MODO DE OPERACIÓN
+                </div>
+                <div class="connection-type-selector" style="grid-template-columns: 1fr 1fr;">
+                    <div class="connection-type-btn active" id="btn-mode-local" onclick="selectOperationMode('local')">
+                        <div class="connection-icon"><i class="fas fa-home"></i></div>
+                        LOCAL
+                        <div class="connection-info">Red local / PeerJS por defecto</div>
+                    </div>
+                    <div class="connection-type-btn" id="btn-mode-global" onclick="selectOperationMode('global')">
+                        <div class="connection-icon"><i class="fas fa-globe-americas"></i></div>
+                        GLOBAL
+                        <div class="connection-info">Internet / Servidor propio</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="globalConfigContainer" style="margin-bottom:10px; display: none; border: 1px solid #333; padding: 10px; border-radius: 3px;">
+                <div style="color: #00ff88; font-size: 0.75rem; margin-bottom: 8px;">
+                    <i class="fas fa-server"></i> CONFIGURACIÓN DEL SERVIDOR GLOBAL
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; margin-bottom: 4px; color: #00ff88; font-size: 0.7rem;">
+                        Host del Servidor (IP o dominio):
+                    </label>
+                    <input type="text" id="globalServerHost" style="width:100%; padding:5px; background:#000; 
+                           color:#00ff88; border:1px solid #333; border-radius:2px; font-size:0.75rem;" 
+                           placeholder="ej. tudominio.com o 123.456.789.0" value="localhost">
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; margin-bottom: 4px; color: #00ff88; font-size: 0.7rem;">
+                        Puerto:
+                    </label>
+                    <input type="text" id="globalServerPort" style="width:100%; padding:5px; background:#000; 
+                           color:#00ff88; border:1px solid #333; border-radius:2px; font-size:0.75rem;" 
+                           placeholder="9000" value="9000">
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; margin-bottom: 4px; color: #00ff88; font-size: 0.7rem;">
+                        Ruta (path):
+                    </label>
+                    <input type="text" id="globalServerPath" style="width:100%; padding:5px; background:#000; 
+                           color:#00ff88; border:1px solid #333; border-radius:2px; font-size:0.75rem;" 
+                           placeholder="/radcom" value="/radcom">
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; margin-bottom: 4px; color: #00ff88; font-size: 0.7rem;">
+                        Clave (key):
+                    </label>
+                    <input type="text" id="globalServerKey" style="width:100%; padding:5px; background:#000; 
+                           color:#00ff88; border:1px solid #333; border-radius:2px; font-size:0.75rem;" 
+                           placeholder="peerjs" value="peerjs">
+                </div>
+                <div style="font-size: 0.6rem; color: #888; margin-top: 4px;">
+                    Asegúrate de que tu servidor de señalización esté corriendo en esta dirección.
+                </div>
+                <div style="margin-top: 8px;">
+                    <button onclick="saveGlobalServerConfig()" 
+                            style="width:100%; padding:5px; background:#0088ff; color:#000; 
+                                   border:none; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.7rem;">
+                        <i class="fas fa-save"></i> GUARDAR CONFIGURACIÓN DEL SERVIDOR
                     </button>
                 </div>
             </div>
@@ -3208,7 +3271,7 @@
                 <div id="CMD-output" class="CMD-output">
 &gt; RADCOM CMD CONSOLE v5.6.1 INITIALIZED
 &gt; System: RADCOM MASTER
-&gt; Version: 5.6.1
+&gt; Version: 5.7.3
 &gt; Ready for commands...
                 </div>
                 <div class="CMD-input-row">
@@ -3468,7 +3531,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
     <script>
-        // ===== VARIABLES GLOBALES =====
+        // ===== VARIABLES GLOBALES DEL MAPA =====
         let map, currentLayer, isDualMode = false, dualOverlay = null;
         let liveTrackLayer, drawnItems, rescueMarker = null, rescueCircle = null;
         let trackingActive = false, navigationActive = false;
@@ -4461,12 +4524,12 @@
 
     <script>
 // =============================================
-// RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
-// CORRECCIONES: PANEL VoIP, BOTONES DE ESTADO, RECHAZO DE LLAMADA FIJO
+// RADCOM MASTER v5.7.3 - SISTEMA DE COMUNICACIÓN GLOBAL AES-256-GCM + VoIP
+// CORRECCIONES: MODO LOCAL/GLOBAL CON SERVIDOR PROPIO
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
-const VERSION = '5.7.2';
+const VERSION = '5.7.3';
 let peer = null;
 let myPeerId = null;
 let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
@@ -4478,7 +4541,7 @@ let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || '[
 let queueRetryInterval = null;
 const MAX_QUEUE_SIZE = 100;
 
-// Variables VoIP - CORREGIDAS Y MEJORADAS v5.7.2
+// Variables VoIP - CORREGIDAS Y MEJORADAS v5.7.3
 let voipCalls = {}; // { peerId: { id, peerConnection, stream, status, remoteAudio, ringtoneTimeout } }
 let voipMediaStream = null;
 let voipActiveCall = null;
@@ -4515,6 +4578,15 @@ const ID_SYSTEM = {
     defaultPrefix: 'RADCOM-',
     useFixedId: true,
     fixedId: null
+};
+
+// ====== NUEVAS VARIABLES PARA MODO GLOBAL v5.7.3 ======
+let operationMode = 'local'; // 'local' o 'global'
+let globalServerConfig = {
+    host: 'localhost',
+    port: 9000,
+    path: '/radcom',
+    key: 'peerjs'
 };
 
 // Estadísticas
@@ -4730,7 +4802,7 @@ function decryptAES(ciphertext, password) {
 }
 
 // =============================================
-// CAPA DE SEGURIDAD UNIFICADA - VERSIÓN FINAL CORREGIDA
+// CAPA DE SEGURIDAD UNIFICADA
 // =============================================
 
 function securityLayer(text, isSending, encryptionMode, password) {
@@ -4903,6 +4975,54 @@ function showSecurityInfo() {
         panel.addEventListener('click', e => e.stopPropagation());
         document.addEventListener('click', () => panel.remove());
     }, 100);
+}
+
+// =============================================
+// FUNCIONES PARA MODO GLOBAL (NUEVAS v5.7.3)
+// =============================================
+
+function selectOperationMode(mode) {
+    if (mode === operationMode) return;
+
+    // Actualizar UI de los botones
+    document.getElementById('btn-mode-local').classList.remove('active');
+    document.getElementById('btn-mode-global').classList.remove('active');
+    document.getElementById(`btn-mode-${mode}`).classList.add('active');
+
+    // Mostrar/Ocultar configuración global
+    const globalConfigDiv = document.getElementById('globalConfigContainer');
+    if (globalConfigDiv) {
+        globalConfigDiv.style.display = mode === 'global' ? 'block' : 'none';
+    }
+
+    // Guardar la selección del modo
+    operationMode = mode;
+    const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
+    config.operationMode = mode;
+    localStorage.setItem('radcom_config_v4.6', JSON.stringify(config));
+
+    updateMonitor(`🌐 Modo de operación cambiado a: ${mode.toUpperCase()}`);
+    playStrongBeep(800, 100);
+
+    // Opcional: Preguntar si quiere reiniciar la conexión PeerJS para aplicar el cambio
+    if (confirm(`Modo cambiado a ${mode.toUpperCase()}. ¿Reiniciar conexión para aplicar cambios?`)) {
+        refreshAllConnections(); // Esta función ya existe y reinicia peer
+    }
+}
+
+// Función para guardar la configuración del servidor global
+function saveGlobalServerConfig() {
+    globalServerConfig = {
+        host: document.getElementById('globalServerHost').value.trim(),
+        port: parseInt(document.getElementById('globalServerPort').value) || 9000,
+        path: document.getElementById('globalServerPath').value.trim() || '/',
+        key: document.getElementById('globalServerKey').value.trim() || 'peerjs'
+    };
+    // Guardar en localStorage
+    const config = JSON.parse(localStorage.getItem('radcom_config_v4.6') || '{}');
+    config.globalServer = globalServerConfig;
+    localStorage.setItem('radcom_config_v4.6', JSON.stringify(config));
+    updateMonitor("✅ Configuración del servidor global guardada.");
 }
 
 // =============================================
@@ -5155,6 +5275,7 @@ function initPeerJSEnhanced() {
     document.getElementById('currentIdDisplay').textContent = peerId;
     
     try {
+        // Construir la configuración de ICE (ya la tienes)
         const iceConfig = {
             config: {
                 iceServers: [
@@ -5164,7 +5285,8 @@ function initPeerJSEnhanced() {
             },
             debug: 0
         };
-        
+
+        // Añadir servidores TURN si es necesario en el futuro
         if (currentConnectionType === 'mobile') {
             iceConfig.config.iceServers = [
                 { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
@@ -5175,8 +5297,29 @@ function initPeerJSEnhanced() {
                 { urls: 'stun:stun4.l.google.com:19302' }
             ];
         }
+
+        // --- NUEVA LÓGICA PARA MODO GLOBAL v5.7.3 ---
+        let peerOptions = iceConfig; // Por defecto, solo config ICE
+
+        if (operationMode === 'global') {
+            updateMonitor(`🌐 CONECTANDO A SERVIDOR GLOBAL: ${globalServerConfig.host}:${globalServerConfig.port}${globalServerConfig.path}`);
+            // Añadir la configuración del servidor de señalización
+            peerOptions = {
+                ...iceConfig,
+                host: globalServerConfig.host,
+                port: globalServerConfig.port,
+                path: globalServerConfig.path,
+                key: globalServerConfig.key,
+                secure: globalServerConfig.port === 443 || globalServerConfig.secure // Añadir secure si usas HTTPS
+            };
+        } else {
+            updateMonitor(`🏠 MODO LOCAL: Usando servidor por defecto (0.peerjs.com)`);
+            // Para modo local, no especificamos host/port, usa el público por defecto
+            peerOptions = iceConfig;
+        }
+        // --- FIN NUEVA LÓGICA ---
         
-        peer = new Peer(peerId, iceConfig);
+        peer = new Peer(peerId, peerOptions);
         setupPeerEvents();
         updateMonitor(`✅ ID REGISTRADO: ${peerId.substring(0, 20)}...`);
         
@@ -9128,6 +9271,21 @@ function loadSettings() {
         currentConnectionType = config.connectionType;
     }
     
+    // Cargar modo de operación
+    if (config.operationMode) {
+        operationMode = config.operationMode;
+        selectOperationMode(operationMode); // Esto actualiza la UI
+    }
+    
+    // Cargar configuración del servidor global
+    if (config.globalServer) {
+        globalServerConfig = config.globalServer;
+        document.getElementById('globalServerHost').value = globalServerConfig.host;
+        document.getElementById('globalServerPort').value = globalServerConfig.port;
+        document.getElementById('globalServerPath').value = globalServerConfig.path;
+        document.getElementById('globalServerKey').value = globalServerConfig.key;
+    }
+    
     const autoReconnect = document.getElementById('autoReconnect');
     if (config.autoReconnect !== undefined && autoReconnect) {
         autoReconnect.checked = config.autoReconnect;
@@ -9166,6 +9324,13 @@ function saveSettings() {
     const config = {
         systemName: document.getElementById('systemName')?.value,
         connectionType: currentConnectionType,
+        operationMode: operationMode,
+        globalServer: {
+            host: document.getElementById('globalServerHost').value.trim(),
+            port: parseInt(document.getElementById('globalServerPort').value) || 9000,
+            path: document.getElementById('globalServerPath').value.trim() || '/',
+            key: document.getElementById('globalServerKey').value.trim() || 'peerjs'
+        },
         autoReconnect: document.getElementById('autoReconnect')?.checked,
         soundEnabled: document.getElementById('soundEnabled')?.checked,
         saveHistory: document.getElementById('saveHistory')?.checked,
@@ -9324,7 +9489,7 @@ function finalInitialization() {
         }
     }, 25000);
     
-    updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión estable y segura con VoIP`);
+    updateMonitor(`🚀 RADCOM MASTER v${VERSION} - Versión global con servidor propio`);
 }
 
 // =============================================
@@ -10188,7 +10353,7 @@ window.handleReceivedData = function(senderId, data) {
 // =============================================
 
 window.onload = function() {
-    console.log(`🚀 RADCOM MASTER v${VERSION} - Versión limpia y segura con VoIP`);
+    console.log(`🚀 RADCOM MASTER v${VERSION} - Versión global con servidor propio`);
 
     try {
         const peers = JSON.parse(localStorage.getItem('radcom_peers') || '[]');
@@ -10211,14 +10376,13 @@ window.onload = function() {
     loadSettings();
     updatePeerList();
 
-    peer = new Peer();
-    setupPeerEvents();
+    initPeerJSEnhanced();
     startHealthCheckSystem();
 
     const versionBadge = document.querySelector('.version-badge');
     if (versionBadge) versionBadge.textContent = `v${VERSION}`;
 
-    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO | VoIP ACTIVADO | NOTIFICACIONES ACTIVAS`);
+    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO | VoIP ACTIVADO | NOTIFICACIONES ACTIVAS | MODO ${operationMode.toUpperCase()}`);
     
     setTimeout(initSecurity, 1000);
     setTimeout(initQueue, 2000);
@@ -10290,6 +10454,8 @@ window.handleCockpitClick = handleCockpitClick;
 window.closeModal680 = closeModal680;
 window.toggleVoIPCall = toggleVoIPCall;
 window.endVoIPCall = endVoIPCall;
+window.selectOperationMode = selectOperationMode;
+window.saveGlobalServerConfig = saveGlobalServerConfig;
 
 // ===== CONTROL DEL SPLASH SCREEN (CORREGIDO) =====
 // Esta función debe ejecutarse después de que el DOM esté listo
