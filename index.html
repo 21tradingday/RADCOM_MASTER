@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
+    <title>RADCOM MASTER v5.7.3 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -2533,7 +2533,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.7.2</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.7.3</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -5783,47 +5783,72 @@ function verificarYReparar() {
 // FUNCIONES VoIP (CORREGIDAS Y MEJORADAS v5.7.2)
 // =============================================
 
-function initVoIPAudio() {
+// Variable para el estado del contexto de audio
+let audioContextState = 'suspended'; // 'suspended', 'running', 'closed'
+
+async function initVoIPAudio() {
     if (!voipAudioContext) {
         try {
             voipAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-            console.log("✅ VoIP AudioContext inicializado");
+            audioContextState = voipAudioContext.state;
+            console.log("✅ VoIP AudioContext inicializado. Estado:", voipAudioContext.state);
+
+            // Escuchar cambios de estado en el contexto (útil para depuración)
+            voipAudioContext.onstatechange = () => {
+                audioContextState = voipAudioContext.state;
+                console.log(`🔄 AudioContext cambió a: ${voipAudioContext.state}`);
+            };
+
         } catch (error) {
             console.error("❌ Error inicializando VoIP AudioContext:", error);
+            return null;
         }
     }
+
+    // Si el contexto está suspendido (ej. al volver a la pestaña), lo reanudamos.
+    if (voipAudioContext.state === 'suspended') {
+        console.log("🔄 Reanudando AudioContext suspendido...");
+        try {
+            await voipAudioContext.resume();
+            console.log("✅ AudioContext reanudado correctamente.");
+        } catch (error) {
+            console.error("❌ Error al reanudar AudioContext:", error);
+        }
+    }
+
     return voipAudioContext;
 }
 
 function playRingtone() {
     stopRingtone(); // Siempre detener el tono anterior antes de empezar uno nuevo
-    initVoIPAudio();
-    if (!voipAudioContext) return;
+    initVoIPAudio().then(context => { // Usamos .then para esperar a que el contexto esté listo
+        if (!context) return;
 
-    const now = voipAudioContext.currentTime;
-    voipRingtoneSource = voipAudioContext.createOscillator();
-    const gainNode = voipAudioContext.createGain();
+        const now = context.currentTime;
+        voipRingtoneSource = context.createOscillator();
+        const gainNode = context.createGain();
 
-    voipRingtoneSource.connect(gainNode);
-    gainNode.connect(voipAudioContext.destination);
+        voipRingtoneSource.connect(gainNode);
+        gainNode.connect(context.destination);
 
-    voipRingtoneSource.type = 'sine';
-    gainNode.gain.setValueAtTime(0.3, now);
+        voipRingtoneSource.type = 'sine';
+        gainNode.gain.setValueAtTime(0.3, now);
 
-    // Patrón de timbrado: 2 segundos de tono, 1 segundo de silencio
-    for (let i = 0; i < 40; i++) {
-        const cycleStart = now + i * 3; // Cada ciclo de 3 segundos
-        const toneEnd = cycleStart + 2;
-        const silenceStart = toneEnd;
+        // Patrón de timbrado: 2 segundos de tono, 1 segundo de silencio
+        for (let i = 0; i < 40; i++) {
+            const cycleStart = now + i * 3; // Cada ciclo de 3 segundos
+            const toneEnd = cycleStart + 2;
+            const silenceStart = toneEnd;
 
-        voipRingtoneSource.frequency.setValueAtTime(440, cycleStart);
-        gainNode.gain.setValueAtTime(0.3, cycleStart);
-        gainNode.gain.setValueAtTime(0.3, toneEnd - 0.01);
-        gainNode.gain.setValueAtTime(0, toneEnd);
-    }
+            voipRingtoneSource.frequency.setValueAtTime(440, cycleStart);
+            gainNode.gain.setValueAtTime(0.3, cycleStart);
+            gainNode.gain.setValueAtTime(0.3, toneEnd - 0.01);
+            gainNode.gain.setValueAtTime(0, toneEnd);
+        }
 
-    voipRingtoneSource.start(now);
-    voipRingtoneSource.stop(now + 120); // Toca por 2 minutos máximo
+        voipRingtoneSource.start(now);
+        voipRingtoneSource.stop(now + 120); // Toca por 2 minutos máximo
+    });
 }
 
 function stopRingtone() {
@@ -5840,33 +5865,34 @@ function stopRingtone() {
 
 function playOutgoingTone() {
     stopOutgoingTone();
-    initVoIPAudio();
-    if (!voipAudioContext) return;
+    initVoIPAudio().then(context => {
+        if (!context) return;
 
-    const now = voipAudioContext.currentTime;
-    voipOutgoingToneSource = voipAudioContext.createOscillator();
-    const gainNode = voipAudioContext.createGain();
+        const now = context.currentTime;
+        voipOutgoingToneSource = context.createOscillator();
+        const gainNode = context.createGain();
 
-    voipOutgoingToneSource.connect(gainNode);
-    gainNode.connect(voipAudioContext.destination);
+        voipOutgoingToneSource.connect(gainNode);
+        gainNode.connect(context.destination);
 
-    voipOutgoingToneSource.type = 'sine';
-    gainNode.gain.setValueAtTime(0.2, now);
+        voipOutgoingToneSource.type = 'sine';
+        gainNode.gain.setValueAtTime(0.2, now);
 
-    // Patrón para tono de llamada saliente: 1 segundo de tono, 1 segundo de silencio
-    for (let i = 0; i < 40; i++) {
-        const cycleStart = now + i * 2;
-        const toneEnd = cycleStart + 1;
-        const silenceStart = toneEnd;
+        // Patrón para tono de llamada saliente: 1 segundo de tono, 1 segundo de silencio
+        for (let i = 0; i < 40; i++) {
+            const cycleStart = now + i * 2;
+            const toneEnd = cycleStart + 1;
+            const silenceStart = toneEnd;
 
-        voipOutgoingToneSource.frequency.setValueAtTime(420, cycleStart);
-        gainNode.gain.setValueAtTime(0.2, cycleStart);
-        gainNode.gain.setValueAtTime(0.2, toneEnd - 0.01);
-        gainNode.gain.setValueAtTime(0, toneEnd);
-    }
+            voipOutgoingToneSource.frequency.setValueAtTime(420, cycleStart);
+            gainNode.gain.setValueAtTime(0.2, cycleStart);
+            gainNode.gain.setValueAtTime(0.2, toneEnd - 0.01);
+            gainNode.gain.setValueAtTime(0, toneEnd);
+        }
 
-    voipOutgoingToneSource.start(now);
-    voipOutgoingToneSource.stop(now + 80);
+        voipOutgoingToneSource.start(now);
+        voipOutgoingToneSource.stop(now + 80);
+    });
 }
 
 function stopOutgoingTone() {
@@ -5975,7 +6001,7 @@ async function toggleVoIPCall(peerId) {
         voipMediaStream = stream;
 
         // Inicializar audio context si es necesario
-        initVoIPAudio();
+        await initVoIPAudio();
 
         // Crear nueva conexión VoIP
         const callId = `voip_${Date.now()}`;
@@ -6163,7 +6189,7 @@ async function acceptVoIPCall(peerId) {
         voipMediaStream = stream;
 
         // Inicializar audio context
-        initVoIPAudio();
+        await initVoIPAudio();
 
         // Crear conexión peer
         voipCalls[peerId].peerConnection = new RTCPeerConnection({
