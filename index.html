@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.7.0 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
+    <title>RADCOM MASTER v5.7.1 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -2397,7 +2397,7 @@
                 letter-spacing: 2px;
                 margin-bottom: 25px;
                 opacity: 0.8;
-                ">v5.7.0 SEGURIDAD ACTIVADA cifrando...
+                ">v5.7.1 SEGURIDAD ACTIVADA + VoIP
             </div>
             
             <!-- Barra de progreso blanca -->
@@ -2432,7 +2432,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.7.0</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.7.1</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -4360,12 +4360,12 @@
 
     <script>
 // =============================================
-// RADCOM MASTER v5.7.0 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
-// SCRIPT COMPLETAMENTE REORGANIZADO CON VoIP
+// RADCOM MASTER v5.7.1 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
+// CORRECCIONES: SONIDO RINGTONE, RECHAZO LLAMADA, DESTINO INDIVIDUAL, NOTIFICACIONES PUSH
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
-const VERSION = '5.7.0';
+const VERSION = '5.7.1';
 let peer = null;
 let myPeerId = null;
 let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
@@ -5678,7 +5678,7 @@ function verificarYReparar() {
 }
 
 // =============================================
-// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS)
+// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS v5.7.1)
 // =============================================
 
 function initVoIPAudio() {
@@ -5694,7 +5694,7 @@ function initVoIPAudio() {
 }
 
 function playRingtone() {
-    stopRingtone();
+    stopRingtone(); // Siempre detener el tono anterior antes de empezar uno nuevo
     initVoIPAudio();
     if (!voipAudioContext) return;
 
@@ -5708,23 +5708,29 @@ function playRingtone() {
     voipRingtoneSource.type = 'sine';
     gainNode.gain.setValueAtTime(0.3, now);
 
-    for (let i = 0; i < 60; i++) {
-        const cycleStart = now + i * 3;
+    // Patrón de timbrado: 2 segundos de tono, 1 segundo de silencio
+    for (let i = 0; i < 40; i++) {
+        const cycleStart = now + i * 3; // Cada ciclo de 3 segundos
+        const toneEnd = cycleStart + 2;
+        const silenceStart = toneEnd;
+
         voipRingtoneSource.frequency.setValueAtTime(440, cycleStart);
         gainNode.gain.setValueAtTime(0.3, cycleStart);
-        gainNode.gain.setValueAtTime(0.3, cycleStart + 1);
-        gainNode.gain.setValueAtTime(0, cycleStart + 1.01);
+        gainNode.gain.setValueAtTime(0.3, toneEnd - 0.01);
+        gainNode.gain.setValueAtTime(0, toneEnd);
     }
 
     voipRingtoneSource.start(now);
-    voipRingtoneSource.stop(now + 60);
+    voipRingtoneSource.stop(now + 120); // Toca por 2 minutos máximo
 }
 
 function stopRingtone() {
     if (voipRingtoneSource) {
         try {
             voipRingtoneSource.stop();
-        } catch (e) {}
+        } catch (e) {
+            // Ignorar error si ya se detuvo
+        }
         voipRingtoneSource.disconnect();
         voipRingtoneSource = null;
     }
@@ -5745,16 +5751,20 @@ function playOutgoingTone() {
     voipOutgoingToneSource.type = 'sine';
     gainNode.gain.setValueAtTime(0.2, now);
 
+    // Patrón para tono de llamada saliente: 1 segundo de tono, 1 segundo de silencio
     for (let i = 0; i < 40; i++) {
-        const cycleStart = now + i * 1.5;
+        const cycleStart = now + i * 2;
+        const toneEnd = cycleStart + 1;
+        const silenceStart = toneEnd;
+
         voipOutgoingToneSource.frequency.setValueAtTime(420, cycleStart);
         gainNode.gain.setValueAtTime(0.2, cycleStart);
-        gainNode.gain.setValueAtTime(0.2, cycleStart + 0.5);
-        gainNode.gain.setValueAtTime(0, cycleStart + 0.51);
+        gainNode.gain.setValueAtTime(0.2, toneEnd - 0.01);
+        gainNode.gain.setValueAtTime(0, toneEnd);
     }
 
     voipOutgoingToneSource.start(now);
-    voipOutgoingToneSource.stop(now + 60);
+    voipOutgoingToneSource.stop(now + 80);
 }
 
 function stopOutgoingTone() {
@@ -5932,9 +5942,10 @@ function handleVoIPOffer(senderId, data) {
     }
 
     updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)}...`, "info");
-    playRingtone();
-
     displayMessage(`📞 LLAMADA VoIP ENTRANTE de ${senderId.substring(0, 8)}`, '', 'voip');
+
+    // --- CORRECCIÓN: Iniciar el ringtone AQUÍ ---
+    playRingtone();
 
     voipIncomingCall = senderId;
     voipCalls[senderId] = {
@@ -5951,11 +5962,23 @@ function handleVoIPOffer(senderId, data) {
 
     updatePeerList();
 
-    if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
-        acceptVoIPCall(senderId);
-    } else {
-        rejectVoIPCall(senderId, 'rejected');
-    }
+    // --- CORRECCIÓN: Usar setTimeout para no bloquear y mostrar notificación ---
+    setTimeout(() => {
+        const notification = showNotification(
+            '📞 Llamada VoIP entrante',
+            `De: ${senderId.substring(0, 8)}. Haz clic para volver a la app.`
+        );
+        if (notification) {
+            notification.onclick = function() {
+                window.focus();
+                if (confirm(`📞 Llamada VoIP entrante de ${senderId.substring(0, 8)}. ¿Aceptar?`)) {
+                    acceptVoIPCall(senderId);
+                } else {
+                    rejectVoIPCall(senderId, 'rejected');
+                }
+            };
+        }
+    }, 100);
 }
 
 async function acceptVoIPCall(peerId) {
@@ -6078,6 +6101,7 @@ async function acceptVoIPCall(peerId) {
 function rejectVoIPCall(peerId, reason = 'rejected') {
     if (!voipCalls[peerId]) return;
 
+    // --- CORRECCIÓN: Detener el ringtone AQUÍ también ---
     stopRingtone();
 
     if (voipCalls[peerId].ringtoneTimeout) {
@@ -6205,7 +6229,54 @@ function endVoIPCall(peerId = null) {
 }
 
 // =============================================
-// HANDLE RECEIVED DATA - SOLO LA PARTE MORSE CORREGIDA
+// FUNCIONES DE NOTIFICACIONES PUSH
+// =============================================
+
+function showNotification(title, body) {
+    // Comprobar si el navegador soporta notificaciones
+    if (!("Notification" in window)) {
+        console.log("Este navegador no soporta notificaciones de escritorio");
+        return null;
+    }
+
+    // Comprobar si estamos en segundo plano o la pestaña no está activa
+    if (!document.hidden) {
+        // Si la pestaña está activa, no mostramos notificación, solo el mensaje en el chat
+        return null;
+    }
+
+    // Función para lanzar la notificación una vez tengamos permiso
+    function spawnNotification() {
+        const options = {
+            body: body,
+            icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="%2300ff88" /%3E%3Ctext x="50" y="70" font-size="60" text-anchor="middle" fill="%23000" font-family="monospace"%3ER%3C/text%3E%3C/svg%3E',
+            badge: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="45" fill="%23ff3300" /%3E%3C/svg%3E',
+            tag: 'radcom-message',
+            renotify: true,
+            silent: false
+        };
+        return new Notification(title, options);
+    }
+
+    // Si ya tenemos permiso, lanzamos la notificación
+    if (Notification.permission === "granted") {
+        return spawnNotification();
+    }
+
+    // Si no tenemos permiso, lo solicitamos
+    if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+                return spawnNotification();
+            }
+        });
+    }
+
+    return null;
+}
+
+// =============================================
+// HANDLE RECEIVED DATA - CON NOTIFICACIONES
 // =============================================
 
 function handleReceivedData(senderId, data) {
@@ -6288,6 +6359,11 @@ function handleReceivedData(senderId, data) {
     updateStats();
     
     playMessageNotification();
+
+    // --- NUEVO: Mostrar notificación si la app está en segundo plano ---
+    const notificationTitle = `📨 Mensaje de ${sender}`;
+    const notificationBody = finalText.length > 50 ? finalText.substring(0, 50) + '...' : finalText;
+    showNotification(notificationTitle, notificationBody);
 }
 
 function sendMessage() {
@@ -9977,7 +10053,7 @@ window.onload = function() {
     const versionBadge = document.querySelector('.version-badge');
     if (versionBadge) versionBadge.textContent = `v${VERSION}`;
 
-    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO | VoIP ACTIVADO`);
+    updateMonitor(`✅ SISTEMA v${VERSION} INICIADO | AES-256-GCM + ECDH ACTIVO | VoIP ACTIVADO | NOTIFICACIONES ACTIVAS`);
     
     setTimeout(initSecurity, 1000);
     setTimeout(initQueue, 2000);
@@ -9985,6 +10061,10 @@ window.onload = function() {
     
     startWatchingPosition();
     
+    // Solicitar permiso para notificaciones al inicio
+    if (Notification.permission === "default") {
+        Notification.requestPermission();
+    }
 };
 
 function initSecurity() {
