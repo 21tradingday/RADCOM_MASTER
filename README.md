@@ -2498,7 +2498,7 @@
                 letter-spacing: 2px;
                 margin-bottom: 25px;
                 opacity: 0.8;
-                ">v5.7.2 SEGURIDAD ACTIVADA + VoIP
+                ">v5.7.3 SEGURIDAD ACTIVADA + VoIP
             </div>
             
             <!-- Barra de progreso blanca -->
@@ -4466,7 +4466,7 @@
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
-const VERSION = '5.7.2';
+const VERSION = '5.7.3';
 let peer = null;
 let myPeerId = null;
 let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
