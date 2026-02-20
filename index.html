@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RADCOM MASTER v5.7.3 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
+    <title>RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA AES-256-GCM + VoIP</title>
     <!-- SCRIPTS VÁLIDOS Y CORREGIDOS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -2498,7 +2498,7 @@
                 letter-spacing: 2px;
                 margin-bottom: 25px;
                 opacity: 0.8;
-                ">v5.7.3 SEGURIDAD ACTIVADA + VoIP
+                ">v5.7.2 SEGURIDAD ACTIVADA + VoIP
             </div>
             
             <!-- Barra de progreso blanca -->
@@ -2533,7 +2533,7 @@
         <div class="header-pro">
             <div class="status-indicator">
     <span class="status-dot-live"></span>
-    <span>RADCOM MASTER <span class="version-badge">v5.7.3</span></span>
+    <span>RADCOM MASTER <span class="version-badge">v5.7.2</span></span>
     <span style="color:#7b7d7b; margin-left:10px;">|</span>
     <span id="data-session" style="color:#00ffea">0</span>b
     <div class="security-badge" onclick="showSecurityInfo()" title="Seguridad AES-256-GCM Activada">
@@ -4466,7 +4466,7 @@
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
-const VERSION = '5.7.3';
+const VERSION = '5.7.2';
 let peer = null;
 let myPeerId = null;
 let savedIds = JSON.parse(localStorage.getItem('radcom_peers_v4') || "[]");
@@ -5783,72 +5783,47 @@ function verificarYReparar() {
 // FUNCIONES VoIP (CORREGIDAS Y MEJORADAS v5.7.2)
 // =============================================
 
-// Variable para el estado del contexto de audio
-let audioContextState = 'suspended'; // 'suspended', 'running', 'closed'
-
-async function initVoIPAudio() {
+function initVoIPAudio() {
     if (!voipAudioContext) {
         try {
             voipAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-            audioContextState = voipAudioContext.state;
-            console.log("✅ VoIP AudioContext inicializado. Estado:", voipAudioContext.state);
-
-            // Escuchar cambios de estado en el contexto (útil para depuración)
-            voipAudioContext.onstatechange = () => {
-                audioContextState = voipAudioContext.state;
-                console.log(`🔄 AudioContext cambió a: ${voipAudioContext.state}`);
-            };
-
+            console.log("✅ VoIP AudioContext inicializado");
         } catch (error) {
             console.error("❌ Error inicializando VoIP AudioContext:", error);
-            return null;
         }
     }
-
-    // Si el contexto está suspendido (ej. al volver a la pestaña), lo reanudamos.
-    if (voipAudioContext.state === 'suspended') {
-        console.log("🔄 Reanudando AudioContext suspendido...");
-        try {
-            await voipAudioContext.resume();
-            console.log("✅ AudioContext reanudado correctamente.");
-        } catch (error) {
-            console.error("❌ Error al reanudar AudioContext:", error);
-        }
-    }
-
     return voipAudioContext;
 }
 
 function playRingtone() {
     stopRingtone(); // Siempre detener el tono anterior antes de empezar uno nuevo
-    initVoIPAudio().then(context => { // Usamos .then para esperar a que el contexto esté listo
-        if (!context) return;
+    initVoIPAudio();
+    if (!voipAudioContext) return;
 
-        const now = context.currentTime;
-        voipRingtoneSource = context.createOscillator();
-        const gainNode = context.createGain();
+    const now = voipAudioContext.currentTime;
+    voipRingtoneSource = voipAudioContext.createOscillator();
+    const gainNode = voipAudioContext.createGain();
 
-        voipRingtoneSource.connect(gainNode);
-        gainNode.connect(context.destination);
+    voipRingtoneSource.connect(gainNode);
+    gainNode.connect(voipAudioContext.destination);
 
-        voipRingtoneSource.type = 'sine';
-        gainNode.gain.setValueAtTime(0.3, now);
+    voipRingtoneSource.type = 'sine';
+    gainNode.gain.setValueAtTime(0.3, now);
 
-        // Patrón de timbrado: 2 segundos de tono, 1 segundo de silencio
-        for (let i = 0; i < 40; i++) {
-            const cycleStart = now + i * 3; // Cada ciclo de 3 segundos
-            const toneEnd = cycleStart + 2;
-            const silenceStart = toneEnd;
+    // Patrón de timbrado: 2 segundos de tono, 1 segundo de silencio
+    for (let i = 0; i < 40; i++) {
+        const cycleStart = now + i * 3; // Cada ciclo de 3 segundos
+        const toneEnd = cycleStart + 2;
+        const silenceStart = toneEnd;
 
-            voipRingtoneSource.frequency.setValueAtTime(440, cycleStart);
-            gainNode.gain.setValueAtTime(0.3, cycleStart);
-            gainNode.gain.setValueAtTime(0.3, toneEnd - 0.01);
-            gainNode.gain.setValueAtTime(0, toneEnd);
-        }
+        voipRingtoneSource.frequency.setValueAtTime(440, cycleStart);
+        gainNode.gain.setValueAtTime(0.3, cycleStart);
+        gainNode.gain.setValueAtTime(0.3, toneEnd - 0.01);
+        gainNode.gain.setValueAtTime(0, toneEnd);
+    }
 
-        voipRingtoneSource.start(now);
-        voipRingtoneSource.stop(now + 120); // Toca por 2 minutos máximo
-    });
+    voipRingtoneSource.start(now);
+    voipRingtoneSource.stop(now + 120); // Toca por 2 minutos máximo
 }
 
 function stopRingtone() {
@@ -5865,34 +5840,33 @@ function stopRingtone() {
 
 function playOutgoingTone() {
     stopOutgoingTone();
-    initVoIPAudio().then(context => {
-        if (!context) return;
+    initVoIPAudio();
+    if (!voipAudioContext) return;
 
-        const now = context.currentTime;
-        voipOutgoingToneSource = context.createOscillator();
-        const gainNode = context.createGain();
+    const now = voipAudioContext.currentTime;
+    voipOutgoingToneSource = voipAudioContext.createOscillator();
+    const gainNode = voipAudioContext.createGain();
 
-        voipOutgoingToneSource.connect(gainNode);
-        gainNode.connect(context.destination);
+    voipOutgoingToneSource.connect(gainNode);
+    gainNode.connect(voipAudioContext.destination);
 
-        voipOutgoingToneSource.type = 'sine';
-        gainNode.gain.setValueAtTime(0.2, now);
+    voipOutgoingToneSource.type = 'sine';
+    gainNode.gain.setValueAtTime(0.2, now);
 
-        // Patrón para tono de llamada saliente: 1 segundo de tono, 1 segundo de silencio
-        for (let i = 0; i < 40; i++) {
-            const cycleStart = now + i * 2;
-            const toneEnd = cycleStart + 1;
-            const silenceStart = toneEnd;
+    // Patrón para tono de llamada saliente: 1 segundo de tono, 1 segundo de silencio
+    for (let i = 0; i < 40; i++) {
+        const cycleStart = now + i * 2;
+        const toneEnd = cycleStart + 1;
+        const silenceStart = toneEnd;
 
-            voipOutgoingToneSource.frequency.setValueAtTime(420, cycleStart);
-            gainNode.gain.setValueAtTime(0.2, cycleStart);
-            gainNode.gain.setValueAtTime(0.2, toneEnd - 0.01);
-            gainNode.gain.setValueAtTime(0, toneEnd);
-        }
+        voipOutgoingToneSource.frequency.setValueAtTime(420, cycleStart);
+        gainNode.gain.setValueAtTime(0.2, cycleStart);
+        gainNode.gain.setValueAtTime(0.2, toneEnd - 0.01);
+        gainNode.gain.setValueAtTime(0, toneEnd);
+    }
 
-        voipOutgoingToneSource.start(now);
-        voipOutgoingToneSource.stop(now + 80);
-    });
+    voipOutgoingToneSource.start(now);
+    voipOutgoingToneSource.stop(now + 80);
 }
 
 function stopOutgoingTone() {
@@ -6001,7 +5975,7 @@ async function toggleVoIPCall(peerId) {
         voipMediaStream = stream;
 
         // Inicializar audio context si es necesario
-        await initVoIPAudio();
+        initVoIPAudio();
 
         // Crear nueva conexión VoIP
         const callId = `voip_${Date.now()}`;
@@ -6189,7 +6163,7 @@ async function acceptVoIPCall(peerId) {
         voipMediaStream = stream;
 
         // Inicializar audio context
-        await initVoIPAudio();
+        initVoIPAudio();
 
         // Crear conexión peer
         voipCalls[peerId].peerConnection = new RTCPeerConnection({
@@ -10368,59 +10342,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ================================================================
-// SISTEMA DE ID FIJO MEJORADO: APLICA LA CONFIGURACIÓN GUARDADA AL INICIAR
-// ================================================================
-(function ensureFixedIdOnStartup() {
-    console.log("[SISTEMA ID] Verificando configuración de ID fijo...");
 
-    // Esta función se ejecuta justo después de que la página se ha cargado.
-    window.addEventListener('load', function() {
-        // Pequeña espera para asegurar que todos los elementos del DOM y
-        // las funciones de inicialización (como initPeerJSEnhanced) estén listas.
-        setTimeout(() => {
-            const config = JSON.parse(localStorage.getItem('radcom_config_v4') || '{}');
-            
-            // Verificamos si la configuración indica que se debe usar un ID fijo.
-            if (config.useFixedId === true && config.fixedId) {
-                const fixedId = config.fixedId;
-                updateMonitor(`🔧 CONFIGURACIÓN DETECTADA: Usar ID Fijo = "${fixedId}"`);
-                
-                // La función initPeerJSEnhanced ya está diseñada para leer esta configuración
-                // y aplicar el ID. Solo necesitamos asegurarnos de que se llame.
-                // Si el Peer aún no se ha iniciado, lo iniciamos con el ID fijo.
-                if (typeof initPeerJSEnhanced === 'function') {
-                    // Es posible que ya se haya llamado a initPeerJSEnhanced una vez.
-                    // Si es así, debemos reiniciar el sistema para aplicar el nuevo ID.
-                    if (window.peer && typeof window.peer.destroy === 'function') {
-                        console.log("[SISTEMA ID] Reiniciando Peer para aplicar ID fijo...");
-                        window.peer.destroy();
-                        window.peer = null;
-                        // Limpiamos las conexiones existentes
-                        window.connections = {};
-                        window.connectionHealth = {};
-                    }
-                    
-                    // Llamamos a la función de inicialización que leerá la config.
-                    // Podemos pasarle un flag para que no espere y use el ID fijo directamente.
-                    // Sin embargo, nuestra initPeerJSEnhanced ya lo hace automáticamente.
-                    // Simplemente la llamamos.
-                    setTimeout(() => {
-                         initPeerJSEnhanced();
-                         updateMonitor(`✅ ID FIJO APLICADO: ${fixedId.substring(0, 12)}...`);
-                    }, 100); // Un pequeño retraso para asegurar la limpieza.
-                    
-                } else {
-                    console.error("[SISTEMA ID] ERROR: La función initPeerJSEnhanced no está disponible.");
-                }
-            } else {
-                console.log("[SISTEMA ID] No se requiere ID fijo según la configuración.");
-                // Si no hay ID fijo configurado, pero el sistema ya debería haber iniciado con uno aleatorio,
-                // no hacemos nada. El flujo normal de window.onload se encargará.
-            }
-        }, 500); // Esperamos medio segundo para que todo esté listo.
-    });
-})();
 </script>
 </body>
 </html>
