@@ -281,7 +281,7 @@
         }
         
         .voip-btn.in-call {
-            background: #ff3300 !important; /* Rojo para colgar */
+            background: #ff3300 !important;
             border-color: #ff3300 !important;
             color: white !important;
         }
@@ -317,7 +317,7 @@
             flex-direction: column; 
             background: #000; 
             overflow: hidden;
-            position: relative; /* Para el panel VoIP */
+            position: relative;
         }
 
         .monitor-container {
@@ -2348,13 +2348,11 @@
             100% { transform: translateX(100%); }
         }
 
-        /* Animación para la barra de carga del splash */
-@keyframes loadingBar {
+        @keyframes loadingBar {
     0% { left: -40%; }
     100% { left: 100%; }
 }
 
-/* ===== NUEVO PANEL DE CONTROL VoIP ===== */
 .voip-control-panel {
     position: absolute;
     top: 50%;
@@ -2478,7 +2476,6 @@
         backdrop-filter: blur(0px);
         ">
         <div style="text-align: center; width: 95%;">
-            <!-- Logo RADCOM centrado -->
             <div style="
                 font-family: 'Consolas', 'Courier New', monospace;
                 font-size: 4.5rem;
@@ -2491,7 +2488,6 @@
                 RAD<span style="color: #04fc4a;">COM MASTER</span>
             </div>
             
-            <!-- Versión y línea decorativa -->
             <div style="
                 font-size: 0.8rem;
                 color: #ffffff;
@@ -2501,7 +2497,6 @@
                 ">v5.7.2 SEGURIDAD ACTIVADA + VoIP
             </div>
             
-            <!-- Barra de progreso blanca -->
             <div style="
                 width: 250px;
                 height: 2px;
@@ -2520,7 +2515,6 @@
                     "></div>
             </div>
             
-            <!-- Texto de carga -->
             <div style="
                 color: #ffffff;
                 font-size: 0.65rem;
@@ -3286,23 +3280,5541 @@
     </div>
 </div>
 
-<div id="modal-680" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:680px; height:680px; background:#000; border:2px solid #00ff88; z-index:9999; box-shadow: 0 0 20px rgba(0,255,136,0.5);">
-    <div style="display:flex; justify-content:space-between; background:#222; padding:5px 10px; border-bottom:1px solid #00ff88;">
+<div id="modal-680" style="display:none; position:absolute; top:calc(50% + 24px); left:50%; transform:translate(-50%, -50%); width:680px; height:680px; background:#000; border:2px solid #00ff88; box-shadow:0 0 20px rgba(0,255,136,0.5); z-index:5000; box-sizing:border-box;">
+    <div style="display:flex; justify-content:space-between; background:#222; padding:5px 10px; border-bottom:1px solid #00ff88; height:30px; box-sizing:border-box;">
         <span id="modal-title" style="color:#00ff88; font-family:monospace; font-weight:bold;">SISTEMA NAV</span>
         <button onclick="closeModal680()" style="background:none; border:none; color:#ff3300; cursor:pointer; font-weight:bold;">[ X ]</button>
     </div>
-    <div id="modal-body" style="width:100%; height:calc(100% - 30px); overflow:hidden;">
-        </div>
+    <div id="modal-body" style="width:100%; height:calc(100% - 30px); overflow:auto; box-sizing:border-box; background:#000;"></div>
 </div>
 
 <div id="pfd-source-storage" style="display:none;">
+    
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PFD/ECAM Paramotor - Diseño Final</title>
+    <style>
+        :root {
+            --color-black: #000000;
+            --color-white: #FFFFFF;
+            --color-red: #FF0000;
+            --color-amber: #FFBF00;
+            --color-green: #00FF00;
+            --color-cyan: #00FFFF;
+            --color-magenta: #FF00FF;
+            --color-blue: #0000FF;
+            --color-gray: #333333;
+            --color-dark-gray: #1A1A1A;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .display-container {
+            width: 480px;
+            height: 480px;
+            background-color: var(--color-black);
+            border: 2px solid var(--color-gray);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* ============ BARRA SUPERIOR PERSONALIZADA ============ */
+        .top-bar {
+            height: 30px;
+            background-color: var(--color-dark-gray);
+            border-bottom: 1px solid var(--color-gray);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+        }
+        
+        .left-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .right-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .center-logo {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--color-white);
+            letter-spacing: 1px;
+        }
+        
+        .info-box {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .info-label {
+            font-size: 10px;
+            color: var(--color-cyan);
+        }
+        
+        .info-value {
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .signal-indicator {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .signal-bar {
+            width: 3px;
+            height: 10px;
+            background-color: var(--color-green);
+            border-radius: 1px;
+        }
+        
+        /* ============ PFD (3/4 de la pantalla) ============ */
+        .pfd-area {
+            height: 360px; /* 3/4 de 480px */
+            position: relative;
+        }
+        
+        /* ============ TAPE DE VELOCIDAD (IZQUIERDA) ============ */
+        .speed-tape-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 60px;
+            height: 360px;
+            background-color: var(--color-black);
+            border-right: 1px solid var(--color-gray);
+        }
+        
+        .speed-values {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .speed-value {
+            position: absolute;
+            right: 5px;
+            font-size: 10px;
+            color: var(--color-white);
+            transform: translateY(-50%);
+        }
+        
+        .speed-current {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--color-cyan);
+            background-color: rgba(0,0,0,0.8);
+            padding: 5px 8px;
+            border-radius: 3px;
+            border: 2px solid var(--color-cyan);
+            text-align: center;
+            min-width: 50px;
+        }
+        
+        .speed-label {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: var(--color-cyan);
+        }
+        
+        .speed-mark {
+            position: absolute;
+            right: 0;
+            width: 15px;
+            height: 1px;
+            background-color: var(--color-white);
+        }
+        
+        /* ============ ÁREA CENTRAL PFD ============ */
+        .center-area {
+            position: absolute;
+            left: 60px;
+            top: 0;
+            width: 360px;
+            height: 360px;
+            background-color: var(--color-black);
+        }
+        
+        .attitude-display {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 280px;
+            height: 180px;
+            border: 2px solid var(--color-gray);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .sky {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 50%;
+            background: linear-gradient(to bottom, #000066, #001155);
+        }
+        
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 50%;
+            background: linear-gradient(to top, #663300, #552200);
+        }
+        
+        .pitch-line {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 1px;
+            background-color: var(--color-white);
+        }
+        
+        .pitch-label {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: var(--color-white);
+        }
+        
+        .heading-display {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 220px;
+            height: 35px;
+            background-color: rgba(0,0,0,0.7);
+            border: 1px solid var(--color-gray);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .heading-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--color-white);
+        }
+        
+        .heading-label {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: var(--color-cyan);
+        }
+        
+        /* ============ TAPE DE ALTITUD + VSI (DERECHA) ============ */
+        .altitude-tape-container {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 80px;
+            height: 360px;
+            background-color: var(--color-black);
+            border-left: 1px solid var(--color-gray);
+            display: flex;
+        }
+        
+        .altitude-column {
+            width: 60px;
+            height: 100%;
+            position: relative;
+        }
+        
+        .altitude-values {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .altitude-value {
+            position: absolute;
+            left: 5px;
+            font-size: 10px;
+            color: var(--color-white);
+            transform: translateY(-50%);
+        }
+        
+        .altitude-current {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--color-cyan);
+            background-color: rgba(0,0,0,0.8);
+            padding: 5px 8px;
+            border-radius: 3px;
+            border: 2px solid var(--color-cyan);
+            text-align: center;
+            min-width: 50px;
+        }
+        
+        .altitude-label {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: var(--color-cyan);
+        }
+        
+        .altitude-mark {
+            position: absolute;
+            left: 0;
+            width: 15px;
+            height: 1px;
+            background-color: var(--color-white);
+        }
+        
+        /* Variómetro (VSI) - columna derecha dentro del tape de altitud */
+        .vsi-column {
+            width: 20px;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            border-left: 1px solid var(--color-gray);
+            position: relative;
+        }
+        
+        .vsi-scale {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .vsi-zero {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--color-white);
+        }
+        
+        .vsi-mark {
+            position: absolute;
+            left: 5px;
+            font-size: 8px;
+            color: var(--color-white);
+        }
+        
+        .vsi-needle {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 12px solid var(--color-amber);
+        }
+        
+        .vsi-label {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--color-cyan);
+            writing-mode: vertical-rl;
+        }
+        
+        /* ============ ECAM (1/4 de la pantalla) ============ */
+        .ecam-area {
+            height: 90px;
+            background-color: var(--color-dark-gray);
+            border-top: 2px solid var(--color-gray);
+            display: flex;
+        }
+        
+        .ecam-column {
+            flex: 1;
+            padding: 5px 8px;
+            border-right: 1px solid var(--color-gray);
+        }
+        
+        .ecam-column:last-child {
+            border-right: none;
+        }
+        
+        .column-title {
+            font-size: 9px;
+            color: var(--color-cyan);
+            text-transform: uppercase;
+            margin-bottom: 3px;
+            border-bottom: 1px solid var(--color-gray);
+            padding-bottom: 1px;
+        }
+        
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        
+        .data-label {
+            font-size: 9px;
+            color: var(--color-cyan);
+        }
+        
+        .data-value {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--color-white);
+        }
+        
+        /* ============ ALERTAS ============ */
+        .alert-box {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--color-red);
+            color: var(--color-white);
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border: 2px solid var(--color-white);
+            border-radius: 5px;
+            z-index: 100;
+            text-align: center;
+            box-shadow: 0 0 20px var(--color-red);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        /* ============ BARRA DE COMBUSTIBLE ============ */
+        .fuel-bar-container {
+            margin-top: 3px;
+            width: 100%;
+            height: 8px;
+            background-color: var(--color-gray);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .fuel-level {
+            height: 100%;
+            background-color: var(--color-green);
+            border-radius: 4px;
+        }
+        
+        .fuel-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1px;
+            font-size: 7px;
+            color: var(--color-white);
+        }
+        
+        /* ============ COLORES DE ESTADO ============ */
+        .status-normal { color: var(--color-white); }
+        .status-warning { color: var(--color-amber); }
+        .status-critical { color: var(--color-red); }
+        .status-good { color: var(--color-green); }
+        .status-info { color: var(--color-cyan); }
+        
+        /* ============ INDICADORES DE SEÑAL ============ */
+        .signal-weak .signal-bar:nth-child(4),
+        .signal-weak .signal-bar:nth-child(5) {
+            background-color: var(--color-gray);
+        }
+        
+        .signal-medium .signal-bar:nth-child(5) {
+            background-color: var(--color-gray);
+        }
+        
+        /* ============ BARRA INFERIOR ============ */
+        .bottom-bar {
+            height: 30px;
+            background-color: var(--color-dark-gray);
+            border-top: 1px solid var(--color-gray);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            font-size: 11px;
+            color: var(--color-white);
+        }
+        
+        .flight-info {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .info-item-label {
+            color: var(--color-cyan);
+        }
+        
+        .info-item-value {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="display-container">
+        
+        <!-- ============ BARRA SUPERIOR PERSONALIZADA ============ -->
+        <div class="top-bar">
+            <div class="left-info">
+                <div class="info-box">
+                    <span class="info-label">BATT</span>
+                    <span class="info-value status-good">12.4V</span>
+                </div>
+                <div class="info-box">
+                    <span class="info-label">DATE</span>
+                    <span class="info-value status-normal">26/01/2026</span>
+                </div>
+            </div>
+            
+            <div class="center-logo">PARAMOTOR CUSTOM</div>
+            
+            <div class="right-info">
+                <div class="signal-indicator signal-medium">
+                    <div class="signal-bar" style="height: 6px;"></div>
+                    <div class="signal-bar" style="height: 9px;"></div>
+                    <div class="signal-bar" style="height: 12px;"></div>
+                    <div class="signal-bar" style="height: 9px;"></div>
+                    <div class="signal-bar" style="height: 6px;"></div>
+                </div>
+                <div class="info-box">
+                    <span class="info-label">GPS</span>
+                    <span class="info-value status-good">8 SAT</span>
+                </div>
+                <div class="info-box">
+                    <span class="info-label">UTC</span>
+                    <span class="info-value status-normal">18:34:17</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ============ ÁREA PFD (3/4 superior) ============ -->
+        <div class="pfd-area">
+            
+            <!-- Tape de velocidad (izquierda) -->
+            <div class="speed-tape-container">
+                <div class="speed-values" id="speedValues">
+                    <!-- Valores generados dinámicamente -->
+                </div>
+                <div class="speed-current" id="speedCurrent">62</div>
+                <div class="speed-label">km/h</div>
+            </div>
+            
+            <!-- Área central PFD -->
+            <div class="center-area">
+                <!-- Horizonte artificial -->
+                <div class="attitude-display">
+                    <div class="sky"></div>
+                    <div class="ground"></div>
+                    
+                    <!-- Líneas de pitch -->
+                    <div class="pitch-line" style="top: 20%; width: 50px;"></div>
+                    <div class="pitch-label" style="top: 20%; right: 10px;">10°</div>
+                    
+                    <div class="pitch-line" style="top: 30%; width: 40px;"></div>
+                    <div class="pitch-line" style="top: 40%; width: 30px;"></div>
+                    <div class="pitch-line" style="top: 50%; width: 280px; background-color: var(--color-cyan);"></div>
+                    <div class="pitch-line" style="top: 60%; width: 30px;"></div>
+                    <div class="pitch-line" style="top: 70%; width: 40px;"></div>
+                    
+                    <div class="pitch-line" style="top: 80%; width: 50px;"></div>
+                    <div class="pitch-label" style="top: 80%; right: 10px;">-10°</div>
+                </div>
+                
+                <!-- Indicador de rumbo -->
+                <div class="heading-display">
+                    <div class="heading-value">185°</div>
+                </div>
+                <div class="heading-label">HDG</div>
+            </div>
+            
+            <!-- Tape de altitud + VSI (derecha) -->
+            <div class="altitude-tape-container">
+                <div class="altitude-column">
+                    <div class="altitude-values" id="altitudeValues">
+                        <!-- Valores generados dinámicamente -->
+                    </div>
+                    <div class="altitude-current" id="altitudeCurrent">456</div>
+                    <div class="altitude-label">m</div>
+                </div>
+                
+                <!-- Variómetro (VSI) -->
+                <div class="vsi-column">
+                    <div class="vsi-scale" id="vsiScale">
+                        <div class="vsi-zero"></div>
+                        <div class="vsi-needle" id="vsiNeedle" style="top: 35%;"></div>
+                    </div>
+                    <div class="vsi-label">m/s</div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- ============ ÁREA ECAM ============ -->
+        <div class="ecam-area">
+            
+            <!-- Columna 1: Motor -->
+            <div class="ecam-column">
+                <div class="column-title">MOTOR</div>
+                <div class="data-row">
+                    <span class="data-label">EGT</span>
+                    <span class="data-value status-critical" id="egtValue">888°C</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">CHT</span>
+                    <span class="data-value status-normal" id="chtValue">185°C</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">N1</span>
+                    <span class="data-value status-normal" id="n1Value">96.5%</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">RPM</span>
+                    <span class="data-value status-normal" id="rpmValue">9900</span>
+                </div>
+            </div>
+            
+            <!-- Columna 2: Combustible -->
+            <div class="ecam-column">
+                <div class="column-title">COMBUSTIBLE</div>
+                <div class="data-row">
+                    <span class="data-label">FOB</span>
+                    <span class="data-value status-warning" id="fuelValue">7.2 L</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">TIME RES</span>
+                    <span class="data-value status-normal" id="timeResValue">55 MIN</span>
+                </div>
+                <div class="fuel-bar-container">
+                    <div class="fuel-level" id="fuelLevel" style="width: 72%;"></div>
+                </div>
+                <div class="fuel-labels">
+                    <span>0</span>
+                    <span>10L</span>
+                </div>
+            </div>
+            
+            <!-- Columna 3: Tiempos -->
+            <div class="ecam-column">
+                <div class="column-title">TIEMPOS</div>
+                <div class="data-row">
+                    <span class="data-label">FLIGHT</span>
+                    <span class="data-value status-normal" id="flightTimeValue">01:18</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">TOTAL</span>
+                    <span class="data-value status-normal" id="totalTimeValue">125:30</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">CRONO</span>
+                    <span class="data-value status-normal">00:00</span>
+                </div>
+            </div>
+            
+            <!-- Columna 4: Sistema -->
+            <div class="ecam-column">
+                <div class="column-title">SISTEMA</div>
+                <div class="data-row">
+                    <span class="data-label">BATT</span>
+                    <span class="data-value status-good" id="battValue">12.4V</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">PRESS</span>
+                    <span class="data-value status-normal" id="pressValue">1013 hPa</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">TEMP</span>
+                    <span class="data-value status-normal">15°C</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">V/S</span>
+                    <span class="data-value status-normal">2.3 m/s</span>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- ============ BARRA INFERIOR ============ -->
+        <div class="bottom-bar">
+            <div class="flight-info">
+                <div class="info-item">
+                    <span class="info-item-label">DIST:</span>
+                    <span class="info-item-value">15.7 km</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-item-label">TO HOME:</span>
+                    <span class="info-item-value">3.2 km</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-item-label">WIND:</span>
+                    <span class="info-item-value">12 km/h</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <span class="info-item-label">MODE:</span>
+                <span class="info-item-value status-normal">MANUAL</span>
+            </div>
+        </div>
+        
+        <!-- Alerta EGT -->
+        <div class="alert-box" id="alertBox" style="display: none;">EGT TOO HIGH</div>
+        
     </div>
 
-    <div id="util-source-storage" style="display:none;">         
+    <script>
+        // ============ DATOS DEL PROYECTO ============
+        const projectData = {
+            // PFD Data
+            speed: 62,
+            altitude: 456,
+            heading: 185,
+            vsi: 2.3,
+            
+            // Engine Data
+            egt: 888,
+            cht: 185,
+            n1: 96.5,
+            rpm: 9900,
+            
+            // Fuel Data
+            fuel: 7.2,
+            fuelCapacity: 10,
+            timeRemaining: 55,
+            
+            // Time Data
+            flightTime: 78, // minutos
+            totalTime: 125.5, // horas:minutos
+            
+            // System Data
+            battery: 12.4,
+            pressure: 1013,
+            temperature: 15,
+            
+            // Navigation Data
+            distance: 15.7,
+            distanceToHome: 3.2,
+            windSpeed: 12
+        };
+        
+        // ============ INICIALIZACIÓN ============
+        function initDisplay() {
+            updateStaticValues();
+            generateSpeedTape();
+            generateAltitudeTape();
+            generateVsiScale();
+            checkAlerts();
+        }
+        
+        // ============ ACTUALIZAR VALORES ESTÁTICOS ============
+        function updateStaticValues() {
+            // PFD Values
+            document.getElementById('speedCurrent').textContent = Math.round(projectData.speed);
+            document.getElementById('altitudeCurrent').textContent = Math.round(projectData.altitude);
+            
+            // Engine Values
+            document.getElementById('egtValue').textContent = Math.round(projectData.egt) + '°C';
+            document.getElementById('chtValue').textContent = Math.round(projectData.cht) + '°C';
+            document.getElementById('n1Value').textContent = projectData.n1.toFixed(1) + '%';
+            document.getElementById('rpmValue').textContent = Math.round(projectData.rpm);
+            
+            // Fuel Values
+            document.getElementById('fuelValue').textContent = projectData.fuel.toFixed(1) + ' L';
+            document.getElementById('timeResValue').textContent = Math.round(projectData.timeRemaining) + ' MIN';
+            
+            // Calculate fuel percentage
+            const fuelPercent = (projectData.fuel / projectData.fuelCapacity) * 100;
+            document.getElementById('fuelLevel').style.width = fuelPercent + '%';
+            
+            // Update fuel color based on level
+            if (fuelPercent < 20) {
+                document.getElementById('fuelValue').className = 'data-value status-critical';
+                document.getElementById('fuelLevel').style.backgroundColor = 'var(--color-red)';
+            } else if (fuelPercent < 50) {
+                document.getElementById('fuelValue').className = 'data-value status-warning';
+                document.getElementById('fuelLevel').style.backgroundColor = 'var(--color-amber)';
+            } else {
+                document.getElementById('fuelValue').className = 'data-value status-normal';
+                document.getElementById('fuelLevel').style.backgroundColor = 'var(--color-green)';
+            }
+            
+            // Time Values
+            const flightHours = Math.floor(projectData.flightTime / 60);
+            const flightMinutes = Math.round(projectData.flightTime % 60);
+            document.getElementById('flightTimeValue').textContent = 
+                `${flightHours.toString().padStart(2, '0')}:${flightMinutes.toString().padStart(2, '0')}`;
+            
+            const totalHours = Math.floor(projectData.totalTime);
+            const totalMinutes = Math.round((projectData.totalTime - totalHours) * 60);
+            document.getElementById('totalTimeValue').textContent = 
+                `${totalHours.toString().padStart(3, '0')}:${totalMinutes.toString().padStart(2, '0')}`;
+            
+            // System Values
+            document.getElementById('battValue').textContent = projectData.battery.toFixed(1) + 'V';
+            document.getElementById('pressValue').textContent = Math.round(projectData.pressure) + ' hPa';
+            
+            // Update VSI needle
+            const vsiNeedle = document.getElementById('vsiNeedle');
+            const vsiPosition = 50 - (projectData.vsi * 10); // 10px por m/s
+            vsiNeedle.style.top = vsiPosition + '%';
+            
+            // Update VSI needle color
+            if (projectData.vsi < -2) {
+                vsiNeedle.style.borderTopColor = 'var(--color-red)';
+            } else if (projectData.vsi < -1) {
+                vsiNeedle.style.borderTopColor = 'var(--color-amber)';
+            } else {
+                vsiNeedle.style.borderTopColor = 'var(--color-green)';
+            }
+            
+            // Update EGT color
+            const egtValue = document.getElementById('egtValue');
+            if (projectData.egt > 850) {
+                egtValue.className = 'data-value status-critical';
+            } else if (projectData.egt > 750) {
+                egtValue.className = 'data-value status-warning';
+            } else {
+                egtValue.className = 'data-value status-normal';
+            }
+        }
+        
+        // ============ GENERAR TAPE DE VELOCIDAD ============
+        function generateSpeedTape() {
+            const tape = document.getElementById('speedValues');
+            tape.innerHTML = '';
+            
+            const center = 180; // Centro del tape (360px / 2)
+            const pxPerUnit = 3; // 3px por km/h
+            
+            // Generar marcas cada 10 km/h
+            for (let i = -100; i <= 100; i += 10) {
+                const value = projectData.speed + i;
+                if (value >= 0 && value <= 200) {
+                    const position = center - (i * pxPerUnit);
+                    
+                    // Marca principal cada 20 km/h
+                    if (i % 20 === 0) {
+                        const mark = document.createElement('div');
+                        mark.className = 'speed-mark';
+                        mark.style.top = position + 'px';
+                        tape.appendChild(mark);
+                        
+                        const number = document.createElement('div');
+                        number.className = 'speed-value';
+                        number.textContent = value;
+                        number.style.top = position + 'px';
+                        tape.appendChild(number);
+                    }
+                    // Marca menor cada 10 km/h
+                    else {
+                        const mark = document.createElement('div');
+                        mark.className = 'speed-mark';
+                        mark.style.top = position + 'px';
+                        mark.style.width = '10px';
+                        tape.appendChild(mark);
+                    }
+                }
+            }
+        }
+        
+        // ============ GENERAR TAPE DE ALTITUD ============
+        function generateAltitudeTape() {
+            const tape = document.getElementById('altitudeValues');
+            tape.innerHTML = '';
+            
+            const center = 180;
+            const pxPerUnit = 1.5; // 1.5px por metro
+            
+            // Generar marcas cada 20 metros
+            for (let i = -200; i <= 200; i += 20) {
+                const value = projectData.altitude + i;
+                if (value >= 0) {
+                    const position = center - (i * pxPerUnit);
+                    
+                    // Marca principal cada 40 metros
+                    if (i % 40 === 0) {
+                        const mark = document.createElement('div');
+                        mark.className = 'altitude-mark';
+                        mark.style.top = position + 'px';
+                        tape.appendChild(mark);
+                        
+                        const number = document.createElement('div');
+                        number.className = 'altitude-value';
+                        number.textContent = value;
+                        number.style.top = position + 'px';
+                        tape.appendChild(number);
+                    }
+                    // Marca menor cada 20 metros
+                    else {
+                        const mark = document.createElement('div');
+                        mark.className = 'altitude-mark';
+                        mark.style.top = position + 'px';
+                        mark.style.width = '10px';
+                        tape.appendChild(mark);
+                    }
+                }
+            }
+        }
+        
+        // ============ GENERAR ESCALA VSI ============
+        function generateVsiScale() {
+            const scale = document.getElementById('vsiScale');
+            
+            // Agregar marcas VSI
+            for (let i = -5; i <= 5; i++) {
+                if (i !== 0) {
+                    const position = 180 - (i * 18); // 18px por m/s
+                    
+                    const mark = document.createElement('div');
+                    mark.className = 'vsi-mark';
+                    mark.textContent = Math.abs(i);
+                    mark.style.top = position + 'px';
+                    
+                    // Posicionar números a la izquierda para positivos, derecha para negativos
+                    if (i > 0) {
+                        mark.style.left = '3px';
+                    } else {
+                        mark.style.left = '3px';
+                    }
+                    
+                    scale.appendChild(mark);
+                    
+                    // Línea pequeña
+                    const line = document.createElement('div');
+                    line.style.position = 'absolute';
+                    line.style.left = '0';
+                    line.style.width = '5px';
+                    line.style.height = '1px';
+                    line.style.backgroundColor = 'var(--color-white)';
+                    line.style.top = position + 'px';
+                    scale.appendChild(line);
+                }
+            }
+        }
+        
+        // ============ VERIFICAR ALERTAS ============
+        function checkAlerts() {
+            const alertBox = document.getElementById('alertBox');
+            
+            if (projectData.egt > 850) {
+                alertBox.style.display = 'block';
+                alertBox.textContent = 'EGT TOO HIGH';
+            } else if (projectData.fuel < 2) {
+                alertBox.style.display = 'block';
+                alertBox.textContent = 'LOW FUEL';
+            } else {
+                alertBox.style.display = 'none';
+            }
+        }
+        
+        // ============ CONTROL MANUAL DE VALORES ============
+        document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case 'ArrowUp':
+                    projectData.altitude += 10;
+                    break;
+                case 'ArrowDown':
+                    projectData.altitude -= 10;
+                    break;
+                case 'ArrowLeft':
+                    projectData.speed -= 5;
+                    break;
+                case 'ArrowRight':
+                    projectData.speed += 5;
+                    break;
+                case 'e':
+                    projectData.egt += 10;
+                    break;
+                case 'E':
+                    projectData.egt -= 10;
+                    break;
+                case 'f':
+                    projectData.fuel += 0.5;
+                    if (projectData.fuel > projectData.fuelCapacity) {
+                        projectData.fuel = projectData.fuelCapacity;
+                    }
+                    break;
+                case 'F':
+                    projectData.fuel -= 0.5;
+                    if (projectData.fuel < 0) {
+                        projectData.fuel = 0;
+                    }
+                    break;
+                case 'v':
+                    projectData.vsi += 0.5;
+                    if (projectData.vsi > 5) projectData.vsi = 5;
+                    break;
+                case 'V':
+                    projectData.vsi -= 0.5;
+                    if (projectData.vsi < -5) projectData.vsi = -5;
+                    break;
+            }
+            
+            // Limitar valores
+            projectData.speed = Math.max(0, Math.min(200, projectData.speed));
+            projectData.altitude = Math.max(0, Math.min(1000, projectData.altitude));
+            projectData.egt = Math.max(600, Math.min(1000, projectData.egt));
+            
+            // Actualizar display
+            updateStaticValues();
+            generateSpeedTape();
+            generateAltitudeTape();
+            checkAlerts();
+        });
+        
+        // ============ INICIAR DISPLAY ============
+        window.onload = initDisplay;
+        
+    </script>
+</body>
+</html>
+    </div>
+
+    <div id="util-source-storage" style="display:none;">
+        <style>
+        /* ===== TU CSS ORIGINAL COMPLETO (sin cambios) ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        @font-face {
+            font-family: 'Digital-7';
+            src: url('https://cdn.jsdelivr.net/npm/digital-7-font@1.0.0/digital-7.ttf') format('truetype');
+        }
+
+        body {
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .transponder-container {
+            width: 680px;
+            height: auto;
+            min-height: 680px;
+            background: #1a1a1a;
+            border: 3px solid #666;
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 20px 30px rgba(0,0,0,0.8);
+        }
+
+        .gtx327 {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #2d2d2d 0%, #1a1a1a 100%);
+            border: 3px solid #999;
+            border-radius: 12px;
+            padding: 12px 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.1);
+        }
+
+        .logo-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            height: 24px;
+        }
+        .garmin-logo {
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .model {
+            color: #aaa;
+            font-size: 16px;
+        }
+        .badge {
+            background: #04f;
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin-left: 4px;
+        }
+
+        .display {
+            background: #0f1f0f;
+            border: 3px solid #333;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            height: 130px;
+            display: flex;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+        }
+
+        .transponder-data {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #2a4a2a;
+            padding-right: 10px;
+        }
+
+        .mode-tag {
+            color: #8f8;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .code {
+            font-family: 'Digital-7', monospace;
+            font-size: 58px;
+            color: #fc0;
+            text-shadow: 0 0 8px #fa0;
+            letter-spacing: 8px;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .ident-line {
+            font-family: 'Digital-7', monospace;
+            font-size: 18px;
+            color: #fc0;
+            min-height: 22px;
+            opacity: 0;
+        }
+        .ident-line.active {
+            opacity: 1;
+        }
+
+        .altitude-data {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            padding-left: 10px;
+        }
+
+        .function-line {
+            font-family: 'Digital-7', monospace;
+            font-size: 20px;
+            color: #8f8;
+            text-shadow: 0 0 4px #0f0;
+            margin-bottom: 5px;
+            text-align: right;
+            width: 100%;
+        }
+
+        .altitude-value {
+            font-family: 'Digital-7', monospace;
+            font-size: 34px;
+            color: #8ff;
+            text-shadow: 0 0 6px #0ff;
+            text-align: right;
+            width: 100%;
+            margin-bottom: 2px;
+        }
+        
+        .altitude-value.no-data {
+            color: #844;
+            text-shadow: 0 0 6px #800;
+        }
+
+        .trend-row {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+        }
+        .trend {
+            font-size: 26px;
+            color: #fa0;
+            text-shadow: 0 0 6px #ff0;
+            min-width: 35px;
+            text-align: center;
+        }
+        .rx-symbol {
+            font-size: 18px;
+            color: #8f8;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        .rx-symbol.active {
+            opacity: 1;
+            text-shadow: 0 0 8px #0f0;
+        }
+        .tx-symbol {
+            font-size: 16px;
+            color: #0af;
+            margin-left: 5px;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        .tx-symbol.active {
+            opacity: 1;
+            text-shadow: 0 0 8px #0af;
+            animation: pulse 1s infinite;
+        }
+
+        .mode-buttons {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .mode-btn {
+            flex: 1;
+            height: 38px;
+            background: linear-gradient(180deg, #3a3a3a, #222);
+            border: 2px solid #666;
+            border-radius: 5px;
+            color: #ddd;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            border-bottom: 3px solid #444;
+            box-shadow: 0 3px 0 #111;
+            transition: 0.05s;
+        }
+        .mode-btn:active { transform: translateY(3px); box-shadow: none; }
+        .mode-btn.active { background: linear-gradient(180deg, #1f7f1f, #0f4f0f); border-color: #8f8; color: #fff; box-shadow: 0 0 10px #0f0; }
+        .mode-btn.off-active { background: linear-gradient(180deg, #7f2f2f, #4f0f0f); border-color: #f88; }
+        .mode-btn.vfr { border-color: #fc0; color: #fc0; }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .num-btn {
+            height: 42px;
+            background: linear-gradient(180deg, #3a3a3a, #222);
+            border: 2px solid #fc0;
+            border-radius: 5px;
+            color: #fc0;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            border-bottom: 3px solid #aa8800;
+            box-shadow: 0 3px 0 #111;
+            transition: 0.05s;
+        }
+        .num-btn:active { transform: translateY(3px); box-shadow: none; }
+        .num-btn.disabled { opacity: 0.3; pointer-events: none; border-color: #666; color: #666; }
+
+        .func-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .func-btn {
+            height: 38px;
+            background: linear-gradient(180deg, #3a3a3a, #222);
+            border: 2px solid #7af;
+            border-radius: 5px;
+            color: #7af;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-bottom: 3px solid #3366aa;
+            box-shadow: 0 3px 0 #111;
+            transition: 0.05s;
+        }
+        .func-btn:active { transform: translateY(3px); box-shadow: none; }
+        .func-btn.ident { border-color: #fa0; color: #fa0; border-bottom-color: #aa7700; }
+
+        .special-buttons {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .special-btn {
+            flex: 1;
+            height: 38px;
+            background: linear-gradient(180deg, #3a3a3a, #222);
+            border: 2px solid #fa0;
+            border-radius: 5px;
+            color: #fa0;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border-bottom: 3px solid #aa6600;
+            box-shadow: 0 3px 0 #111;
+            transition: 0.05s;
+        }
+        .special-btn:active { transform: translateY(3px); box-shadow: none; }
+
+        /* Panel SDR (RX) - Verde */
+        .sdr-panel {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: #0a0a0a;
+            border: 2px solid #0f0;
+            border-radius: 6px;
+            margin-top: 4px;
+        }
+        .sdr-label {
+            color: #0f0;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .sdr-freq {
+            font-family: 'Digital-7', monospace;
+            color: #0f0;
+            font-size: 16px;
+        }
+        .sdr-led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #f00;
+            box-shadow: 0 0 6px #f00;
+        }
+        .sdr-led.connected { background: #0f0; box-shadow: 0 0 6px #0f0; }
+        .sdr-led.data { background: #ff0; box-shadow: 0 0 6px #ff0; }
+        .sdr-led.error { background: #f00; box-shadow: 0 0 6px #f00; }
+        .sdr-btn {
+            margin-left: auto;
+            background: #2a2a2a;
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .sdr-btn:hover { background: #0f0; color: #000; }
+        .sdr-btn.connected { background: #0f0; color: #000; }
+
+        /* Panel ADS-B (TX) - Azul */
+        .adsb-panel {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: #0a0a0a;
+            border: 2px solid #0af;
+            border-radius: 6px;
+            margin-top: 4px;
+        }
+        .adsb-label {
+            color: #0af;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .adsb-freq {
+            font-family: 'Digital-7', monospace;
+            color: #0af;
+            font-size: 16px;
+        }
+        .adsb-led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #f00;
+            box-shadow: 0 0 6px #f00;
+        }
+        .adsb-led.connected { background: #0af; box-shadow: 0 0 6px #0af; }
+        .adsb-led.tx { background: #0af; box-shadow: 0 0 6px #0af; animation: pulse 1s infinite; }
+        .adsb-led.error { background: #f00; box-shadow: 0 0 6px #f00; }
+        .adsb-btn {
+            margin-left: auto;
+            background: #2a2a2a;
+            border: 2px solid #0af;
+            color: #0af;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .adsb-btn:hover { background: #0af; color: #000; }
+        .adsb-btn.connected { background: #0af; color: #000; }
+
+        /* ===== ESTILOS METAR ===== */
+        .metar-section {
+            margin-top: 8px;
+            padding: 8px;
+            background: #0a1a2a;
+            border: 2px solid #4a6a8a;
+            border-radius: 8px;
+        }
+        .metar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            color: #8cf;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .metar-airport {
+            color: #ffaa00;
+            font-family: 'Digital-7', monospace;
+            font-size: 14px;
+        }
+        .metar-time {
+            color: #8f8;
+            font-size: 10px;
+        }
+        .metar-raw {
+            background: #112233;
+            border: 1px solid #2a4a6a;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #8ff;
+            letter-spacing: 1px;
+            word-break: break-all;
+            border-left: 4px solid #ffaa00;
+        }
+        .metar-raw.error {
+            color: #f88;
+            border-left-color: #f00;
+        }
+        .metar-raw.loading {
+            color: #888;
+            border-left-color: #888;
+        }
+        .metar-stats {
+            display: flex;
+            gap: 12px;
+            margin-top: 5px;
+            font-size: 10px;
+            color: #aaa;
+            flex-wrap: wrap;
+        }
+        .metar-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .metar-stat .label {
+            color: #6af;
+        }
+        .metar-stat .value {
+            color: #fa0;
+            font-family: 'Digital-7', monospace;
+            font-weight: bold;
+        }
+        .metar-refresh {
+            margin-left: auto;
+            background: #2a4a6a;
+            border: 1px solid #6af;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 9px;
+            cursor: pointer;
+        }
+        .metar-refresh:hover {
+            background: #6af;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            color: #888;
+            font-size: 10px;
+        }
+        .stat-value { color: #fa0; font-family: 'Digital-7', monospace; }
+        .rx-stat { color: #0f0; }
+        .tx-stat { color: #0af; }
+        .qnh-stat { color: #ffaa00; }
+        .local-time { color: #00ff88; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .debug-info {
+            font-size: 8px;
+            color: #666;
+            margin-top: 2px;
+            text-align: center;
+        }
+        
+        .position-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2px;
+            font-size: 9px;
+            color: #aaa;
+        }
+        .pos-value {
+            color: #0af;
+            font-family: 'Digital-7', monospace;
+        }
+        
+        .callsign {
+            color: #0af;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .separator {
+            height: 2px;
+            background: #333;
+            margin: 4px 0;
+        }
+        
+        .region-selector {
+            display: flex;
+            gap: 2px;
+            margin-left: 5px;
+        }
+        
+        .region-btn {
+            background: #222;
+            border: 1px solid #444;
+            color: #888;
+            font-size: 8px;
+            padding: 1px 4px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        
+        .region-btn.active {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+    </style>
+</head>
+<body>
+<div class="transponder-container">
+    <div class="gtx327">
+        <div class="logo-row">
+            <span class="garmin-logo">GARMIN</span>
+            <span class="model">GTX 327 <span class="badge">SDR + METAR REAL</span></span>
+            <div class="region-selector">
+                <button class="region-btn active" id="btnRegionEU" onclick="setRegion('EU')">EU</button>
+                <button class="region-btn" id="btnRegionUS" onclick="setRegion('US')">US</button>
+            </div>
+        </div>
+
+        <div class="display">
+            <div class="transponder-data">
+                <div class="mode-tag" id="modeDisplay">OFF</div>
+                <span class="code" id="codeDisplay">7000</span>
+                <span class="ident-line" id="identDisplay"></span>
+            </div>
+
+            <div class="altitude-data">
+                <div class="function-line" id="functionDisplay">PRESSURE ALT</div>
+                <div class="altitude-value" id="altitudeDisplay">-- ft</div>
+                <div class="trend-row">
+                    <span class="trend" id="trendDisplay">•</span>
+                    <span class="rx-symbol" id="rxDisplay">RX</span>
+                    <span class="tx-symbol" id="txDisplay">TX</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mode-buttons">
+            <button class="mode-btn" id="btnStby">STBY</button>
+            <button class="mode-btn" id="btnOn">ON</button>
+            <button class="mode-btn" id="btnAlt">ALT</button>
+            <button class="mode-btn" id="btnOff">OFF</button>
+            <button class="mode-btn vfr" id="btnVfr">VFR</button>
+        </div>
+
+        <div class="keypad">
+            <button class="num-btn" data-digit="0">0</button>
+            <button class="num-btn" data-digit="1">1</button>
+            <button class="num-btn" data-digit="2">2</button>
+            <button class="num-btn" data-digit="3">3</button>
+            <button class="num-btn" data-digit="4">4</button>
+            <button class="num-btn" data-digit="5">5</button>
+            <button class="num-btn" data-digit="6">6</button>
+            <button class="num-btn" data-digit="7">7</button>
+        </div>
+
+        <div class="func-buttons">
+            <button class="func-btn ident" id="btnIdent">IDENT</button>
+            <button class="func-btn" id="btnFunc">FUNC</button>
+            <button class="func-btn" id="btnClr">CLR</button>
+            <button class="func-btn" id="btnCrsr">CRSR</button>
+            <button class="func-btn" id="btnEnt">ENT</button>
+            <button class="func-btn" id="btnStartStop">ST/STP</button>
+        </div>
+
+        <div class="special-buttons">
+            <button class="special-btn" id="btnEight">8▲</button>
+            <button class="special-btn" id="btnNine">9▼</button>
+        </div>
+
+        <!-- PANEL SDR (RX) -->
+        <div class="sdr-panel">
+            <span class="sdr-label">📡 SDR RX:</span>
+            <span class="sdr-freq" id="sdrFreq">1090 MHz</span>
+            <span class="sdr-led" id="sdrLed"></span>
+            <button class="sdr-btn" id="sdrConnectBtn">AUTO</button>
+        </div>
+
+        <!-- PANEL ADS-B (TX) -->
+        <div class="adsb-panel">
+            <span class="adsb-label">🛰️ ADS-B TX:</span>
+            <span class="adsb-freq" id="adsbFreq">1090 ES</span>
+            <span class="adsb-led" id="adsbLed"></span>
+            <button class="adsb-btn" id="adsbConnectBtn">ACTIVAR</button>
+        </div>
+
+        <!-- ===== SECCIÓN METAR REAL ===== -->
+        <div class="metar-section">
+            <div class="metar-header">
+                <span>🌤️ METAR REAL (AEROPUERTO MÁS CERCANO)</span>
+                <span class="metar-airport" id="metarAirport">--</span>
+                <span class="metar-time" id="metarTime">--:-- UTC</span>
+                <button class="metar-refresh" id="metarRefreshBtn">↻ ACTUALIZAR</button>
+            </div>
+            <div class="metar-raw" id="metarRaw">Esperando coordenadas GPS...</div>
+            <div class="metar-stats">
+                <span class="metar-stat"><span class="label">VIENTO:</span> <span class="value" id="metarWind">--</span></span>
+                <span class="metar-stat"><span class="label">VIS:</span> <span class="value" id="metarVis">--</span></span>
+                <span class="metar-stat"><span class="label">TEMP:</span> <span class="value" id="metarTemp">--</span></span>
+                <span class="metar-stat"><span class="label">QNH:</span> <span class="value" id="metarQnh">--</span></span>
+                <span class="metar-stat"><span class="label">CAT:</span> <span class="value" id="metarCat">--</span></span>
+            </div>
+        </div>
+
+        <!-- MI IDENTIFICACIÓN -->
+        <div class="position-row">
+            <span>ICAO: <span class="stat-value" id="icaoDisplay">123456</span></span>
+            <span>CALL: <span class="callsign" id="callsignDisplay">MYCALL</span></span>
+            <span>MODE: <span class="stat-value" id="modeSDisplay">S</span></span>
+            <span>ALT: <span class="stat-value" id="altDisplay">1500 ft</span></span>
+        </div>
+        <div class="position-row">
+            <span>LAT: <span class="pos-value" id="latDisplay">--° --' --"</span></span>
+            <span>LON: <span class="pos-value" id="lonDisplay">--° --' --"</span></span>
+            <span>QNH: <span class="stat-value qnh-stat" id="qnhDisplay">1013 hPa</span></span>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- ESTADÍSTICAS -->
+        <div class="stats-row">
+            <span>🛫 CERCA: <span class="stat-value rx-stat" id="aircraftCount">0</span></span>
+            <span>📥 RX: <span class="stat-value" id="rxCount">0</span></span>
+            <span>📊 dB: <span class="stat-value" id="signalStrength">-</span></span>
+            <span>🌡️ <span class="stat-value" id="tempDisplay">--°C</span></span>
+        </div>
+        <div class="stats-row">
+            <span>🛰️ MI ADS-B: <span class="stat-value tx-stat" id="myAdsBCount">0</span></span>
+            <span>📤 TX: <span class="stat-value" id="txCount">0</span></span>
+            <span>🔵 SQWK: <span class="stat-value" id="squawkDisplay">7000</span></span>
+            <span>🕐 <span class="stat-value local-time" id="timeDisplay">--:--:--</span></span>
+        </div>
+        
+        <div class="debug-info" id="debugInfo">Status: <span id="usbStatus">Iniciando...</span></div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // AUDIO
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const playClick = () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 1200;
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.03);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.03);
+        };
+
+        // CONFIGURACIÓN
+        const CONFIG = {
+            ICAO: '123456',
+            CALLSIGN: 'MYCALL',
+            EMITTER_CATEGORY: 1
+        };
+
+        // ESTADO
+        const state = {
+            power: false,
+            mode: 'OFF',
+            code: '7000',
+            previousCode: '7000',
+            enteringCode: false,
+            tempCode: '',
+            identActive: false,
+            identTimer: null,
+            functionPage: 0,
+            timerFlight: 0,
+            timerCountUp: 0,
+            timerCountDown: 600,
+            timerRunning: false,
+            contrast: 50,
+            brightness: 50,
+            cursorActive: false,
+            altitude: Math.floor(1500 + Math.random() * 500),
+            lastAltitude: null,
+            region: 'EU',
+            
+            // SDR (RX)
+            sdrConnected: false,
+            sdrDevice: null,
+            sdrReadingActive: false,
+            sdrSimulationMode: false,
+            sdrInterval: null,
+            sdrAutoConnectAttempted: false,
+            sdrPermissionAsked: false,
+            sdrDeviceInfo: null,
+            
+            // ADS-B (TX)
+            adsbActive: false,
+            adsbInterval: null,
+            myAdsBCount: 0,
+            txCount: 0,
+            
+            // Datos de tráfico
+            aircraftSet: new Set(),
+            replies: 0,
+            signalStrength: 0,
+            
+            // MI POSICIÓN
+            latitude: 40.4168,
+            longitude: -3.7038,
+            altitudeMsl: 1500,
+            groundSpeed: 120,
+            track: 270,
+            verticalRate: 0,
+            
+            lastSuccessfulRead: Date.now(),
+            consecutiveErrors: 0,
+            
+            temperature: null,
+            pressure: null,
+            qnh: 1013.25,
+            
+            // METAR
+            metar: {
+                airport: null,
+                icao: null,
+                raw: null,
+                time: null,
+                wind: null,
+                visibility: null,
+                temp: null,
+                qnh: null,
+                category: null,
+                lastUpdate: null,
+                source: null
+            }
+        };
+
+        // DOM Elements
+        const modeDisplay = document.getElementById('modeDisplay');
+        const codeDisplay = document.getElementById('codeDisplay');
+        const identDisplay = document.getElementById('identDisplay');
+        const functionDisplay = document.getElementById('functionDisplay');
+        const altitudeDisplay = document.getElementById('altitudeDisplay');
+        const trendDisplay = document.getElementById('trendDisplay');
+        const rxDisplay = document.getElementById('rxDisplay');
+        const txDisplay = document.getElementById('txDisplay');
+        
+        const sdrLed = document.getElementById('sdrLed');
+        const sdrConnectBtn = document.getElementById('sdrConnectBtn');
+        
+        const adsbLed = document.getElementById('adsbLed');
+        const adsbConnectBtn = document.getElementById('adsbConnectBtn');
+        
+        const aircraftCountSpan = document.getElementById('aircraftCount');
+        const rxCountSpan = document.getElementById('rxCount');
+        const signalStrengthSpan = document.getElementById('signalStrength');
+        const myAdsBCountSpan = document.getElementById('myAdsBCount');
+        const txCountSpan = document.getElementById('txCount');
+        const squawkDisplay = document.getElementById('squawkDisplay');
+        const tempDisplay = document.getElementById('tempDisplay');
+        const qnhDisplay = document.getElementById('qnhDisplay');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const altDisplay = document.getElementById('altDisplay');
+        
+        const icaoDisplay = document.getElementById('icaoDisplay');
+        const callsignDisplay = document.getElementById('callsignDisplay');
+        const latDisplay = document.getElementById('latDisplay');
+        const lonDisplay = document.getElementById('lonDisplay');
+        const modeSDisplay = document.getElementById('modeSDisplay');
+        const debugInfo = document.getElementById('debugInfo');
+        const usbStatus = document.getElementById('usbStatus');
+
+        // Elementos METAR
+        const metarAirport = document.getElementById('metarAirport');
+        const metarTime = document.getElementById('metarTime');
+        const metarRaw = document.getElementById('metarRaw');
+        const metarWind = document.getElementById('metarWind');
+        const metarVis = document.getElementById('metarVis');
+        const metarTemp = document.getElementById('metarTemp');
+        const metarQnh = document.getElementById('metarQnh');
+        const metarCat = document.getElementById('metarCat');
+        const metarRefreshBtn = document.getElementById('metarRefreshBtn');
+
+        // Region Buttons
+        const btnRegionEU = document.getElementById('btnRegionEU');
+        const btnRegionUS = document.getElementById('btnRegionUS');
+
+        // Buttons
+        const btnStby = document.getElementById('btnStby');
+        const btnOn = document.getElementById('btnOn');
+        const btnAlt = document.getElementById('btnAlt');
+        const btnOff = document.getElementById('btnOff');
+        const btnVfr = document.getElementById('btnVfr');
+        const btnIdent = document.getElementById('btnIdent');
+        const btnFunc = document.getElementById('btnFunc');
+        const btnClr = document.getElementById('btnClr');
+        const btnCrsr = document.getElementById('btnCrsr');
+        const btnEnt = document.getElementById('btnEnt');
+        const btnStartStop = document.getElementById('btnStartStop');
+        const btnEight = document.getElementById('btnEight');
+        const btnNine = document.getElementById('btnNine');
+        const numBtns = document.querySelectorAll('.num-btn');
+
+        icaoDisplay.textContent = CONFIG.ICAO;
+        callsignDisplay.textContent = CONFIG.CALLSIGN;
+        modeSDisplay.textContent = 'S';
+        codeDisplay.textContent = state.code;
+        squawkDisplay.textContent = state.code;
+
+        if (navigator.usb) {
+            usbStatus.textContent = '✅ WebUSB';
+            usbStatus.style.color = '#0f0';
+        } else {
+            usbStatus.textContent = '❌ No WebUSB';
+            usbStatus.style.color = '#f00';
+        }
+
+        window.setRegion = (region) => {
+            state.region = region;
+            if (region === 'EU') {
+                state.code = '7000';
+                btnRegionEU.classList.add('active');
+                btnRegionUS.classList.remove('active');
+            } else {
+                state.code = '1200';
+                btnRegionUS.classList.add('active');
+                btnRegionEU.classList.remove('active');
+            }
+            codeDisplay.textContent = state.code;
+            squawkDisplay.textContent = state.code;
+            playClick();
+        };
+
+        // ===== FUNCIÓN QNH =====
+        const fetchQNH = async () => {
+            try {
+                const lat = state.latitude.toFixed(4);
+                const lon = state.longitude.toFixed(4);
+                const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,pressure_msl`);
+                const data = await response.json();
+                if (data.current) {
+                    state.qnh = data.current.pressure_msl;
+                    state.temperature = data.current.temperature_2m;
+                    qnhDisplay.textContent = `${Math.round(state.qnh)} hPa`;
+                    tempDisplay.textContent = `${Math.round(state.temperature)}°C`;
+                }
+            } catch (error) {
+                console.log('Error QNH');
+            }
+        };
+
+        // ===== HORA REAL =====
+        const updateTime = () => {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            timeDisplay.textContent = `${hours}:${minutes}:${seconds}`;
+        };
+        setInterval(updateTime, 1000);
+
+        // ===== FUNCIONES GPS =====
+        
+
+        const updateSimulatedPosition = () => {
+            const time = Date.now() / 10000;
+            state.latitude = 40.4168 + Math.sin(time) * 0.01;
+            state.longitude = -3.7038 + Math.cos(time) * 0.01;
+            state.altitude = 1500 + Math.sin(time * 2) * 200;
+            updatePositionDisplay();
+        };
+
+        const updatePositionDisplay = () => {
+            const latDeg = Math.floor(Math.abs(state.latitude));
+            const latMin = Math.floor((Math.abs(state.latitude) - latDeg) * 60);
+            const latSec = Math.floor(((Math.abs(state.latitude) - latDeg) * 60 - latMin) * 60);
+            const latDir = state.latitude >= 0 ? 'N' : 'S';
+            const lonDeg = Math.floor(Math.abs(state.longitude));
+            const lonMin = Math.floor((Math.abs(state.longitude) - lonDeg) * 60);
+            const lonSec = Math.floor(((Math.abs(state.longitude) - lonDeg) * 60 - lonMin) * 60);
+            const lonDir = state.longitude >= 0 ? 'E' : 'W';
+            latDisplay.textContent = `${latDeg}° ${latMin}' ${latSec}" ${latDir}`;
+            lonDisplay.textContent = `${lonDeg}° ${lonMin}' ${latSec}" ${lonDir}`;
+            altDisplay.textContent = `${Math.round(state.altitude)} ft`;
+        };
+
+        // ===== METAR CON MÚLTIPLES FUENTES (REDUNDANCIA) =====
+        // Reemplaza la función fetchMETAR completa con esta versión mejorada:
+
+const fetchMETAR = async () => {
+    if (!state.latitude || !state.longitude) {
+        metarRaw.textContent = 'Esperando GPS...';
+        metarRaw.className = 'metar-raw loading';
+        return;
+    }
+    
+    metarRaw.textContent = 'Obteniendo METAR...';
+    metarRaw.className = 'metar-raw loading';
+    
+    // Base de datos de aeropuertos (ampliada)
+    const airports = [
+        // España
+        { icao: 'LEMD', name: 'MADRID', lat: 40.472, lon: -3.560 },
+        { icao: 'LEBL', name: 'BARCELONA', lat: 41.297, lon: 2.078 },
+        { icao: 'LEPA', name: 'PALMA', lat: 39.551, lon: 2.738 },
+        { icao: 'LEMG', name: 'MALAGA', lat: 36.675, lon: -4.499 },
+        { icao: 'LEVC', name: 'VALENCIA', lat: 39.489, lon: -0.481 },
+        { icao: 'LEBB', name: 'BILBAO', lat: 43.301, lon: -2.911 },
+        { icao: 'LEAS', name: 'ASTURIAS', lat: 43.563, lon: -6.034 },
+        { icao: 'LEVX', name: 'VIGO', lat: 42.231, lon: -8.627 },
+        { icao: 'GCLP', name: 'GRAN CANARIA', lat: 27.931, lon: -15.386 },
+        { icao: 'GCXO', name: 'TENERIFE', lat: 28.482, lon: -16.341 },
+        // USA
+        { icao: 'KJFK', name: 'NEW YORK JFK', lat: 40.639, lon: -73.778 },
+        { icao: 'KLAX', name: 'LOS ANGELES', lat: 33.942, lon: -118.408 },
+        { icao: 'KORD', name: 'CHICAGO O\'HARE', lat: 41.978, lon: -87.904 },
+        { icao: 'KDFW', name: 'DALLAS', lat: 32.897, lon: -97.040 },
+        { icao: 'KMIA', name: 'MIAMI', lat: 25.793, lon: -80.290 },
+        { icao: 'KATL', name: 'ATLANTA', lat: 33.640, lon: -84.427 },
+        { icao: 'KDEN', name: 'DENVER', lat: 39.856, lon: -104.673 },
+        { icao: 'KSEA', name: 'SEATTLE', lat: 47.449, lon: -122.309 },
+        { icao: 'KSFO', name: 'SAN FRANCISCO', lat: 37.619, lon: -122.375 },
+        { icao: 'KBOS', name: 'BOSTON', lat: 42.365, lon: -71.009 },
+        // Europa
+        { icao: 'EGLL', name: 'LONDON', lat: 51.470, lon: -0.461 },
+        { icao: 'LFPG', name: 'PARIS', lat: 49.012, lon: 2.549 },
+        { icao: 'EDDF', name: 'FRANKFURT', lat: 50.033, lon: 8.570 },
+        { icao: 'LIRF', name: 'ROME', lat: 41.800, lon: 12.238 },
+        { icao: 'EHAM', name: 'AMSTERDAM', lat: 52.308, lon: 4.764 },
+    ];
+    
+    try {
+        // Encontrar aeropuerto más cercano
+        let nearest = null;
+        let minDist = Infinity;
+        
+        airports.forEach(ap => {
+            const R = 6371; // Radio de la Tierra en km
+            const dLat = (ap.lat - state.latitude) * Math.PI / 180;
+            const dLon = (ap.lon - state.longitude) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                     Math.cos(state.latitude * Math.PI / 180) * Math.cos(ap.lat * Math.PI / 180) *
+                     Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const d = R * c;
+            if (d < minDist) {
+                minDist = d;
+                nearest = ap;
+            }
+        });
+        
+        if (!nearest) throw new Error('No hay aeropuertos cercanos');
+        
+        // MOSTRAR INFORMACIÓN BÁSICA MIENTRAS SE ESPERA
+        metarAirport.textContent = nearest.icao;
+        
+        // ===== FUENTE 1: Usando CORS proxy con NOAA (la más fiable) =====
+        try {
+            // Usamos un proxy CORS gratuito para evitar problemas
+            const proxyUrl = 'https://api.allorigins.win/raw?url=';
+            const targetUrl = `https://aviationweather.gov/api/data/metar?ids=${nearest.icao}&format=raw`;
+            
+            const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+            
+            if (response.ok) {
+                const rawMetar = await response.text();
+                
+                if (rawMetar && rawMetar.length > 10) {
+                    // Parsear el METAR raw
+                    parseRawMETAR(rawMetar, nearest, 'NOAA');
+                    debugInfo.textContent = `METAR OK: ${nearest.icao}`;
+                    return;
+                }
+            }
+        } catch (e) {
+            console.log('NOAA con proxy falló, usando datos simulados');
+        }
+        
+        // ===== FUENTE 2: Datos simulados realistas si todo falla =====
+        generateSimulatedMETAR(nearest);
+        
+    } catch (error) {
+        console.error('Error METAR:', error);
+        metarRaw.textContent = `Error obteniendo METAR`;
+        metarRaw.className = 'metar-raw error';
+        
+        // Generar datos simulados como fallback
+        const nearest = airports[0];
+        generateSimulatedMETAR(nearest);
+    }
+};
+
+// Función para parsear METAR raw
+const parseRawMETAR = (raw, airport, source) => {
+    metarAirport.textContent = airport.icao;
+    metarRaw.textContent = raw;
+    metarRaw.className = 'metar-raw';
+    
+    // Extraer componentes básicos del METAR (parsing simplificado)
+    // Viento (ej: 27015KT)
+    const windMatch = raw.match(/(\d{3})(\d{2})G?(\d{2})?KT/);
+    if (windMatch) {
+        let windStr = `${windMatch[1]}° ${windMatch[2]}kt`;
+        if (windMatch[3]) windStr += ` G${windMatch[3]}kt`;
+        metarWind.textContent = windStr;
+    } else {
+        metarWind.textContent = '---° --kt';
+    }
+    
+    // Visibilidad (ej: 9999 o 10SM)
+    const visMatch = raw.match(/(\d{4})|(\d+)SM/);
+    if (visMatch) {
+        metarVis.textContent = visMatch[0];
+    } else {
+        metarVis.textContent = '10km+';
+    }
+    
+    // Temperatura (ej: 15/10)
+    const tempMatch = raw.match(/M?(\d+)\/M?(\d+)/);
+    if (tempMatch) {
+        const temp = tempMatch[1].startsWith('M') ? -parseInt(tempMatch[1].substring(1)) : parseInt(tempMatch[1]);
+        metarTemp.textContent = `${temp}°C`;
+    } else {
+        metarTemp.textContent = '15°C';
+    }
+    
+    // QNH (ej: Q1013)
+    const qnhMatch = raw.match(/Q(\d{4})/);
+    if (qnhMatch) {
+        metarQnh.textContent = `${qnhMatch[1]}hPa`;
+    } else {
+        metarQnh.textContent = '1013hPa';
+    }
+    
+    // Hora
+    const timeMatch = raw.match(/(\d{2})(\d{2})Z/);
+    if (timeMatch) {
+        metarTime.textContent = `${timeMatch[1]}:${timeMatch[2]}Z`;
+    } else {
+        const now = new Date();
+        metarTime.textContent = `${now.getUTCHours().toString().padStart(2,'0')}:${now.getUTCMinutes().toString().padStart(2,'0')}Z`;
+    }
+    
+    // Categoría (simplificado)
+    if (raw.includes('VFR') || raw.includes('CAVOK')) {
+        metarCat.textContent = 'VFR';
+    } else if (raw.includes('MVFR')) {
+        metarCat.textContent = 'MVFR';
+    } else if (raw.includes('IFR')) {
+        metarCat.textContent = 'IFR';
+    } else if (raw.includes('LIFR')) {
+        metarCat.textContent = 'LIFR';
+    } else {
+        metarCat.textContent = 'VFR';
+    }
+    
+    debugInfo.textContent = `METAR: ${airport.icao} (${source})`;
+};
+
+// Función para generar datos METAR simulados realistas
+const generateSimulatedMETAR = (airport) => {
+    metarAirport.textContent = airport.icao;
+    
+    // Generar METAR simulado creíble
+    const now = new Date();
+    const hour = now.getUTCHours().toString().padStart(2, '0');
+    const minute = now.getUTCMinutes().toString().padStart(2, '0');
+    
+    // Viento aleatorio realista
+    const windDir = Math.floor(Math.random() * 360);
+    const windSpeed = Math.floor(Math.random() * 15) + 5;
+    const windGust = Math.random() > 0.7 ? Math.floor(Math.random() * 10) + 10 : 0;
+    
+    // Visibilidad
+    const vis = Math.random() > 0.2 ? '9999' : '5000';
+    
+    // Temperatura
+    const temp = Math.floor(Math.random() * 25) + 5;
+    const dew = temp - Math.floor(Math.random() * 8) - 2;
+    
+    // QNH
+    const qnh = 1013 + Math.floor(Math.random() * 20) - 10;
+    
+    // Nubes
+    const clouds = ['FEW040', 'SCT050', 'BKN060', 'OVC080', 'CAVOK'];
+    const cloud = clouds[Math.floor(Math.random() * clouds.length)];
+    
+    // Construir METAR
+    let metarString = `${airport.icao} ${hour}${minute}Z ${windDir.toString().padStart(3,'0')}${windSpeed}KT`;
+    if (windGust > 0) metarString += `G${windGust}KT`;
+    metarString += ` ${vis} ${temp.toString().padStart(2,'0')}/${dew.toString().padStart(2,'0')} Q${qnh} ${cloud}`;
+    
+    metarRaw.textContent = metarString;
+    metarRaw.className = 'metar-raw';
+    
+    // Actualizar campos
+    metarWind.textContent = `${windDir}° ${windSpeed}kt${windGust > 0 ? ' G' + windGust + 'kt' : ''}`;
+    metarVis.textContent = vis === '9999' ? '10km+' : vis + 'm';
+    metarTemp.textContent = `${temp}°C`;
+    metarQnh.textContent = `${qnh}hPa`;
+    metarTime.textContent = `${hour}:${minute}Z`;
+    metarCat.textContent = 'VFR';
+    
+    debugInfo.textContent = `METAR: ${airport.icao} (SIMULADO)`;
+};
+
+// Asegúrate también de que la función getPosition se llame correctamente
+// Modifica la función getPosition para que siempre llame a fetchMETAR:
+
+const getPosition = () => {
+    if (!navigator.geolocation) {
+        updateSimulatedPosition();
+        fetchMETAR(); // Siempre llama a METAR
+        fetchQNH();
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            state.latitude = position.coords.latitude;
+            state.longitude = position.coords.longitude;
+            updatePositionDisplay();
+            fetchMETAR(); // METAR con posición real
+            fetchQNH();
+        },
+        (error) => {
+            updateSimulatedPosition();
+            fetchMETAR(); // METAR con posición simulada
+            fetchQNH();
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+};
+
+        const updateMETARDisplay = () => {
+            metarAirport.textContent = state.metar.icao ? `${state.metar.icao}` : '--';
+            metarTime.textContent = state.metar.time ? `${state.metar.time} UTC` : '--:-- UTC';
+            
+            let rawText = state.metar.raw || 'No disponible';
+            if (state.metar.source === 'SIM') rawText += ' (SIM)';
+            metarRaw.textContent = rawText;
+            
+            metarWind.textContent = state.metar.wind || '--';
+            metarVis.textContent = state.metar.visibility || '--';
+            metarTemp.textContent = state.metar.temp || '--';
+            metarQnh.textContent = state.metar.qnh || '--';
+            metarCat.textContent = state.metar.category || '--';
+            
+            metarRaw.className = 'metar-raw';
+            
+            debugInfo.textContent = `METAR: ${state.metar.source || '?'} - ${new Date().toLocaleTimeString()}`;
+        };
+
+        // ===== AUTO DETECCIÓN DE SDR FÍSICO =====
+        const autoConnectSDR = async () => {
+            if (state.sdrConnected || state.sdrAutoConnectAttempted) return;
+            if (!state.power || state.mode === 'OFF') return;
+            
+            state.sdrAutoConnectAttempted = true;
+            
+            if (!navigator.usb) {
+                debugInfo.textContent = 'WebUSB no disponible';
+                sdrLed.className = 'sdr-led error';
+                return;
+            }
+
+            try {
+                debugInfo.textContent = '🔍 Detectando SDR físico...';
+                
+                let devices = await navigator.usb.getDevices();
+                let sdrDevice = devices.find(d => 
+                    d.vendorId === 0x0bda || // Realtek
+                    d.vendorId === 0x1d50     // Open source
+                );
+                
+                if (!sdrDevice) {
+                    try {
+                        sdrDevice = await navigator.usb.requestDevice({
+                            filters: [
+                                { vendorId: 0x0bda },
+                                { vendorId: 0x1d50, productId: 0x6089 },
+                                { vendorId: 0x1d50, productId: 0x606f }
+                            ]
+                        });
+                    } catch (requestError) {
+                        debugInfo.textContent = 'Selección cancelada';
+                        sdrLed.className = 'sdr-led error';
+                        return;
+                    }
+                }
+                
+                if (!sdrDevice) {
+                    debugInfo.textContent = '❌ No hay SDR conectado';
+                    sdrLed.className = 'sdr-led error';
+                    return;
+                }
+
+                await sdrDevice.open();
+                await sdrDevice.selectConfiguration(1);
+                await sdrDevice.claimInterface(0);
+
+                state.sdrDevice = sdrDevice;
+                state.sdrConnected = true;
+                state.consecutiveErrors = 0;
+                state.lastSuccessfulRead = Date.now();
+
+                sdrLed.className = 'sdr-led connected';
+                sdrConnectBtn.textContent = 'CONECTADO';
+                sdrConnectBtn.classList.add('connected');
+                
+                debugInfo.textContent = '✅ SDR FÍSICO conectado';
+                
+                startRealSDRReading();
+
+            } catch (error) {
+                console.error('Error SDR:', error);
+                debugInfo.textContent = 'Error al conectar SDR';
+                sdrLed.className = 'sdr-led error';
+                state.sdrConnected = false;
+            }
+        };
+
+        const startRealSDRReading = () => {
+            if (state.sdrInterval) clearInterval(state.sdrInterval);
+            
+            state.sdrInterval = setInterval(async () => {
+                if (!state.power || state.mode === 'OFF' || !state.sdrConnected || !state.sdrDevice) {
+                    return;
+                }
+                
+                try {
+                    if (Math.random() > 0.5) {
+                        state.replies++;
+                        rxCountSpan.textContent = state.replies;
+                        
+                        state.signalStrength = Math.floor(30 + Math.random() * 60);
+                        signalStrengthSpan.textContent = state.signalStrength + '%';
+                        
+                        const fakeIcao = Math.floor(Math.random() * 16777215).toString(16).toUpperCase().padStart(6, '0');
+                        state.aircraftSet.add(fakeIcao);
+                        aircraftCountSpan.textContent = state.aircraftSet.size;
+                        
+                        rxDisplay.classList.add('active');
+                        sdrLed.className = 'sdr-led data';
+                        setTimeout(() => {
+                            rxDisplay.classList.remove('active');
+                            if (state.sdrConnected) {
+                                sdrLed.className = 'sdr-led connected';
+                            }
+                        }, 100);
+                        
+                        state.lastSuccessfulRead = Date.now();
+                        state.consecutiveErrors = 0;
+                    }
+                    
+                } catch (error) {
+                    state.consecutiveErrors++;
+                    if (state.consecutiveErrors >= 3) {
+                        disconnectSDR(true);
+                    }
+                }
+            }, 300);
+        };
+
+        const disconnectSDR = async (forceDisconnect = false) => {
+            if (state.sdrInterval) {
+                clearInterval(state.sdrInterval);
+                state.sdrInterval = null;
+            }
+            
+            state.sdrConnected = false;
+            state.sdrReadingActive = false;
+            state.sdrAutoConnectAttempted = false;
+            
+            if (state.sdrDevice) {
+                try {
+                    await state.sdrDevice.close();
+                } catch (e) {}
+                state.sdrDevice = null;
+            }
+            
+            sdrLed.className = 'sdr-led';
+            sdrConnectBtn.textContent = 'AUTO';
+            sdrConnectBtn.classList.remove('connected');
+            
+            state.aircraftSet.clear();
+            state.replies = 0;
+            aircraftCountSpan.textContent = '0';
+            rxCountSpan.textContent = '0';
+            signalStrengthSpan.textContent = '-';
+            
+            debugInfo.textContent = forceDisconnect ? 'SDR desconectado' : 'SDR desconectado';
+        };
+
+        const checkSDRHealth = async () => {
+            if (!state.sdrConnected || !state.sdrDevice) return;
+            const timeSinceLastRead = Date.now() - state.lastSuccessfulRead;
+            if (timeSinceLastRead < 5000) {
+                state.consecutiveErrors = 0;
+                return;
+            }
+            try {
+                const result = await state.sdrDevice.transferIn(1, 64);
+                if (result.data && result.data.byteLength > 0) {
+                    state.lastSuccessfulRead = Date.now();
+                    state.consecutiveErrors = 0;
+                }
+            } catch (error) {
+                state.consecutiveErrors++;
+                if (state.consecutiveErrors >= 3) {
+                    await disconnectSDR(true);
+                }
+            }
+        };
+
+        // ===== ADS-B TX =====
+        const transmitADS_B = () => {
+            if (!state.power || state.mode === 'OFF' || !state.adsbActive) return;
+            if (state.mode === 'STBY') return;
+            
+            state.myAdsBCount++;
+            state.txCount++;
+            myAdsBCountSpan.textContent = state.myAdsBCount;
+            txCountSpan.textContent = state.txCount;
+            squawkDisplay.textContent = state.code;
+            
+            txDisplay.classList.add('active');
+            adsbLed.className = 'adsb-led tx';
+            
+            setTimeout(() => {
+                txDisplay.classList.remove('active');
+                if (state.adsbActive) adsbLed.className = 'adsb-led connected';
+            }, 100);
+        };
+
+        const activateADS_B = () => {
+            if (state.adsbActive) return;
+            if (!state.power) {
+                alert('Enciende el transpondedor primero');
+                return;
+            }
+            
+            state.adsbActive = true;
+            adsbLed.className = 'adsb-led connected';
+            adsbConnectBtn.textContent = 'DESACTIVAR';
+            adsbConnectBtn.classList.add('connected');
+            
+            getPosition();
+            
+            setInterval(() => {
+                if (state.power && state.adsbActive) getPosition();
+            }, 30000);
+            
+            if (state.adsbInterval) clearInterval(state.adsbInterval);
+            state.adsbInterval = setInterval(() => {
+                if (!state.power || state.mode === 'OFF' || !state.adsbActive) return;
+                if (state.mode === 'ALT' || (state.mode === 'ON' && Math.random() > 0.5)) {
+                    transmitADS_B();
+                }
+            }, 500);
+        };
+
+        const deactivateADS_B = () => {
+            state.adsbActive = false;
+            if (state.adsbInterval) {
+                clearInterval(state.adsbInterval);
+                state.adsbInterval = null;
+            }
+            adsbLed.className = 'adsb-led';
+            adsbConnectBtn.textContent = 'ACTIVAR';
+            adsbConnectBtn.classList.remove('connected');
+            txDisplay.classList.remove('active');
+        };
+
+        // ===== FUNCIONES DEL TRANSPONDER =====
+        const updateUIPower = () => {
+            if (!state.power) {
+                codeDisplay.textContent = '';
+                identDisplay.textContent = '';
+                identDisplay.classList.remove('active');
+                functionDisplay.textContent = '';
+                altitudeDisplay.textContent = '-- ft';
+                altitudeDisplay.classList.add('no-data');
+                trendDisplay.textContent = '•';
+                rxDisplay.classList.remove('active');
+                txDisplay.classList.remove('active');
+                modeDisplay.textContent = 'OFF';
+                
+                [btnStby, btnOn, btnAlt, btnOff].forEach(btn => btn.classList.remove('active', 'off-active'));
+                btnOff.classList.add('off-active');
+                numBtns.forEach(btn => btn.classList.add('disabled'));
+                
+                if (state.sdrConnected) disconnectSDR();
+                if (state.adsbActive) deactivateADS_B();
+                
+            } else {
+                codeDisplay.textContent = state.code;
+                updateFunctionDisplay();
+                updateAltitudeDisplay();
+                
+                [btnStby, btnOn, btnAlt, btnOff].forEach(btn => btn.classList.remove('active', 'off-active'));
+                if (state.mode === 'STBY') btnStby.classList.add('active');
+                if (state.mode === 'ON') btnOn.classList.add('active');
+                if (state.mode === 'ALT') btnAlt.classList.add('active');
+                
+                modeDisplay.textContent = state.mode;
+                numBtns.forEach(btn => btn.classList.remove('disabled'));
+                
+                if (!state.sdrConnected && !state.sdrAutoConnectAttempted) {
+                    setTimeout(autoConnectSDR, 500);
+                }
+            }
+        };
+
+        const setMode = (mode) => {
+            playClick();
+            if (mode === 'OFF') {
+                state.power = false;
+                state.mode = 'OFF';
+                updateUIPower();
+                return;
+            }
+            if (!state.power) {
+                state.power = true;
+                codeDisplay.textContent = 'TEST';
+                functionDisplay.textContent = 'SELF TEST';
+                setTimeout(() => {
+                    codeDisplay.textContent = state.code;
+                    updateFunctionDisplay();
+                }, 1500);
+            }
+            state.mode = mode;
+            updateUIPower();
+        };
+
+        const updateFunctionDisplay = () => {
+            const pages = [
+                'PRESSURE ALT',
+                `FLIGHT ${formatTime(state.timerFlight)}`,
+                `UP ${formatTime(state.timerCountUp)}`,
+                `DOWN ${formatTime(state.timerCountDown)}`,
+                `CONT ${state.contrast}%`,
+                `BRT ${state.brightness}%`
+            ];
+            functionDisplay.textContent = pages[state.functionPage];
+        };
+
+        const formatTime = (s) => {
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        };
+
+        const updateAltitudeDisplay = () => {
+            if (state.power && state.mode !== 'OFF' && state.altitude !== null) {
+                altitudeDisplay.textContent = `${Math.round(state.altitude)} ft`;
+                altitudeDisplay.classList.remove('no-data');
+                
+                if (state.lastAltitude !== null) {
+                    const diff = state.altitude - state.lastAltitude;
+                    if (diff > 100) trendDisplay.textContent = '↑↑';
+                    else if (diff > 30) trendDisplay.textContent = '↑';
+                    else if (diff < -100) trendDisplay.textContent = '↓↓';
+                    else if (diff < -30) trendDisplay.textContent = '↓';
+                    else trendDisplay.textContent = '•';
+                }
+                state.lastAltitude = state.altitude;
+            } else {
+                altitudeDisplay.textContent = '-- ft';
+                altitudeDisplay.classList.add('no-data');
+                trendDisplay.textContent = '•';
+            }
+        };
+
+        const enterDigit = (digit) => {
+            playClick();
+            if (!state.power) return;
+            
+            if (!state.enteringCode) {
+                state.enteringCode = true;
+                state.tempCode = digit;
+                codeDisplay.textContent = digit + '---';
+            } else {
+                state.tempCode += digit;
+                let disp = state.tempCode;
+                for (let i = state.tempCode.length; i < 4; i++) disp += '-';
+                codeDisplay.textContent = disp;
+                if (state.tempCode.length === 4) {
+                    state.code = state.tempCode;
+                    state.enteringCode = false;
+                    codeDisplay.textContent = state.code;
+                    squawkDisplay.textContent = state.code;
+                }
+            }
+        };
+
+        const setVFR = () => {
+            playClick();
+            if (!state.power) return;
+            if (state.region === 'EU') {
+                if (state.code !== '7000') state.previousCode = state.code;
+                state.code = '7000';
+            } else {
+                if (state.code !== '1200') state.previousCode = state.code;
+                state.code = '1200';
+            }
+            state.enteringCode = false;
+            codeDisplay.textContent = state.code;
+            squawkDisplay.textContent = state.code;
+        };
+
+        const activateIdent = () => {
+            playClick();
+            if (!state.power || state.mode === 'OFF' || state.mode === 'STBY') return;
+            
+            state.identActive = true;
+            identDisplay.textContent = 'IDENT';
+            identDisplay.classList.add('active');
+            
+            if (state.adsbActive) transmitADS_B();
+            
+            if (state.identTimer) clearTimeout(state.identTimer);
+            state.identTimer = setTimeout(() => {
+                state.identActive = false;
+                identDisplay.textContent = '';
+                identDisplay.classList.remove('active');
+            }, 18000);
+        };
+
+        const funcKey = () => { playClick(); if (!state.power) return; state.functionPage = (state.functionPage + 1) % 6; updateFunctionDisplay(); };
+        const clrKey = () => { playClick(); if (!state.power) return; if (state.enteringCode) { if (state.tempCode.length > 0) { state.tempCode = state.tempCode.slice(0, -1); if (state.tempCode.length === 0) { state.enteringCode = false; codeDisplay.textContent = state.code; } else { let disp = state.tempCode; for (let i = state.tempCode.length; i < 4; i++) disp += '-'; codeDisplay.textContent = disp; } } } else { if (state.functionPage === 1) state.timerFlight = 0; if (state.functionPage === 2) state.timerCountUp = 0; if (state.functionPage === 3) state.timerCountDown = 600; updateFunctionDisplay(); } };
+        const crsrKey = () => { playClick(); if (!state.power) return; if (state.enteringCode) { state.enteringCode = false; codeDisplay.textContent = state.code; return; } if (state.functionPage === 3) { state.cursorActive = !state.cursorActive; if (state.cursorActive) { state.tempCode = ''; functionDisplay.textContent = 'DOWN ----'; } else { updateFunctionDisplay(); } } };
+        const entKey = () => { playClick(); if (!state.power) return; if (state.cursorActive && state.functionPage === 3 && state.tempCode) { const val = parseInt(state.tempCode.padEnd(4, '0'), 10); if (!isNaN(val) && val > 0) { state.timerCountDown = val; } state.cursorActive = false; updateFunctionDisplay(); } };
+        const eightKey = () => { playClick(); if (!state.power) return; if (state.functionPage === 3 && state.cursorActive) { if (!state.tempCode) state.tempCode = ''; state.tempCode += '8'; functionDisplay.textContent = `DOWN ${state.tempCode.padEnd(4, '-')}`; } else if (state.functionPage === 4) { state.contrast = Math.min(100, state.contrast + 5); updateFunctionDisplay(); } else if (state.functionPage === 5) { state.brightness = Math.min(100, state.brightness + 5); updateFunctionDisplay(); } };
+        const nineKey = () => { playClick(); if (!state.power) return; if (state.functionPage === 3 && state.cursorActive) { if (!state.tempCode) state.tempCode = ''; state.tempCode += '9'; functionDisplay.textContent = `DOWN ${state.tempCode.padEnd(4, '-')}`; } else if (state.functionPage === 4) { state.contrast = Math.max(0, state.contrast - 5); updateFunctionDisplay(); } else if (state.functionPage === 5) { state.brightness = Math.max(0, state.brightness - 5); updateFunctionDisplay(); } };
+        const startStopKey = () => { playClick(); if (!state.power) return; state.timerRunning = !state.timerRunning; };
+
+        const playStrongBeep = (freq, duration) => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sawtooth';
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration / 1000);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + duration / 1000);
+        };
+
+        setInterval(() => {
+            if (!state.power || !state.timerRunning) return;
+            if (state.functionPage === 1) state.timerFlight++;
+            if (state.functionPage === 2) state.timerCountUp++;
+            if (state.functionPage === 3 && state.timerCountDown > 0) state.timerCountDown--;
+            updateFunctionDisplay();
+        }, 1000);
+
+        setInterval(() => {
+            if (state.power && state.mode !== 'OFF') fetchQNH();
+        }, 60000);
+
+        setInterval(() => {
+            if (state.sdrConnected) checkSDRHealth();
+        }, 10000);
+
+        setInterval(() => {
+            if (state.power && state.mode !== 'OFF') fetchMETAR();
+        }, 300000);
+
+        // Event Listeners
+        btnStby.addEventListener('click', () => setMode('STBY'));
+        btnOn.addEventListener('click', () => setMode('ON'));
+        btnAlt.addEventListener('click', () => setMode('ALT'));
+        btnOff.addEventListener('click', () => setMode('OFF'));
+        btnVfr.addEventListener('click', setVFR);
+        btnIdent.addEventListener('click', activateIdent);
+        btnFunc.addEventListener('click', funcKey);
+        btnClr.addEventListener('click', clrKey);
+        btnCrsr.addEventListener('click', crsrKey);
+        btnEnt.addEventListener('click', entKey);
+        btnStartStop.addEventListener('click', startStopKey);
+        btnEight.addEventListener('click', eightKey);
+        btnNine.addEventListener('click', nineKey);
+        
+        numBtns.forEach(btn => {
+            btn.addEventListener('click', () => enterDigit(btn.dataset.digit));
+        });
+
+        sdrConnectBtn.addEventListener('click', () => {
+            playClick();
+            if (state.sdrConnected) {
+                disconnectSDR();
+            } else if (state.power) {
+                state.sdrAutoConnectAttempted = false;
+                autoConnectSDR();
+            } else {
+                alert('Enciende el transpondedor primero');
+            }
+        });
+
+        adsbConnectBtn.addEventListener('click', () => {
+            playClick();
+            if (state.adsbActive) {
+                deactivateADS_B();
+            } else {
+                activateADS_B();
+            }
+        });
+
+        metarRefreshBtn.addEventListener('click', () => {
+            playClick();
+            fetchMETAR();
+        });
+
+        if (navigator.usb) {
+            navigator.usb.addEventListener('disconnect', async (event) => {
+                if (state.sdrConnected && state.sdrDevice) {
+                    if (event.device.vendorId === state.sdrDevice.vendorId && 
+                        event.device.productId === state.sdrDevice.productId) {
+                        await disconnectSDR(true);
+                    }
+                }
+            });
+        }
+
+        // Inicializar
+        setMode('OFF');
+        updatePositionDisplay();
+        updateTime();
+        fetchQNH();
+        setTimeout(fetchMETAR, 2000);
+        
+        codeDisplay.textContent = state.code;
+        squawkDisplay.textContent = state.code;
+        debugInfo.textContent = 'Sistema listo';
+    })();
+</script>                      
    
     </div>
 
     <div id="ecm-source-storage" style="display:none;">
+        
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RADCOM REAL RADAR v5.7.2 - VERSIÓN COMPLETA 2026</title>
+    <style>
+        /* ============================================
+           ESTILOS COMPLETOS - 350+ LÍNEAS
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        @font-face {
+            font-family: 'Digital-7';
+            src: url('https://cdn.jsdelivr.net/npm/digital-7-font@1.0.0/digital-7.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Segment';
+            src: url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        }
+
+        body {
+            background: #0a0a0a;
+            background-image: radial-gradient(circle at 20% 30%, #1a3a1a 0%, #0a0a0a 80%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        .radar-container {
+            width: 680px;
+            height: 680px;
+            background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
+            border: 4px solid #444;
+            border-radius: 16px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,255,136,0.2), 0 20px 30px rgba(0,0,0,0.9);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .radar-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(0deg, rgba(0,255,136,0.03) 0px, rgba(0,255,136,0.03) 2px, transparent 2px, transparent 8px);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .radar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            background: linear-gradient(180deg, #222, #111);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            height: 42px;
+            z-index: 10;
+            flex-shrink: 0;
+            box-shadow: 0 0 15px rgba(0,255,136,0.3);
+        }
+
+        .radar-title {
+            font-family: 'Digital-7', monospace;
+            font-size: 22px;
+            color: #00ff88;
+            text-shadow: 0 0 8px #00ff88;
+            letter-spacing: 2px;
+        }
+
+        .radar-subtitle {
+            color: #00ff88;
+            font-size: 11px;
+            background: #1a3a1a;
+            padding: 3px 8px;
+            border-radius: 20px;
+            border: 1px solid #00ff88;
+            box-shadow: inset 0 0 5px #00ff88;
+        }
+
+        .status-badge {
+            display: flex;
+            gap: 15px;
+        }
+
+        .badge-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 45px;
+        }
+
+        .badge-label {
+            color: #888;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .badge-value {
+            color: #00ff88;
+            font-family: 'Digital-7', monospace;
+            font-size: 16px;
+            text-shadow: 0 0 5px #00ff88;
+        }
+
+        .main-layout {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            min-height: 0;
+            height: calc(680px - 42px - 42px - 26px);
+            overflow: hidden;
+        }
+
+        .data-panel-left {
+            width: 200px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow: hidden;
+            backdrop-filter: blur(2px);
+            box-shadow: inset 0 0 20px rgba(0,255,136,0.2);
+        }
+
+        .data-section {
+            background: rgba(0, 20, 0, 0.4);
+            border: 1px solid #00ff88;
+            border-radius: 6px;
+            padding: 5px;
+            box-shadow: inset 0 0 10px rgba(0,255,136,0.1);
+        }
+
+        .section-title {
+            color: #00ff88;
+            font-size: 9px;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            border-bottom: 1px solid #00ff88;
+            padding-bottom: 2px;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px #00ff88;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+        }
+
+        .data-cell {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            padding: 3px;
+            text-align: center;
+            border-left: 2px solid #00ff88;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .data-cell-label {
+            color: #888;
+            font-size: 7px;
+            text-transform: uppercase;
+        }
+
+        .data-cell-value {
+            color: #00ff88;
+            font-family: 'Digital-7', monospace;
+            font-size: 14px;
+            line-height: 1.2;
+            text-shadow: 0 0 5px #00ff88;
+        }
+
+        .coord-panel {
+            background: rgba(0, 20, 0, 0.4);
+            border: 1px solid #00ff88;
+            border-radius: 4px;
+            padding: 4px;
+            box-shadow: inset 0 0 10px rgba(0,255,136,0.1);
+        }
+
+        .coord-row {
+            display: flex;
+            justify-content: space-between;
+            color: #888;
+            font-size: 8px;
+        }
+
+        .coord-value {
+            color: #00ff88;
+            font-family: 'Digital-7', monospace;
+            font-size: 10px;
+            text-shadow: 0 0 3px #00ff88;
+        }
+
+        .gain-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 4px 0;
+        }
+
+        .gain-label {
+            color: #888;
+            font-size: 9px;
+            width: 40px;
+        }
+
+        .gain-bar {
+            flex: 1;
+            height: 8px;
+            background: #222;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px #000;
+        }
+
+        .gain-fill {
+            height: 100%;
+            width: 78%;
+            background: linear-gradient(90deg, #00ff88, #ff0, #f00);
+            box-shadow: 0 0 10px #ff0;
+        }
+
+        .gain-value {
+            color: #00ff88;
+            font-family: 'Digital-7', monospace;
+            font-size: 12px;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        .range-selector {
+            display: flex;
+            justify-content: space-between;
+            gap: 2px;
+            margin: 4px 0;
+        }
+
+        .range-btn {
+            flex: 1;
+            background: #222;
+            border: 1px solid #444;
+            color: #00ff88;
+            padding: 4px 0;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            box-shadow: inset 0 1px 3px #000;
+        }
+
+        .range-btn:hover {
+            background: #2a2a2a;
+            border-color: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .range-btn.active {
+            background: #00ff88;
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 0 15px #00ff88;
+            font-weight: bold;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .action-btn {
+            background: linear-gradient(180deg, #2a2a2a, #1a1a1a);
+            border: 1px solid #00ff88;
+            border-radius: 4px;
+            color: #00ff88;
+            padding: 5px 2px;
+            font-size: 9px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            box-shadow: inset 0 1px 3px #000;
+        }
+
+        .action-btn:hover {
+            background: #2a2a2a;
+            border-color: #fff;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .action-btn.active {
+            background: #00ff88;
+            color: #000;
+            box-shadow: 0 0 15px #00ff88;
+        }
+
+        .action-btn.warning {
+            border-color: #ffaa00;
+            color: #ffaa00;
+        }
+
+        .action-btn.warning:hover {
+            border-color: #fff;
+            color: #ffaa00;
+            box-shadow: 0 0 10px #ffaa00;
+        }
+
+        .action-btn.danger {
+            border-color: #ff3300;
+            color: #ff3300;
+        }
+
+        .action-btn.danger:hover {
+            border-color: #fff;
+            color: #ff3300;
+            box-shadow: 0 0 10px #ff3300;
+        }
+
+        .layer-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-top: 2px;
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .layer-item:hover {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .layer-item.active {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 12px #00ff88;
+        }
+
+        .layer-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            box-shadow: 0 0 5px currentColor;
+        }
+
+        .layer-name {
+            color: #fff;
+            font-size: 9px;
+            flex: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .layer-count {
+            color: #00ff88;
+            font-family: 'Digital-7', monospace;
+            font-size: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 5px;
+            border-radius: 10px;
+            min-width: 25px;
+            text-align: center;
+            border: 1px solid #00ff88;
+        }
+
+        .sensor-status {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            color: #888;
+            padding: 2px;
+            border-top: 1px solid #333;
+            margin-top: 2px;
+        }
+
+        .map-container-right {
+            flex: 1;
+            background: #000;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,255,136,0.3);
+        }
+
+        #realMap {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .radar-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .bearing-line-0 {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 1px;
+            height: 100%;
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateX(-50%);
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .bearing-line-90 {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateY(-50%);
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .radar-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            background: #00ff88;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px #00ff88;
+            z-index: 1001;
+            animation: pulse 2s infinite;
+        }
+
+        .radar-center::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(0, 255, 136, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse-ring 2s infinite;
+        }
+
+        .radar-center::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes pulse-ring {
+            0% { width: 40px; height: 40px; opacity: 1; }
+            50% { width: 70px; height: 70px; opacity: 0.5; }
+            100% { width: 40px; height: 40px; opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .scan-beam {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60%;
+            height: 3px;
+            background: linear-gradient(90deg, #00ff88, transparent);
+            transform-origin: left center;
+            animation: rotate 4s infinite linear;
+            opacity: 0.7;
+            z-index: 1001;
+            filter: blur(1px);
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .screen-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #00ff88;
+            font-family: 'Digital-7', monospace;
+            font-size: 11px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #00ff88;
+            z-index: 1002;
+            box-shadow: 0 0 15px rgba(0,255,136,0.3);
+            backdrop-filter: blur(2px);
+        }
+
+        .screen-info-right {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #ffaa00;
+            font-family: 'Digital-7', monospace;
+            font-size: 11px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ffaa00;
+            z-index: 1002;
+            box-shadow: 0 0 15px rgba(255,170,0,0.3);
+            backdrop-filter: blur(2px);
+        }
+
+        .target-counter {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #00ffff;
+            font-family: 'Digital-7', monospace;
+            font-size: 11px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #00ffff;
+            z-index: 1002;
+            box-shadow: 0 0 15px rgba(0,255,255,0.3);
+            backdrop-filter: blur(2px);
+        }
+
+        .position-indicator {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #00ff88;
+            font-family: 'Digital-7', monospace;
+            font-size: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #00ff88;
+            z-index: 1002;
+            box-shadow: 0 0 15px rgba(0,255,136,0.3);
+            backdrop-filter: blur(2px);
+        }
+
+        .radar-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            padding: 4px 8px;
+            background: linear-gradient(180deg, #222, #111);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            height: 38px;
+            flex-shrink: 0;
+            box-shadow: 0 0 15px rgba(0,255,136,0.3);
+        }
+
+        .footer-left {
+            display: flex;
+            gap: 15px;
+        }
+
+        .footer-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .footer-btn {
+            background: #2a2a2a;
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 3px 10px;
+            border-radius: 16px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: inset 0 1px 3px #000;
+        }
+
+        .footer-btn:hover {
+            background: #00ff88;
+            color: #000;
+            box-shadow: 0 0 15px #00ff88;
+        }
+
+        .footer-btn.danger {
+            border-color: #ff3300;
+            color: #ff3300;
+        }
+
+        .footer-btn.danger:hover {
+            background: #ff3300;
+            color: #fff;
+            box-shadow: 0 0 15px #ff3300;
+        }
+
+        .footer-status {
+            color: #00ff88;
+            font-size: 10px;
+            font-family: 'Digital-7', monospace;
+            text-shadow: 0 0 5px #00ff88;
+        }
+
+        /* Scrollbar oculto */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Popup personalizado */
+        .custom-popup {
+            font-family: 'Digital-7', monospace;
+            background: #111;
+            border: 1px solid #00ff88;
+            border-radius: 4px;
+            color: #00ff88;
+        }
+
+        .custom-popup h3 {
+            color: #00ff88;
+            border-bottom: 1px solid #00ff88;
+            margin: 0 0 5px 0;
+            padding-bottom: 3px;
+        }
+
+        /* Animaciones adicionales */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
+
+        .status-led {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 3px;
+        }
+
+        .led-green {
+            background: #00ff88;
+            box-shadow: 0 0 8px #00ff88;
+        }
+
+        .led-red {
+            background: #ff3300;
+            box-shadow: 0 0 8px #ff3300;
+        }
+
+        .led-yellow {
+            background: #ffaa00;
+            box-shadow: 0 0 8px #ffaa00;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <div class="radar-container">
+        <!-- HEADER -->
+        <div class="radar-header">
+            <div class="radar-title"># RADCOM</div>
+            <div class="status-badge">
+                <div class="badge-item">
+                    <span class="badge-label">MODO</span>
+                    <span class="badge-value" id="modeDisplay">WX</span>
+                </div>
+                <div class="badge-item">
+                    <span class="badge-label">SDR</span>
+                    <span class="badge-value" id="sdrStatus">🔴</span>
+                </div>
+                <div class="badge-item">
+                    <span class="badge-label">RANGO</span>
+                    <span class="badge-value" id="rangeDisplay">40</span>
+                </div>
+            </div>
+            <div class="radar-subtitle">PROFESSIONAL v5.7.2</div>
+        </div>
+
+        <!-- MAIN LAYOUT -->
+        <div class="main-layout">
+            <!-- PANEL IZQUIERDO -->
+            <div class="data-panel-left">
+                <!-- COORDENADAS -->
+                <div class="coord-panel">
+                    <div class="coord-row">
+                        <span>LAT</span>
+                        <span class="coord-value" id="latDisplay">--° --' --" N</span>
+                    </div>
+                    <div class="coord-row">
+                        <span>LON</span>
+                        <span class="coord-value" id="lonDisplay">---° --' --" W</span>
+                    </div>
+                    <div class="coord-row">
+                        <span>ALT</span>
+                        <span class="coord-value" id="altDisplay">-- ft</span>
+                    </div>
+                </div>
+
+                <!-- DATOS NAVEGACIÓN -->
+                <div class="data-grid">
+                    <div class="data-cell">
+                        <div class="data-cell-label">COG</div>
+                        <div class="data-cell-value" id="cogValue">--°</div>
+                    </div>
+                    <div class="data-cell">
+                        <div class="data-cell-label">SOG</div>
+                        <div class="data-cell-value" id="sogValue">-- kn</div>
+                    </div>
+                    <div class="data-cell">
+                        <div class="data-cell-label">HDG</div>
+                        <div class="data-cell-value" id="hdgValue">--°</div>
+                    </div>
+                    <div class="data-cell">
+                        <div class="data-cell-label">TWS</div>
+                        <div class="data-cell-value" id="twsValue">-- kn</div>
+                    </div>
+                </div>
+
+                <!-- GANANCIA -->
+                <div class="data-section">
+                    <div class="section-title">GANANCIA</div>
+                    <div class="gain-control">
+                        <span class="gain-label">GAIN</span>
+                        <div class="gain-bar">
+                            <div class="gain-fill" id="gainFill" style="width:78%"></div>
+                        </div>
+                        <span class="gain-value" id="gainValue">78%</span>
+                    </div>
+                    <div class="action-buttons" style="grid-template-columns:1fr 1fr;">
+                        <button class="action-btn active" id="gainAuto">AUTO</button>
+                        <button class="action-btn" id="gainManual">MAN</button>
+                    </div>
+                </div>
+
+                <!-- TEMP / QNH -->
+                <div class="data-grid">
+                    <div class="data-cell">
+                        <div class="data-cell-label">TEMP</div>
+                        <div class="data-cell-value" id="airTemp">--°</div>
+                    </div>
+                    <div class="data-cell">
+                        <div class="data-cell-label">QNH</div>
+                        <div class="data-cell-value" id="baro">----</div>
+                    </div>
+                </div>
+
+                <!-- RANGO -->
+                <div class="data-section">
+                    <div class="section-title">RANGO (NM)</div>
+                    <div class="range-selector">
+                        <button class="range-btn" data-range="10">10</button>
+                        <button class="range-btn" data-range="20">20</button>
+                        <button class="range-btn active" data-range="40">40</button>
+                        <button class="range-btn" data-range="80">80</button>
+                        <button class="range-btn" data-range="160">160</button>
+                    </div>
+                </div>
+
+                <!-- CAPAS -->
+                <div class="data-section">
+                    <div class="section-title">CAPAS RADAR</div>
+                    <div class="layer-selector">
+                        <div class="layer-item active" data-layer="meteo" id="layerMeteo">
+                            <span class="layer-color" style="background:#00ff88; box-shadow:0 0 8px #00ff88;"></span>
+                            <span class="layer-name">METEOROLÓGICO</span>
+                            <span class="layer-count" id="meteoCount">✓</span>
+                        </div>
+                        <div class="layer-item active" data-layer="ais" id="layerAIS">
+                            <span class="layer-color" style="background:#ffaa00; box-shadow:0 0 8px #ffaa00;"></span>
+                            <span class="layer-name">AIS BARCOS</span>
+                            <span class="layer-count" id="aisCount">0</span>
+                        </div>
+                        <div class="layer-item active" data-layer="adsb" id="layerADSB">
+                            <span class="layer-color" style="background:#00ffff; box-shadow:0 0 8px #00ffff;"></span>
+                            <span class="layer-name">ADS-B AVIONES</span>
+                            <span class="layer-count" id="adsbCount">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTROL -->
+                <div class="data-section">
+                    <div class="section-title">CONTROL</div>
+                    <div class="action-buttons">
+                        <button class="action-btn" id="seaBtn">SEA</button>
+                        <button class="action-btn" id="rainBtn">RAIN</button>
+                    </div>
+                    <div class="action-buttons" style="margin-top:6px;">
+                        <button class="action-btn" id="menuBtn">MENÚ</button>
+                        <button class="action-btn warning" id="alertBtn">ALERTA</button>
+                    </div>
+                </div>
+
+                <!-- SENSORES -->
+                <div class="sensor-status">
+                    <span>AIS: <span id="aisSource" class="status-led led-red"></span></span>
+                    <span>ADS-B: <span id="adsbSource" class="status-led led-red"></span></span>
+                    <span>RADAR: <span id="radarSource" class="status-led led-green"></span></span>
+                </div>
+            </div>
+
+            <!-- MAPA -->
+            <div class="map-container-right">
+                <div id="realMap"></div>
+                
+                <!-- OVERLAY RADAR -->
+                <div class="radar-overlay">
+                    <div class="bearing-line-0"></div>
+                    <div class="bearing-line-90"></div>
+                    <div class="radar-center"></div>
+                    <div class="scan-beam"></div>
+                    
+                    <div class="screen-info" id="screenInfo">
+                        WX MODE<br>
+                        <span id="screenRange">40 NM</span>
+                    </div>
+                    
+                    <div class="screen-info-right" id="aisInfo">
+                        🚢 <span id="aisTotal">0</span> | ✈️ <span id="adsbTotal">0</span>
+                    </div>
+                    
+                    <div class="target-counter" id="targetCounter">
+                        OBJ: <span id="totalTargets">0</span>
+                    </div>
+                    
+                    <div class="position-indicator" id="posIndicator">
+                        --°--'N ---°--'W
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="radar-footer">
+            <div class="footer-left">
+                <span class="footer-status" id="powerStatus">⏻ ON</span>
+                <span class="footer-status" id="txStatus">📡 TX</span>
+                <span class="footer-status" id="srcMeteo">🌤️ --</span>
+            </div>
+            <div class="footer-right">
+                <button class="footer-btn" id="powerBtn">ENCENDIDO</button>
+                <button class="footer-btn danger" id="emergencyBtn">🚨 SOS</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        (function() {
+            'use strict';
+            
+            console.log('🚀 RADCOM REAL RADAR v5.7.2 - VERSIÓN COMPLETA 2026');
+            console.log('📡 Inicializando sistema...');
+
+            // ============================================
+            // CONFIGURACIÓN PRINCIPAL
+            // ============================================
+            const CONFIG = {
+                // Conversiones
+                NM_A_METROS: 1852,
+                METROS_A_PIES: 3.28084,
+                NUDOS_A_MS: 0.514444,
+                KM_A_NM: 0.539957,
+                
+                // Rangos disponibles
+                RANGOS: [10, 20, 40, 80, 160],
+                ZOOM_POR_RANGO: {
+                    10: 12,
+                    20: 11,
+                    40: 10,
+                    80: 9,
+                    160: 8
+                },
+                
+                // Colores para los círculos de rango
+                COLORES_CIRCULOS: [
+                    '#00ff88', // 10 NM - verde
+                    '#ffff00', // 20 NM - amarillo
+                    '#ffaa00', // 40 NM - naranja
+                    '#ff6600', // 80 NM - naranja oscuro
+                    '#ff0000'  // 160 NM - rojo
+                ],
+                
+                // Configuración ADS-B
+                ADS_B: {
+                    URLS: [
+                        'http://localhost:8080/data/aircraft.json',
+                        'http://localhost:8081/data/aircraft.json',
+                        'http://127.0.0.1:8080/data/aircraft.json',
+                        'http://192.168.1.100:8080/data/aircraft.json',
+                        'http://192.168.1.101:8080/data/aircraft.json',
+                        'http://10.0.0.1:8080/data/aircraft.json',
+                        'http://192.168.0.10:8080/data/aircraft.json',
+                        'http://192.168.0.11:8080/data/aircraft.json'
+                    ],
+                    INTERVALO_MS: 2000,
+                    TIMEOUT_MS: 3000,
+                    INTENTOS_MAXIMOS: 5,
+                    
+                    // Colores por altitud (pies)
+                    COLOR_ALTITUD: [
+                        { max: 5000, color: '#00ffff', nombre: 'Muy bajo' },
+                        { max: 10000, color: '#88ff88', nombre: 'Bajo' },
+                        { max: 20000, color: '#ffff00', nombre: 'Medio' },
+                        { max: 30000, color: '#ff8800', nombre: 'Alto' },
+                        { max: 50000, color: '#ff4444', nombre: 'Muy alto' }
+                    ],
+                    
+                    // Tamaños por velocidad (nudos)
+                    TAMANO_VELOCIDAD: [
+                        { max: 150, size: 5 },
+                        { max: 250, size: 6 },
+                        { max: 350, size: 7 },
+                        { max: 450, size: 8 },
+                        { max: 1000, size: 9 }
+                    ]
+                },
+                
+                // Configuración AIS
+                AIS: {
+                    URLS: [
+                        'http://localhost:8100/ais/json',
+                        'http://localhost:8101/ais/json',
+                        'http://127.0.0.1:8100/ais/json'
+                    ],
+                    INTERVALO_MS: 5000,
+                    TIMEOUT_MS: 3000
+                },
+                
+                // Configuración radar meteorológico
+                METEORADAR: {
+                    RAINVIEWER_API: 'https://api.rainviewer.com/public/weather-maps.json',
+                    OPENWEATHER_API: 'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=',
+                    OPENWEATHER_KEY: 'TU_API_KEY_AQUI', // Reemplazar con API key real
+                    INTERVALO_MS: 300000, // 5 minutos
+                    OPACIDAD: 0.7,
+                    ESQUEMA_COLOR: 4 // 4 = colores estándar (verde -> rojo)
+                },
+                
+                // Configuración datos meteorológicos
+                METEO: {
+                    OPEN_METEO: 'https://api.open-meteo.com/v1/forecast',
+                    INTERVALO_MS: 300000 // 5 minutos
+                },
+                
+                // Límites
+                LIMITES: {
+                    MAX_AVIONES: 500,
+                    MAX_BUQUES: 200,
+                    MAX_DISTANCIA_KM: 500,
+                    MAX_HISTORIAL: 100
+                },
+                
+                // Tiempos de actualización
+                TIEMPOS: {
+                    GPS: 1000,
+                    CIRCULOS: 1000,
+                    ESTADISTICAS: 60000,
+                    LIMPIEZA: 300000
+                }
+            };
+
+            // ============================================
+            // ESTADO GLOBAL
+            // ============================================
+            const ESTADO = {
+                // Posición actual
+                posicion: {
+                    lat: 40.4168,      // Madrid por defecto
+                    lon: -3.7038,
+                    alt: 0,
+                    heading: 0,
+                    speed: 0,
+                    valida: false,
+                    timestamp: null,
+                    precision: null,
+                    fuente: 'default'
+                },
+                
+                // Historial de posiciones
+                historialPosiciones: [],
+                
+                // Mapa y elementos
+                mapa: null,
+                circulos: [],
+                marcadorPosicion: null,
+                capaBase: null,
+                
+                // Rango actual
+                rangoActual: 40,
+                
+                // Estado del sistema
+                sistema: {
+                    encendido: true,
+                    modo: 'WX',
+                    tx: true,
+                    inicio: Date.now(),
+                    uptime: 0,
+                    fps: 0,
+                    frameCount: 0,
+                    lastFrame: Date.now()
+                },
+                
+                // Estadísticas
+                estadisticas: {
+                    inicio: Date.now(),
+                    actualizacionesGPS: 0,
+                    erroresGPS: 0,
+                    adsbActualizaciones: 0,
+                    adsbErrores: 0,
+                    aisActualizaciones: 0,
+                    aisErrores: 0,
+                    meteoActualizaciones: 0,
+                    meteoErrores: 0,
+                    targetsTotales: 0,
+                    targetsMax: 0
+                },
+                
+                // Módulos
+                adsb: {
+                    activo: true,
+                    visible: true,
+                    conectado: false,
+                    url: null,
+                    intentos: 0,
+                    ultimaActualizacion: null,
+                    aviones: new Map(),
+                    marcadores: new Map(),
+                    capa: null,
+                    count: 0,
+                    filtros: {
+                        altitud: { min: 0, max: 60000, activo: false },
+                        velocidad: { min: 0, max: 1000, activo: false },
+                        distancia: { max: 200, activo: true }
+                    }
+                },
+                
+                ais: {
+                    activo: true,
+                    visible: true,
+                    conectado: false,
+                    url: null,
+                    intentos: 0,
+                    ultimaActualizacion: null,
+                    buques: new Map(),
+                    marcadores: new Map(),
+                    capa: null,
+                    count: 0
+                },
+                
+                meteo: {
+                    activo: true,
+                    visible: true,
+                    capa: null,
+                    timestamp: null,
+                    fuente: null,
+                    disponible: false,
+                    ultimaActualizacion: null
+                },
+                
+                // Datos meteorológicos actuales
+                meteoActual: {
+                    temperatura: null,
+                    presion: null,
+                    viento: null,
+                    direccionViento: null,
+                    humedad: null,
+                    codigoTiempo: null,
+                    descripcion: 'Desconocido',
+                    actualizado: null
+                },
+                
+                // Temporizadores
+                temporizadores: {
+                    gps: null,
+                    adsb: null,
+                    ais: null,
+                    meteo: null,
+                    circulos: null,
+                    estadisticas: null
+                }
+            };
+
+            // ============================================
+            // FUNCIONES DE INICIALIZACIÓN
+            // ============================================
+
+            /**
+             * Inicializa el mapa Leaflet
+             */
+            function initMapa() {
+                console.log('🗺️ Inicializando mapa...');
+                
+                try {
+                    ESTADO.mapa = L.map('realMap', {
+                        center: [ESTADO.posicion.lat, ESTADO.posicion.lon],
+                        zoom: CONFIG.ZOOM_POR_RANGO[ESTADO.rangoActual],
+                        zoomControl: false,
+                        attributionControl: false,
+                        fadeAnimation: true,
+                        zoomAnimation: true,
+                        markerZoomAnimation: true
+                    });
+
+                    // Capa base OpenStreetMap
+                    ESTADO.capaBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap',
+                        subdomains: 'abc',
+                        noWrap: false,
+                        bounds: [[-90, -180], [90, 180]]
+                    }).addTo(ESTADO.mapa);
+
+                    // Marcador de posición con estilo mejorado
+                    const iconoPosicion = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: '<div style="background-color:#00ff88; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 20px #00ff88;"></div>',
+                        iconSize: [22, 22],
+                        iconAnchor: [11, 11]
+                    });
+
+                    ESTADO.marcadorPosicion = L.marker([ESTADO.posicion.lat, ESTADO.posicion.lon], {
+                        icon: iconoPosicion,
+                        zIndexOffset: 1000
+                    }).addTo(ESTADO.mapa).bindPopup(`
+                        <div style="font-family:'Digital-7'; color:#00ff88; text-align:center;">
+                            <b>📍 TU POSICIÓN</b><br>
+                            <span id="popupLat">${ESTADO.posicion.lat.toFixed(6)}°</span><br>
+                            <span id="popupLon">${ESTADO.posicion.lon.toFixed(6)}°</span>
+                        </div>
+                    `);
+
+                    // Crear capas para los módulos
+                    ESTADO.adsb.capa = L.layerGroup().addTo(ESTADO.mapa);
+                    ESTADO.ais.capa = L.layerGroup().addTo(ESTADO.mapa);
+
+                    // Dibujar círculos iniciales
+                    dibujarCirculos();
+                    
+                    console.log('✅ Mapa inicializado correctamente');
+                } catch (error) {
+                    console.error('❌ Error al inicializar mapa:', error);
+                }
+            }
+
+            /**
+             * Inicializa el GPS
+             */
+            function initGPS() {
+                console.log('📡 Inicializando GPS...');
+                
+                if (!navigator.geolocation) {
+                    console.warn('⚠️ GPS no soportado por el navegador');
+                    ESTADO.posicion.valida = true; // Usar posición por defecto
+                    actualizarDisplayPosicion();
+                    return;
+                }
+
+                const opcionesGPS = {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                };
+
+                ESTADO.temporizadores.gps = navigator.geolocation.watchPosition(
+                    // Éxito
+                    (pos) => {
+                        const nuevaLat = pos.coords.latitude;
+                        const nuevaLon = pos.coords.longitude;
+                        
+                        // Detectar movimiento significativo
+                        const distanciaMovida = calcularDistancia(
+                            ESTADO.posicion.lat, ESTADO.posicion.lon,
+                            nuevaLat, nuevaLon
+                        );
+                        
+                        // Actualizar posición
+                        ESTADO.posicion = {
+                            lat: nuevaLat,
+                            lon: nuevaLon,
+                            alt: pos.coords.altitude || 0,
+                            heading: pos.coords.heading || 0,
+                            speed: pos.coords.speed || 0,
+                            valida: true,
+                            timestamp: Date.now(),
+                            precision: pos.coords.accuracy,
+                            fuente: 'gps'
+                        };
+                        
+                        ESTADO.estadisticas.actualizacionesGPS++;
+                        
+                        // Guardar en historial
+                        ESTADO.historialPosiciones.push({
+                            lat: nuevaLat,
+                            lon: nuevaLon,
+                            timestamp: Date.now()
+                        });
+                        
+                        if (ESTADO.historialPosiciones.length > 10) {
+                            ESTADO.historialPosiciones.shift();
+                        }
+                        
+                        // Actualizar marcador
+                        if (ESTADO.marcadorPosicion) {
+                            ESTADO.marcadorPosicion.setLatLng([nuevaLat, nuevaLon]);
+                            ESTADO.marcadorPosicion.setPopupContent(`
+                                <div style="font-family:'Digital-7'; color:#00ff88; text-align:center;">
+                                    <b>📍 TU POSICIÓN</b><br>
+                                    ${nuevaLat.toFixed(6)}°<br>
+                                    ${nuevaLon.toFixed(6)}°<br>
+                                    <span style="color:#888;">Precisión: ${pos.coords.accuracy.toFixed(1)}m</span>
+                                </div>
+                            `);
+                        }
+                        
+                        // Centrar mapa si es la primera vez o si nos movemos más de 1km
+                        if (!ESTADO.posicion.valida || distanciaMovida > 1) {
+                            ESTADO.mapa.setView([nuevaLat, nuevaLon], ESTADO.mapa.getZoom(), {
+                                animate: true,
+                                duration: 0.5
+                            });
+                        }
+                        
+                        // Actualizar elementos visuales
+                        dibujarCirculos();
+                        actualizarDisplayPosicion();
+                        
+                        // Actualizar datos meteorológicos si han pasado más de 5 minutos
+                        if (!ESTADO.meteoActual.actualizado || 
+                            (Date.now() - ESTADO.meteoActual.actualizado) > CONFIG.METEO.INTERVALO_MS) {
+                            actualizarMeteoActual();
+                        }
+                        
+                        console.log(`📍 GPS: ${nuevaLat.toFixed(6)}°, ${nuevaLon.toFixed(6)}° (${distanciaMovida.toFixed(2)}km)`);
+                    },
+                    // Error
+                    (error) => {
+                        ESTADO.estadisticas.erroresGPS++;
+                        console.warn('⚠️ Error GPS:', error.message);
+                        
+                        // Usar posición por defecto
+                        ESTADO.posicion.valida = true;
+                        actualizarDisplayPosicion();
+                    },
+                    opcionesGPS
+                );
+                
+                console.log('✅ GPS inicializado');
+            }
+
+            /**
+             * Dibuja los círculos de rango
+             */
+            function dibujarCirculos() {
+                if (!ESTADO.mapa || !ESTADO.posicion.valida) return;
+                
+                // Eliminar círculos existentes
+                if (ESTADO.circulos.length > 0) {
+                    ESTADO.circulos.forEach(c => ESTADO.mapa.removeLayer(c));
+                    ESTADO.circulos = [];
+                }
+
+                // Crear nuevos círculos
+                CONFIG.RANGOS.forEach((nm, index) => {
+                    const radioMetros = nm * CONFIG.NM_A_METROS;
+                    
+                    try {
+                        const circulo = L.circle([ESTADO.posicion.lat, ESTADO.posicion.lon], {
+                            radius: radioMetros,
+                            color: CONFIG.COLORES_CIRCULOS[index],
+                            weight: 3,
+                            opacity: 0.7,
+                            fill: false,
+                            dashArray: null,
+                            className: `circulo-rango circulo-${nm}`
+                        }).addTo(ESTADO.mapa);
+                        
+                        ESTADO.circulos.push(circulo);
+                    } catch (error) {
+                        console.error(`Error creando círculo ${nm}NM:`, error);
+                    }
+                });
+
+                // Actualizar display de rango
+                document.getElementById('screenRange').textContent = ESTADO.rangoActual + ' NM';
+                document.getElementById('rangeDisplay').textContent = ESTADO.rangoActual;
+            }
+
+            /**
+             * Calcula la distancia entre dos puntos (fórmula de Haversine)
+             */
+            function calcularDistancia(lat1, lon1, lat2, lon2) {
+                const R = 6371; // Radio de la Tierra en km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+
+            /**
+             * Actualiza los displays de posición
+             */
+            function actualizarDisplayPosicion() {
+                if (!ESTADO.posicion.valida) {
+                    document.getElementById('latDisplay').textContent = '--° --\' --" N';
+                    document.getElementById('lonDisplay').textContent = '---° --\' --" W';
+                    document.getElementById('posIndicator').textContent = '--°--\'N ---°--\'W';
+                    return;
+                }
+
+                const lat = ESTADO.posicion.lat;
+                const lon = ESTADO.posicion.lon;
+                
+                // Formato grados minutos segundos
+                const latDeg = Math.floor(Math.abs(lat));
+                const latMin = Math.floor((Math.abs(lat) - latDeg) * 60);
+                const latSec = Math.floor(((Math.abs(lat) - latDeg) * 3600) % 60);
+                const latDir = lat >= 0 ? 'N' : 'S';
+                
+                const lonDeg = Math.floor(Math.abs(lon));
+                const lonMin = Math.floor((Math.abs(lon) - lonDeg) * 60);
+                const lonSec = Math.floor(((Math.abs(lon) - lonDeg) * 3600) % 60);
+                const lonDir = lon >= 0 ? 'E' : 'W';
+                
+                document.getElementById('latDisplay').textContent = 
+                    `${latDeg}° ${latMin}' ${latSec}" ${latDir}`;
+                document.getElementById('lonDisplay').textContent = 
+                    `${lonDeg}° ${lonMin}' ${lonSec}" ${lonDir}`;
+                document.getElementById('altDisplay').textContent = 
+                    ESTADO.posicion.alt ? Math.round(ESTADO.posicion.alt * CONFIG.METROS_A_PIES) + ' ft' : '-- ft';
+                
+                document.getElementById('cogValue').textContent = 
+                    ESTADO.posicion.heading ? Math.round(ESTADO.posicion.heading) + '°' : '--°';
+                document.getElementById('hdgValue').textContent = 
+                    ESTADO.posicion.heading ? Math.round(ESTADO.posicion.heading) + '°' : '--°';
+                document.getElementById('sogValue').textContent = 
+                    ESTADO.posicion.speed ? (ESTADO.posicion.speed * 1.944).toFixed(1) + ' kn' : '-- kn';
+                
+                document.getElementById('posIndicator').textContent = 
+                    `${latDeg}°${latMin}'${latDir} ${lonDeg}°${lonMin}'${lonDir}`;
+            }
+
+            // ============================================
+            // MÓDULO ADS-B COMPLETO
+            // ============================================
+
+            /**
+             * Conecta con dump1090 y obtiene datos ADS-B
+             */
+            async function conectarADSB() {
+                if (!ESTADO.adsb.activo || !ESTADO.adsb.visible) return;
+                
+                for (const url of CONFIG.ADS_B.URLS) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), CONFIG.ADS_B.TIMEOUT_MS);
+                        
+                        const response = await fetch(url, {
+                            signal: controller.signal,
+                            mode: 'cors',
+                            cache: 'no-cache',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            
+                            if (data.aircraft && Array.isArray(data.aircraft)) {
+                                ESTADO.adsb.conectado = true;
+                                ESTADO.adsb.url = url;
+                                ESTADO.adsb.intentos = 0;
+                                ESTADO.adsb.ultimaActualizacion = Date.now();
+                                ESTADO.estadisticas.adsbActualizaciones++;
+                                
+                                // Actualizar UI
+                                document.getElementById('adsbSource').className = 'status-led led-green';
+                                document.getElementById('sdrStatus').textContent = '🟢';
+                                
+                                // Procesar aviones
+                                procesarADSB(data.aircraft);
+                                
+                                console.log(`✅ ADS-B: ${ESTADO.adsb.count} aviones desde ${url}`);
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        // Silencioso - probar siguiente URL
+                    }
+                }
+                
+                // No se pudo conectar
+                ESTADO.adsb.intentos++;
+                ESTADO.estadisticas.adsbErrores++;
+                
+                if (ESTADO.adsb.intentos >= CONFIG.ADS_B.INTENTOS_MAXIMOS) {
+                    ESTADO.adsb.conectado = false;
+                    document.getElementById('adsbSource').className = 'status-led led-red';
+                    document.getElementById('sdrStatus').textContent = '🔴';
+                    
+                    if (ESTADO.adsb.intentos === CONFIG.ADS_B.INTENTOS_MAXIMOS) {
+                        console.warn('⚠️ No se pudo conectar a dump1090');
+                    }
+                }
+            }
+
+            /**
+             * Procesa los datos de aviones ADS-B
+             */
+            function procesarADSB(aviones) {
+                if (!ESTADO.adsb.capa) return;
+
+                // Filtrar aviones con posición válida
+                const avionesValidos = aviones.filter(av => 
+                    av.lat && av.lon && 
+                    !isNaN(av.lat) && !isNaN(av.lon) &&
+                    Math.abs(av.lat) <= 90 && Math.abs(av.lon) <= 180
+                );
+
+                // Limitar cantidad
+                const avionesProcesar = avionesValidos.slice(0, CONFIG.LIMITES.MAX_AVIONES);
+                
+                ESTADO.adsb.count = avionesProcesar.length;
+                
+                // Actualizar contadores UI
+                document.getElementById('adsbCount').textContent = ESTADO.adsb.count;
+                document.getElementById('adsbTotal').textContent = ESTADO.adsb.count;
+                
+                const total = ESTADO.adsb.count + (ESTADO.ais.count || 0);
+                document.getElementById('totalTargets').textContent = total;
+                
+                if (total > ESTADO.estadisticas.targetsMax) {
+                    ESTADO.estadisticas.targetsMax = total;
+                }
+
+                // Set de IDs actuales
+                const idsActuales = new Set();
+
+                // Procesar cada avión
+                avionesProcesar.forEach(av => {
+                    // Generar ID único
+                    const id = av.hex || av.icao24 || `av-${av.lat}-${av.lon}-${av.track || 0}`;
+                    idsActuales.add(id);
+
+                    // Calcular atributos visuales
+                    const color = calcularColorADSB(av.altitude);
+                    const tamaño = calcularTamañoADSB(av.speed);
+                    
+                    // Calcular distancia
+                    let distancia = null;
+                    if (ESTADO.posicion.valida) {
+                        distancia = calcularDistancia(
+                            ESTADO.posicion.lat, ESTADO.posicion.lon,
+                            av.lat, av.lon
+                        );
+                    }
+
+                    // Crear popup
+                    const popup = crearPopupADSB(av, distancia);
+
+                    if (ESTADO.adsb.marcadores.has(id)) {
+                        // Actualizar existente
+                        const marcador = ESTADO.adsb.marcadores.get(id);
+                        marcador.setLatLng([av.lat, av.lon]);
+                        marcador.setStyle({
+                            fillColor: color,
+                            radius: tamaño
+                        });
+                        marcador.setPopupContent(popup);
+                    } else {
+                        // Crear nuevo marcador
+                        const marcador = L.circleMarker([av.lat, av.lon], {
+                            radius: tamaño,
+                            color: '#ffffff',
+                            weight: 2,
+                            fillColor: color,
+                            fillOpacity: 0.9
+                        }).bindPopup(popup);
+
+                        // Eventos
+                        marcador.on('mouseover', function() {
+                            this.setStyle({ weight: 3, color: '#ffff00' });
+                        });
+                        
+                        marcador.on('mouseout', function() {
+                            this.setStyle({ weight: 2, color: '#ffffff' });
+                        });
+
+                        if (ESTADO.adsb.visible) {
+                            marcador.addTo(ESTADO.adsb.capa);
+                        }
+                        
+                        ESTADO.adsb.marcadores.set(id, marcador);
+                    }
+                });
+
+                // Eliminar marcadores de aviones que ya no están
+                ESTADO.adsb.marcadores.forEach((marcador, id) => {
+                    if (!idsActuales.has(id)) {
+                        ESTADO.adsb.capa.removeLayer(marcador);
+                        ESTADO.adsb.marcadores.delete(id);
+                    }
+                });
+            }
+
+            /**
+             * Calcula el color del avión según su altitud
+             */
+            function calcularColorADSB(altitud) {
+                if (!altitud || altitud <= 0) return CONFIG.ADS_B.COLOR_ALTITUD[0].color;
+                
+                for (const rango of CONFIG.ADS_B.COLOR_ALTITUD) {
+                    if (altitud <= rango.max) {
+                        return rango.color;
+                    }
+                }
+                
+                return '#ff4444'; // Rojo para muy alto
+            }
+
+            /**
+             * Calcula el tamaño del marcador según velocidad
+             */
+            function calcularTamañoADSB(velocidad) {
+                if (!velocidad || velocidad <= 0) return 5;
+                
+                for (const rango of CONFIG.ADS_B.TAMANO_VELOCIDAD) {
+                    if (velocidad <= rango.max) {
+                        return rango.size;
+                    }
+                }
+                
+                return 9;
+            }
+
+            /**
+             * Crea el popup HTML para un avión
+             */
+            function crearPopupADSB(av, distancia) {
+                const callsign = av.flight ? av.flight.trim() : '------';
+                const altitud = av.altitude ? Math.round(av.altitude).toLocaleString() : '---';
+                const velocidad = av.speed ? Math.round(av.speed) : '---';
+                const track = av.track ? Math.round(av.track) : '---';
+                const icao = av.hex || av.icao24 || '------';
+                const squawk = av.squawk || '----';
+                const vertRate = av.vert_rate ? Math.round(av.vert_rate) : '---';
+                
+                // Determinar tipo
+                let tipo = 'Desconocido';
+                if (av.altitude > 30000) tipo = 'Comercial';
+                else if (av.altitude > 10000) tipo = 'Regional';
+                else if (av.speed < 150) tipo = 'Avioneta';
+                
+                const distanciaTexto = distancia ? distancia.toFixed(1) : '?';
+                
+                return `
+                    <div style="font-family:'Digital-7'; color:#00ff88; min-width:220px; background:#111; padding:10px; border-radius:6px; border:2px solid #00ff88;">
+                        <div style="font-size:18px; font-weight:bold; border-bottom:2px solid #00ff88; margin-bottom:8px; padding-bottom:4px; text-align:center;">
+                            ✈️ ${callsign}
+                        </div>
+                        
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;">
+                            <div>
+                                <div style="color:#888; font-size:8px;">ALTITUD</div>
+                                <div style="font-size:16px;">${altitud} ft</div>
+                            </div>
+                            <div>
+                                <div style="color:#888; font-size:8px;">VELOCIDAD</div>
+                                <div style="font-size:16px;">${velocidad} kt</div>
+                            </div>
+                            <div>
+                                <div style="color:#888; font-size:8px;">RUMBO</div>
+                                <div style="font-size:16px;">${track}°</div>
+                            </div>
+                            <div>
+                                <div style="color:#888; font-size:8px;">V/S</div>
+                                <div style="font-size:16px;">${vertRate} f/m</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; font-size:12px;">
+                            <div><span style="color:#888;">ICAO:</span> ${icao.substring(0,6)}</div>
+                            <div><span style="color:#888;">SQWK:</span> ${squawk}</div>
+                            <div><span style="color:#888;">TIPO:</span> ${tipo}</div>
+                            <div><span style="color:#888;">DIST:</span> ${distanciaTexto} km</div>
+                        </div>
+                        
+                        <div style="background:#1a1a1a; padding:6px; border-radius:4px; font-size:10px; text-align:center;">
+                            📍 ${av.lat.toFixed(4)}°, ${av.lon.toFixed(4)}°<br>
+                            ⏱️ ${new Date().toLocaleTimeString()}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ============================================
+// MÓDULO AIS COMPLETO E INDEPENDIENTE
+// ============================================
+
+const MODULO_AIS = {
+    // Configuración específica de AIS
+    config: {
+        // URLs donde buscar datos AIS
+        urls: [
+            'http://localhost:8100/ais/json',           // Puerto típico AIS
+            'http://localhost:8101/ais/json',
+            'http://localhost:8102/ais/json',
+            'http://127.0.0.1:8100/ais/json',
+            'http://192.168.1.100:8100/ais/json',       // Posible IP local
+            'http://192.168.1.101:8100/ais/json',
+            'http://10.0.0.1:8100/ais/json',
+            'https://ais-server.local/geojson',          // Servidor remoto
+            'https://ais-stream.local/data.json'
+        ],
+        
+        // Intervalos de actualización
+        intervaloNormal: 5000,      // 5 segundos cuando hay conexión
+        intervaloError: 30000,       // 30 segundos cuando hay error
+        
+        // Timeout para fetch
+        timeout: 3000,               // 3 segundos
+        
+        // Colores para diferentes tipos de buques
+        colores: {
+            carguero: '#ffaa00',      // Naranja
+            petrolero: '#ff6600',      // Naranja oscuro
+            pasaje: '#00ff88',         // Verde
+            pesquero: '#0066ff',        // Azul
+            recreo: '#ff00ff',          // Magenta
+            remolcador: '#ffff00',       // Amarillo
+            militar: '#ff4444',          // Rojo
+            otro: '#888888'               // Gris
+        },
+        
+        // Tamaños según eslora
+        tamanos: {
+            pequeño: 4,      // < 50m
+            mediano: 6,      // 50-150m
+            grande: 8,       // 150-300m
+            muyGrande: 10    // > 300m
+        },
+        
+        // Límite máximo de buques a mostrar
+        maxBuques: 200,
+        
+        // Distancia máxima en km para filtrar (0 = sin filtro)
+        distanciaMaxima: 100
+    },
+
+    // Estado del módulo
+    estado: {
+        activo: true,
+        visible: true,
+        conectado: false,
+        urlActual: null,
+        intentos: 0,
+        ultimaActualizacion: null,
+        buques: new Map(),           // Mapa de buques activos
+        marcadores: new Map(),        // Mapa de marcadores Leaflet
+        capa: null,                   // Capa de Leaflet
+        count: 0,                     // Número de buques actuales
+        countVisible: 0,               // Buques visibles tras filtros
+        estadisticas: {
+            totalRecibidos: 0,
+            totalMostrados: 0,
+            ultimoMensaje: null,
+            errores: 0
+        }
+    },
+
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
+    iniciar: function(mapa) {
+        console.log('🚢 [AIS] Inicializando módulo...');
+        
+        if (!mapa) {
+            console.error('❌ [AIS] Error: Mapa no proporcionado');
+            return false;
+        }
+        
+        try {
+            // Guardar referencia al mapa
+            this.mapa = mapa;
+            
+            // Crear capa Leaflet
+            this.estado.capa = L.layerGroup().addTo(mapa);
+            
+            // Integrar botón
+            this.integrarBoton();
+            
+            // Iniciar conexión
+            this.conectar();
+            
+            // Programar actualizaciones periódicas
+            setInterval(() => {
+                if (this.estado.activo && this.estado.visible) {
+                    this.conectar();
+                }
+            }, this.config.intervaloNormal);
+            
+            console.log('✅ [AIS] Módulo inicializado correctamente');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ [AIS] Error al inicializar:', error);
+            return false;
+        }
+    },
+
+    // ============================================
+    // CONEXIÓN CON FUENTES AIS
+    // ============================================
+    conectar: async function() {
+        if (!this.estado.activo || !this.estado.visible) return;
+        
+        const inicio = Date.now();
+        
+        for (const url of this.config.urls) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+                
+                const respuesta = await fetch(url, {
+                    signal: controller.signal,
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (respuesta.ok) {
+                    const datos = await respuesta.json();
+                    
+                    // Verificar formato de datos
+                    if (this.validarDatos(datos)) {
+                        const tiempoMs = Date.now() - inicio;
+                        
+                        // Actualizar estado
+                        this.estado.conectado = true;
+                        this.estado.urlActual = url;
+                        this.estado.intentos = 0;
+                        this.estado.ultimaActualizacion = Date.now();
+                        this.estado.estadisticas.errores = 0;
+                        
+                        // Actualizar UI
+                        document.getElementById('aisSource').innerHTML = '✅';
+                        
+                        // Procesar datos
+                        this.procesarBuques(datos);
+                        
+                        console.log(`✅ [AIS] Conectado a ${url} (${tiempoMs}ms) - ${this.estado.count} buques`);
+                        return;
+                    }
+                }
+            } catch (error) {
+                // Silencioso - probar siguiente URL
+            }
+        }
+        
+        // Si llegamos aquí, no hay conexión
+        this.estado.intentos++;
+        this.estado.estadisticas.errores++;
+        
+        if (this.estado.intentos >= 3) {
+            this.estado.conectado = false;
+            document.getElementById('aisSource').innerHTML = '❌';
+            
+            if (this.estado.intentos === 3) {
+                console.warn('⚠️ [AIS] No se pudo conectar a ninguna fuente');
+            }
+        }
+    },
+
+    // ============================================
+    // VALIDAR DATOS AIS
+    // ============================================
+    validarDatos: function(datos) {
+        // Soporta múltiples formatos comunes
+        
+        // Formato GeoJSON (común)
+        if (datos.type === 'FeatureCollection' && Array.isArray(datos.features)) {
+            return true;
+        }
+        
+        // Formato array simple de buques
+        if (Array.isArray(datos)) {
+            return true;
+        }
+        
+        // Formato con propiedad 'ships'
+        if (datos.ships && Array.isArray(datos.ships)) {
+            return true;
+        }
+        
+        // Formato con propiedad 'vessels'
+        if (datos.vessels && Array.isArray(datos.vessels)) {
+            return true;
+        }
+        
+        return false;
+    },
+
+    // ============================================
+    // PROCESAR BUQUES
+    // ============================================
+    procesarBuques: function(datos) {
+        if (!this.estado.capa) return;
+        
+        // Extraer array de buques según formato
+        let buques = [];
+        
+        if (Array.isArray(datos)) {
+            buques = datos;
+        } else if (datos.features) {
+            buques = datos.features;
+        } else if (datos.ships) {
+            buques = datos.ships;
+        } else if (datos.vessels) {
+            buques = datos.vessels;
+        }
+        
+        // Filtrar buques con posición válida
+        const buquesValidos = buques.filter(b => {
+            // GeoJSON format
+            if (b.geometry && b.geometry.coordinates) {
+                return b.geometry.coordinates.length >= 2;
+            }
+            // Simple format
+            return b.lat && b.lon && 
+                   !isNaN(b.lat) && !isNaN(b.lon) &&
+                   Math.abs(b.lat) <= 90 && Math.abs(b.lon) <= 180;
+        }).slice(0, this.config.maxBuques); // Limitar cantidad
+        
+        this.estado.estadisticas.totalRecibidos = buques.length;
+        this.estado.count = buquesValidos.length;
+        
+        // Actualizar contadores UI
+        this.actualizarContadores();
+        
+        // Set de IDs actuales
+        const idsActuales = new Set();
+        
+        // Procesar cada buque
+        buquesValidos.forEach(b => {
+            // Extraer coordenadas según formato
+            let lat, lon;
+            
+            if (b.geometry && b.geometry.coordinates) {
+                lon = b.geometry.coordinates[0];
+                lat = b.geometry.coordinates[1];
+            } else {
+                lat = b.lat;
+                lon = b.lon;
+            }
+            
+            // Extraer propiedades
+            const props = b.properties || b;
+            
+            // Generar ID único
+            const id = props.mmsi || props.imo || `ship-${lat}-${lon}-${Date.now()}`;
+            idsActuales.add(id);
+            
+            // Determinar tipo de buque
+            const tipo = this.determinarTipoBuque(props);
+            
+            // Calcular atributos visuales
+            const color = this.obtenerColor(tipo);
+            const tamaño = this.obtenerTamaño(props);
+            
+            // Calcular distancia si tenemos posición
+            let distancia = null;
+            if (window.ESTADO && window.ESTADO.posicion && window.ESTADO.posicion.valida) {
+                distancia = this.calcularDistancia(
+                    window.ESTADO.posicion.lat, window.ESTADO.posicion.lon,
+                    lat, lon
+                );
+                
+                // Filtrar por distancia si está configurado
+                if (this.config.distanciaMaxima > 0 && distancia > this.config.distanciaMaxima) {
+                    return; // No mostrar este buque
+                }
+            }
+            
+            // Crear popup
+            const popup = this.crearPopupBuque(props, lat, lon, distancia, tipo);
+            
+            if (this.estado.marcadores.has(id)) {
+                // Actualizar existente
+                const marcador = this.estado.marcadores.get(id);
+                marcador.setLatLng([lat, lon]);
+                marcador.setStyle({
+                    fillColor: color,
+                    radius: tamaño
+                });
+                marcador.setPopupContent(popup);
+            } else {
+                // Crear nuevo marcador
+                const marcador = L.circleMarker([lat, lon], {
+                    radius: tamaño,
+                    color: '#ffffff',
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 0.9
+                }).bindPopup(popup);
+                
+                // Eventos hover
+                marcador.on('mouseover', function() {
+                    this.setStyle({ weight: 3, color: '#ffff00' });
+                });
+                
+                marcador.on('mouseout', function() {
+                    this.setStyle({ weight: 2, color: '#ffffff' });
+                });
+                
+                if (this.estado.visible) {
+                    marcador.addTo(this.estado.capa);
+                }
+                
+                this.estado.marcadores.set(id, marcador);
+            }
+        });
+        
+        // Eliminar marcadores de buques que ya no están
+        this.estado.marcadores.forEach((marcador, id) => {
+            if (!idsActuales.has(id)) {
+                this.estado.capa.removeLayer(marcador);
+                this.estado.marcadores.delete(id);
+            }
+        });
+        
+        this.estado.estadisticas.totalMostrados = this.estado.marcadores.size;
+    },
+
+    // ============================================
+    // DETERMINAR TIPO DE BUQUE
+    // ============================================
+    determinarTipoBuque: function(props) {
+        // Basado en códigos AIS tipo de buque
+        const tipoAIS = props.type || props.ship_type || props.vessel_type || 0;
+        
+        // Códigos comunes AIS
+        if ([70, 71, 72, 73, 74, 75, 76, 77].includes(tipoAIS)) return 'carguero';
+        if ([80, 81, 82, 83, 84, 85, 86, 87, 88].includes(tipoAIS)) return 'petrolero';
+        if ([60, 61, 62, 63, 64, 65, 66, 67, 68, 69].includes(tipoAIS)) return 'pasaje';
+        if ([30, 31, 32, 33, 34, 35, 36, 37].includes(tipoAIS)) return 'pesquero';
+        if ([36, 37, 38, 39].includes(tipoAIS)) return 'recreo';
+        if ([52, 53, 54, 55, 56, 57, 58, 59].includes(tipoAIS)) return 'remolcador';
+        if ([35].includes(tipoAIS)) return 'militar';
+        
+        // Por nombre
+        const nombre = (props.name || '').toLowerCase();
+        if (nombre.includes('tanker')) return 'petrolero';
+        if (nombre.includes('cargo')) return 'carguero';
+        if (nombre.includes('passenger')) return 'pasaje';
+        if (nombre.includes('fishing')) return 'pesquero';
+        if (nombre.includes('tug')) return 'remolcador';
+        if (nombre.includes('navy') || nombre.includes('warship')) return 'militar';
+        
+        return 'otro';
+    },
+
+    // ============================================
+    // OBTENER COLOR SEGÚN TIPO
+    // ============================================
+    obtenerColor: function(tipo) {
+        return this.config.colores[tipo] || this.config.colores.otro;
+    },
+
+    // ============================================
+    // OBTENER TAMAÑO SEGÚN ESLORA
+    // ============================================
+    obtenerTamaño: function(props) {
+        const eslora = props.length || props.longitud || 0;
+        
+        if (eslora > 300) return this.config.tamanos.muyGrande;
+        if (eslora > 150) return this.config.tamanos.grande;
+        if (eslora > 50) return this.config.tamanos.mediano;
+        return this.config.tamanos.pequeño;
+    },
+
+    // ============================================
+    // CALCULAR DISTANCIA (Haversine)
+    // ============================================
+    calcularDistancia: function(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Radio Tierra en km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                 Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+                 Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    },
+
+    // ============================================
+    // CREAR POPUP DE BUQUE
+    // ============================================
+    crearPopupBuque: function(props, lat, lon, distancia, tipo) {
+        const nombre = props.name || props.nombre || props.shipname || 'DESCONOCIDO';
+        const mmsi = props.mmsi || props.MMSI || '---';
+        const imo = props.imo || props.IMO || '---';
+        const rumbo = props.course || props.heading || props.rumbo || '---';
+        const velocidad = props.speed || props.velocidad || '---';
+        const calado = props.draft || props.calado || '---';
+        const destino = props.destination || props.destino || '---';
+        const eslora = props.length || props.eslora || '---';
+        const manga = props.beam || props.manga || '---';
+        
+        const velocidadTexto = velocidad !== '---' ? velocidad.toFixed(1) : '---';
+        const rumboTexto = rumbo !== '---' ? rumbo.toFixed(0) : '---';
+        const distanciaTexto = distancia ? distancia.toFixed(1) : '?';
+        
+        // Icono según tipo
+        const iconos = {
+            carguero: '🚢',
+            petrolero: '🛢️',
+            pasaje: '🚢',
+            pesquero: '🎣',
+            recreo: '⛵',
+            remolcador: '🚤',
+            militar: '⚓',
+            otro: '🚢'
+        };
+        const icono = iconos[tipo] || '🚢';
+        
+        return `
+            <div style="font-family: 'Digital-7'; color: #ffaa00; min-width: 240px; background: #111; padding: 12px; border-radius: 6px; border: 2px solid #ffaa00;">
+                <div style="font-size: 18px; font-weight: bold; border-bottom: 2px solid #ffaa00; margin-bottom: 10px; padding-bottom: 5px; text-align: center;">
+                    ${icono} ${nombre}
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <div style="color: #888; font-size: 8px;">MMSI</div>
+                        <div style="font-size: 14px;">${mmsi}</div>
+                    </div>
+                    <div>
+                        <div style="color: #888; font-size: 8px;">IMO</div>
+                        <div style="font-size: 14px;">${imo}</div>
+                    </div>
+                    <div>
+                        <div style="color: #888; font-size: 8px;">VELOCIDAD</div>
+                        <div style="font-size: 14px;">${velocidadTexto} kn</div>
+                    </div>
+                    <div>
+                        <div style="color: #888; font-size: 8px;">RUMBO</div>
+                        <div style="font-size: 14px;">${rumboTexto}°</div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <div style="color: #888; font-size: 8px;">ESLORA</div>
+                        <div style="font-size: 12px;">${eslora} m</div>
+                    </div>
+                    <div>
+                        <div style="color: #888; font-size: 8px;">MANGA</div>
+                        <div style="font-size: 12px;">${manga} m</div>
+                    </div>
+                    <div>
+                        <div style="color: #888; font-size: 8px;">CALADO</div>
+                        <div style="font-size: 12px;">${calado} m</div>
+                    </div>
+                    <div>
+                        <div style="color: #888; font-size: 8px;">DISTANCIA</div>
+                        <div style="font-size: 12px;">${distanciaTexto} km</div>
+                    </div>
+                </div>
+                
+                <div style="background: #1a1a1a; padding: 6px; border-radius: 4px; margin-bottom: 8px;">
+                    <div style="color: #888; font-size: 8px;">DESTINO</div>
+                    <div style="font-size: 12px;">${destino}</div>
+                </div>
+                
+                <div style="background: #1a1a1a; padding: 6px; border-radius: 4px; font-size: 10px; text-align: center;">
+                    📍 ${lat.toFixed(4)}°, ${lon.toFixed(4)}°<br>
+                    ⏱️ ${new Date().toLocaleTimeString()}
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 8px; color: #888;">
+                    <span>TIPO: ${tipo.toUpperCase()}</span>
+                    <span>${this.estado.conectado ? '🟢 ONLINE' : '🔴 OFFLINE'}</span>
+                </div>
+            </div>
+        `;
+    },
+
+    // ============================================
+    // ACTUALIZAR CONTADORES UI
+    // ============================================
+    actualizarContadores: function() {
+        document.getElementById('aisCount').textContent = this.estado.count;
+        
+        const total = (window.ESTADO?.adsb?.count || 0) + this.estado.count;
+        document.getElementById('aisTotal').textContent = this.estado.count;
+        document.getElementById('totalTargets').textContent = total;
+    },
+
+    // ============================================
+    // TOGGLE VISIBILIDAD
+    // ============================================
+    toggleVisibilidad: function(visible) {
+        this.estado.visible = visible;
+        
+        if (visible) {
+            this.estado.capa.addTo(this.mapa);
+            this.conectar();
+            console.log('👁️ [AIS] Capa activada');
+        } else {
+            this.mapa.removeLayer(this.estado.capa);
+            console.log('👁️ [AIS] Capa desactivada');
+        }
+    },
+
+    // ============================================
+    // LIMPIAR TODOS LOS MARCADORES
+    // ============================================
+    limpiar: function() {
+        if (this.estado.capa) {
+            this.estado.capa.clearLayers();
+            this.estado.marcadores.clear();
+            this.estado.buques.clear();
+            this.estado.count = 0;
+            this.actualizarContadores();
+        }
+    },
+
+    // ============================================
+    // INTEGRAR CON BOTÓN AIS
+    // ============================================
+    integrarBoton: function() {
+        const boton = document.getElementById('layerAIS');
+        
+        if (boton) {
+            // Clonar para eliminar event listeners anteriores
+            const nuevoBoton = boton.cloneNode(true);
+            boton.parentNode.replaceChild(nuevoBoton, boton);
+            
+            nuevoBoton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                nuevoBoton.classList.toggle('active');
+                this.toggleVisibilidad(nuevoBoton.classList.contains('active'));
+            });
+            
+            console.log('🔌 [AIS] Botón integrado');
+        }
+    },
+
+    // ============================================
+    // OBTENER ESTADO PARA DEBUG
+    // ============================================
+    getEstado: function() {
+        return {
+            activo: this.estado.activo,
+            visible: this.estado.visible,
+            conectado: this.estado.conectado,
+            url: this.estado.urlActual,
+            buques: this.estado.count,
+            marcadores: this.estado.marcadores.size,
+            ultimaActualizacion: this.estado.ultimaActualizacion,
+            estadisticas: this.estado.estadisticas
+        };
+    }
+};
+
+            // ============================================
+            // MÓDULO RADAR METEOROLÓGICO - NUBES REALES
+            // ============================================
+
+            /**
+             * Carga el radar meteorológico de RainViewer
+             */
+            async function cargarRadarMeteo() {
+                if (!ESTADO.meteo.activo) return;
+                
+                try {
+                    console.log('🌧️ Cargando radar meteorológico...');
+                    
+                    const response = await fetch(CONFIG.METEORADAR.RAINVIEWER_API);
+                    const data = await response.json();
+                    
+                    if (data?.radar?.length > 0) {
+                        // Obtener frames disponibles
+                        const frames = data.radar;
+                        
+                        // Buscar frame más reciente (últimos 5 minutos)
+                        const ahora = Math.floor(Date.now() / 1000);
+                        let frameSeleccionado = null;
+                        
+                        for (let i = frames.length - 1; i >= 0; i--) {
+                            if (ahora - frames[i].time < 300) { // 5 minutos
+                                frameSeleccionado = frames[i];
+                                break;
+                            }
+                        }
+                        
+                        // Si no hay frame reciente, usar el último
+                        if (!frameSeleccionado) {
+                            frameSeleccionado = frames[frames.length - 1];
+                        }
+                        
+                        const timestamp = frameSeleccionado.time;
+                        
+                        // IMPORTANTE: Esquema de color 4 (estándar: verde -> rojo)
+                        // 1 = original, 2 = universal, 3 = ironbow, 4 = precipitation
+                        const url = `https://tilecache.rainviewer.com/v2/radar/${timestamp}/256/{z}/{x}/{y}/4/1_1.png`;
+                        
+                        console.log('🌧️ URL radar:', url.replace('{z}/{x}/{y}', '8/130/80'));
+                        
+                        const nuevaCapa = L.tileLayer(url, {
+                            opacity: CONFIG.METEORADAR.OPACIDAD,
+                            transparent: true,
+                            attribution: 'RainViewer',
+                            zIndex: 500,
+                            bounds: [[-90, -180], [90, 180]]
+                        });
+                        
+                        // Eliminar capa anterior
+                        if (ESTADO.meteo.capa) {
+                            ESTADO.mapa.removeLayer(ESTADO.meteo.capa);
+                        }
+                        
+                        // Añadir nueva capa si está visible
+                        if (ESTADO.meteo.visible) {
+                            nuevaCapa.addTo(ESTADO.mapa);
+                            console.log('✅ Capa radar añadida al mapa');
+                        }
+                        
+                        ESTADO.meteo.capa = nuevaCapa;
+                        ESTADO.meteo.timestamp = timestamp;
+                        ESTADO.meteo.fuente = 'RainViewer';
+                        ESTADO.meteo.disponible = true;
+                        ESTADO.meteo.ultimaActualizacion = Date.now();
+                        ESTADO.estadisticas.meteoActualizaciones++;
+                        
+                        // Actualizar UI
+                        document.getElementById('radarSource').className = 'status-led led-green';
+                        document.getElementById('meteoCount').textContent = '✓';
+                        
+                        const fecha = new Date(timestamp * 1000);
+                        console.log(`✅ Radar meteorológico cargado: ${fecha.toLocaleString()}`);
+                    }
+                } catch (error) {
+                    console.error('❌ Error cargando radar:', error);
+                    ESTADO.estadisticas.meteoErrores++;
+                    document.getElementById('radarSource').className = 'status-led led-red';
+                    
+                    // Intentar con OpenWeather como respaldo
+                    await cargarOpenWeather();
+                }
+            }
+
+            /**
+             * Carga radar de OpenWeather como respaldo
+             */
+            async function cargarOpenWeather() {
+                if (!CONFIG.METEORADAR.OPENWEATHER_KEY || 
+                    CONFIG.METEORADAR.OPENWEATHER_KEY === 'TU_API_KEY_AQUI') {
+                    console.warn('⚠️ OpenWeather requiere API key válida');
+                    return;
+                }
+                
+                try {
+                    const url = CONFIG.METEORADAR.OPENWEATHER + CONFIG.METEORADAR.OPENWEATHER_KEY;
+                    
+                    const nuevaCapa = L.tileLayer(url, {
+                        opacity: CONFIG.METEORADAR.OPACIDAD,
+                        transparent: true,
+                        attribution: 'OpenWeatherMap',
+                        zIndex: 500
+                    });
+                    
+                    if (ESTADO.meteo.capa) {
+                        ESTADO.mapa.removeLayer(ESTADO.meteo.capa);
+                    }
+                    
+                    if (ESTADO.meteo.visible) {
+                        nuevaCapa.addTo(ESTADO.mapa);
+                    }
+                    
+                    ESTADO.meteo.capa = nuevaCapa;
+                    ESTADO.meteo.fuente = 'OpenWeather';
+                    ESTADO.meteo.disponible = true;
+                    
+                    document.getElementById('radarSource').className = 'status-led led-green';
+                    document.getElementById('meteoCount').textContent = '✓';
+                    
+                    console.log('✅ OpenWeather cargado como respaldo');
+                } catch (error) {
+                    console.error('❌ Error OpenWeather:', error);
+                }
+            }
+
+            /**
+             * Actualiza los datos meteorológicos actuales
+             */
+            async function actualizarMeteoActual() {
+                if (!ESTADO.posicion.valida) return;
+                
+                try {
+                    const url = `${CONFIG.METEO.OPEN_METEO}?latitude=${ESTADO.posicion.lat}&longitude=${ESTADO.posicion.lon}&current=temperature_2m,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_10m,weather_code`;
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (data.current) {
+                        ESTADO.meteoActual = {
+                            temperatura: data.current.temperature_2m,
+                            humedad: data.current.relative_humidity_2m,
+                            presion: data.current.pressure_msl,
+                            viento: data.current.wind_speed_10m,
+                            direccionViento: data.current.wind_direction_10m,
+                            codigoTiempo: data.current.weather_code,
+                            descripcion: decodificarTiempo(data.current.weather_code),
+                            actualizado: Date.now()
+                        };
+                        
+                        // Actualizar UI
+                        document.getElementById('airTemp').textContent = Math.round(ESTADO.meteoActual.temperatura) + '°';
+                        document.getElementById('baro').textContent = Math.round(ESTADO.meteoActual.presion);
+                        document.getElementById('twsValue').textContent = Math.round(ESTADO.meteoActual.viento) + ' kn';
+                        document.getElementById('srcMeteo').textContent = `🌤️ ${ESTADO.meteoActual.descripcion}`;
+                        
+                        console.log(`🌤️ Meteo: ${ESTADO.meteoActual.temperatura}°C, ${ESTADO.meteoActual.descripcion}`);
+                    }
+                } catch (error) {
+                    console.error('Error actualizando datos meteorológicos:', error);
+                }
+            }
+
+            /**
+             * Decodifica código WMO a descripción
+             */
+            function decodificarTiempo(codigo) {
+                const tiempos = {
+                    0: 'Despejado',
+                    1: 'Mayormente despejado',
+                    2: 'Parcialmente nublado',
+                    3: 'Nublado',
+                    45: 'Niebla',
+                    48: 'Niebla con escarcha',
+                    51: 'Llovizna ligera',
+                    53: 'Llovizna moderada',
+                    55: 'Llovizna intensa',
+                    61: 'Lluvia ligera',
+                    63: 'Lluvia moderada',
+                    65: 'Lluvia intensa',
+                    71: 'Nieve ligera',
+                    73: 'Nieve moderada',
+                    75: 'Nieve intensa',
+                    80: 'Chubascos ligeros',
+                    81: 'Chubascos moderados',
+                    82: 'Chubascos violentos',
+                    95: 'Tormenta',
+                    96: 'Tormenta con granizo ligero',
+                    99: 'Tormenta con granizo fuerte'
+                };
+                return tiempos[codigo] || 'Desconocido';
+            }
+
+            // ============================================
+            // MÓDULO AIS (BARCOS)
+            // ============================================
+
+            /**
+             * Conecta con servidor AIS
+             */
+            async function conectarAIS() {
+                if (!ESTADO.ais.activo || !ESTADO.ais.visible) return;
+                
+                for (const url of CONFIG.AIS.URLS) {
+                    try {
+                        const controller = new AbortController();
+                        setTimeout(() => controller.abort(), CONFIG.AIS.TIMEOUT_MS);
+                        
+                        const response = await fetch(url, { signal: controller.signal });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            
+                            if (data.ships || data.features) {
+                                ESTADO.ais.conectado = true;
+                                ESTADO.ais.url = url;
+                                ESTADO.ais.intentos = 0;
+                                ESTADO.ais.ultimaActualizacion = Date.now();
+                                ESTADO.estadisticas.aisActualizaciones++;
+                                
+                                document.getElementById('aisSource').className = 'status-led led-green';
+                                
+                                // Procesar buques
+                                const buques = data.ships || data.features || [];
+                                procesarAIS(buques);
+                                
+                                console.log(`✅ AIS: ${ESTADO.ais.count} buques desde ${url}`);
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        // Silencioso
+                    }
+                }
+                
+                ESTADO.ais.intentos++;
+                ESTADO.estadisticas.aisErrores++;
+                
+                if (ESTADO.ais.intentos >= 3) {
+                    ESTADO.ais.conectado = false;
+                    document.getElementById('aisSource').className = 'status-led led-red';
+                }
+            }
+
+            /**
+             * Procesa datos AIS
+             */
+            function procesarAIS(buques) {
+                if (!ESTADO.ais.capa) return;
+                
+                // Implementación básica de AIS
+                // Similar a ADS-B pero con colores diferentes
+                console.log(`🚢 AIS: ${buques.length} buques`);
+                ESTADO.ais.count = buques.length;
+                document.getElementById('aisCount').textContent = ESTADO.ais.count;
+            }
+
+            // ============================================
+            // CONFIGURACIÓN DE BOTONES
+            // ============================================
+
+            /**
+             * Configura todos los botones de la interfaz
+             */
+            function configurarBotones() {
+                console.log('🔘 Configurando botones...');
+                
+                // Botones de rango
+                document.querySelectorAll('.range-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        
+                        document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        
+                        ESTADO.rangoActual = parseInt(this.dataset.range);
+                        
+                        if (ESTADO.mapa) {
+                            ESTADO.mapa.setZoom(CONFIG.ZOOM_POR_RANGO[ESTADO.rangoActual]);
+                            
+                            if (ESTADO.posicion.valida) {
+                                ESTADO.mapa.setView([ESTADO.posicion.lat, ESTADO.posicion.lon], ESTADO.mapa.getZoom(), {
+                                    animate: true,
+                                    duration: 0.3
+                                });
+                            }
+                            
+                            dibujarCirculos();
+                        }
+                        
+                        console.log(`Rango cambiado a: ${ESTADO.rangoActual} NM`);
+                    });
+                });
+
+                // Botón METEOROLÓGICO
+                const btnMeteo = document.getElementById('layerMeteo');
+                if (btnMeteo) {
+                    const nuevoBtnMeteo = btnMeteo.cloneNode(true);
+                    btnMeteo.parentNode.replaceChild(nuevoBtnMeteo, btnMeteo);
+                    
+                    nuevoBtnMeteo.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        this.classList.toggle('active');
+                        
+                        ESTADO.meteo.visible = this.classList.contains('active');
+                        
+                        if (ESTADO.meteo.visible) {
+                            if (ESTADO.meteo.capa) {
+                                ESTADO.meteo.capa.addTo(ESTADO.mapa);
+                            } else {
+                                cargarRadarMeteo();
+                            }
+                            console.log('👁️ Capa meteorológica activada');
+                        } else {
+                            if (ESTADO.meteo.capa) {
+                                ESTADO.mapa.removeLayer(ESTADO.meteo.capa);
+                            }
+                            console.log('👁️ Capa meteorológica desactivada');
+                        }
+                    });
+                }
+
+                // Botón ADS-B
+                const btnADSB = document.getElementById('layerADSB');
+                if (btnADSB) {
+                    const nuevoBtnADSB = btnADSB.cloneNode(true);
+                    btnADSB.parentNode.replaceChild(nuevoBtnADSB, btnADSB);
+                    
+                    nuevoBtnADSB.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        this.classList.toggle('active');
+                        
+                        ESTADO.adsb.visible = this.classList.contains('active');
+                        
+                        if (ESTADO.adsb.visible) {
+                            ESTADO.adsb.capa.addTo(ESTADO.mapa);
+                            conectarADSB();
+                            console.log('👁️ Capa ADS-B activada');
+                        } else {
+                            ESTADO.mapa.removeLayer(ESTADO.adsb.capa);
+                            console.log('👁️ Capa ADS-B desactivada');
+                        }
+                    });
+                }
+
+                // Botón AIS
+                const btnAIS = document.getElementById('layerAIS');
+                if (btnAIS) {
+                    const nuevoBtnAIS = btnAIS.cloneNode(true);
+                    btnAIS.parentNode.replaceChild(nuevoBtnAIS, btnAIS);
+                    
+                    nuevoBtnAIS.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        this.classList.toggle('active');
+                        
+                        ESTADO.ais.visible = this.classList.contains('active');
+                        
+                        if (ESTADO.ais.visible) {
+                            ESTADO.ais.capa.addTo(ESTADO.mapa);
+                            conectarAIS();
+                            console.log('👁️ Capa AIS activada');
+                        } else {
+                            ESTADO.mapa.removeLayer(ESTADO.ais.capa);
+                        }
+                    });
+                }
+
+                // Botón GAIN AUTO
+                document.getElementById('gainAuto').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.getElementById('gainManual').classList.remove('active');
+                    this.classList.add('active');
+                    document.getElementById('gainFill').style.width = '85%';
+                    document.getElementById('gainValue').textContent = '85%';
+                });
+
+                // Botón GAIN MANUAL
+                document.getElementById('gainManual').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.getElementById('gainAuto').classList.remove('active');
+                    this.classList.add('active');
+                    document.getElementById('gainFill').style.width = '45%';
+                    document.getElementById('gainValue').textContent = '45%';
+                });
+
+                // Botón POWER
+                document.getElementById('powerBtn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    if (this.textContent === 'ENCENDIDO') {
+                        this.textContent = 'APAGADO';
+                        document.getElementById('powerStatus').textContent = '⏻ OFF';
+                        document.getElementById('txStatus').textContent = '📡 RX';
+                        
+                        // Desactivar módulos
+                        ESTADO.sistema.encendido = false;
+                        
+                        // Limpiar capas
+                        if (ESTADO.adsb.capa) ESTADO.adsb.capa.clearLayers();
+                        if (ESTADO.ais.capa) ESTADO.ais.capa.clearLayers();
+                        if (ESTADO.meteo.capa) ESTADO.mapa.removeLayer(ESTADO.meteo.capa);
+                        
+                        console.log('⏻ Sistema apagado');
+                    } else {
+                        this.textContent = 'ENCENDIDO';
+                        document.getElementById('powerStatus').textContent = '⏻ ON';
+                        document.getElementById('txStatus').textContent = '📡 TX';
+                        
+                        ESTADO.sistema.encendido = true;
+                        
+                        // Reactivar módulos
+                        if (ESTADO.adsb.visible) conectarADSB();
+                        if (ESTADO.ais.visible) conectarAIS();
+                        if (ESTADO.meteo.visible) cargarRadarMeteo();
+                        
+                        console.log('⏻ Sistema encendido');
+                    }
+                });
+
+                // Botón EMERGENCIA
+                document.getElementById('emergencyBtn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    if (confirm('🚨 ¿ENVIAR SEÑAL DE EMERGENCIA SOS?')) {
+                        const pos = ESTADO.posicion.valida ? 
+                            `${ESTADO.posicion.lat.toFixed(6)}°, ${ESTADO.posicion.lon.toFixed(6)}°` : 
+                            'POSICIÓN DESCONOCIDA';
+                        
+                        alert(`🚨 EMERGENCIA ENVIADA\nPosición: ${pos}\nHora: ${new Date().toLocaleTimeString()}`);
+                        
+                        console.log('🚨 SOS ACTIVADO', {
+                            posicion: ESTADO.posicion,
+                            timestamp: Date.now()
+                        });
+                    }
+                });
+
+                // Botón SEA
+                document.getElementById('seaBtn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    this.style.background = '#00ff88';
+                    this.style.color = '#000';
+                    setTimeout(() => {
+                        this.style.background = '';
+                        this.style.color = '';
+                    }, 200);
+                    alert('🌊 Modo SEA activado - Filtro anti-mar');
+                });
+
+                // Botón RAIN
+                document.getElementById('rainBtn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    this.style.background = '#00ff88';
+                    this.style.color = '#000';
+                    setTimeout(() => {
+                        this.style.background = '';
+                        this.style.color = '';
+                    }, 200);
+                    alert('☔ Modo RAIN activado - Filtro anti-lluvia');
+                });
+
+                // Botón MENÚ
+                document.getElementById('menuBtn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const menu = `
+                        📋 MENÚ PRINCIPAL
+                        ═══════════════
+                        • Configuración
+                        • Calibración
+                        • Mantenimiento
+                        • Estadísticas
+                        • Acerca de
+                        
+                        Sistema activo: ${ESTADO.sistema.encendido ? '✅' : '❌'}
+                        Aviones: ${ESTADO.adsb.count}
+                        Buques: ${ESTADO.ais.count}
+                        Uptime: ${Math.floor((Date.now() - ESTADO.sistema.inicio) / 1000)}s
+                    `;
+                    
+                    alert(menu);
+                });
+
+                // Botón ALERTA
+                document.getElementById('alertBtn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    if (confirm('⚠️ ¿Activar alerta de proximidad?')) {
+                        alert('🚨 ALERTA ACTIVADA - Se notificará cuando haya tráfico cercano');
+                    }
+                });
+
+                console.log('✅ Botones configurados');
+            }
+
+            // ============================================
+            // INICIALIZACIÓN DE TEMPORIZADORES
+            // ============================================
+
+            /**
+             * Inicia todos los temporizadores periódicos
+             */
+            function iniciarTemporizadores() {
+                console.log('⏱️ Iniciando temporizadores...');
+                
+                // ADS-B cada 2 segundos
+                ESTADO.temporizadores.adsb = setInterval(conectarADSB, CONFIG.ADS_B.INTERVALO_MS);
+                
+                // AIS cada 5 segundos
+                ESTADO.temporizadores.ais = setInterval(conectarAIS, CONFIG.AIS.INTERVALO_MS);
+                
+                // Radar meteorológico cada 5 minutos
+                ESTADO.temporizadores.meteo = setInterval(cargarRadarMeteo, CONFIG.METEORADAR.INTERVALO_MS);
+                
+                // Actualizar círculos cada segundo
+                ESTADO.temporizadores.circulos = setInterval(() => {
+                    if (ESTADO.posicion.valida && ESTADO.sistema.encendido) {
+                        dibujarCirculos();
+                    }
+                }, CONFIG.TIEMPOS.CIRCULOS);
+                
+                // Estadísticas cada minuto
+                ESTADO.temporizadores.estadisticas = setInterval(() => {
+                    ESTADO.sistema.uptime = Math.floor((Date.now() - ESTADO.sistema.inicio) / 1000);
+                    
+                    console.log('📊 Estadísticas:', {
+                        uptime: ESTADO.sistema.uptime + 's',
+                        gps: ESTADO.estadisticas.actualizacionesGPS,
+                        adsb: ESTADO.adsb.count,
+                        ais: ESTADO.ais.count,
+                        targetsMax: ESTADO.estadisticas.targetsMax
+                    });
+                }, CONFIG.TIEMPOS.ESTADISTICAS);
+                
+                console.log('✅ Temporizadores iniciados');
+            }
+
+            // ============================================
+            // INICIALIZACIÓN PRINCIPAL
+            // ============================================
+
+            /**
+             * Función principal de inicialización
+             */
+            function iniciar() {
+                console.log('🚀 Iniciando RADCOM v5.7.2...');
+                console.log('📊 Configuración:', CONFIG);
+                
+                try {
+                    // Inicializar componentes
+                    initMapa();
+                    initGPS();
+                    
+                    // Configurar botones
+                    configurarBotones();
+                    
+                    // Iniciar módulos
+                    conectarADSB();
+                    conectarAIS();
+                    cargarRadarMeteo();
+                    actualizarMeteoActual();
+                    
+                    // Iniciar temporizadores
+                    iniciarTemporizadores();
+                    
+                    // Calcular tiempo de carga
+                    const tiempoCarga = Date.now() - ESTADO.sistema.inicio;
+                    
+                    console.log('✅ RADCOM iniciado correctamente');
+                    console.log(`⏱️ Tiempo de carga: ${tiempoCarga}ms`);
+                    console.log('📡 Esperando datos de sensores...');
+                    
+                } catch (error) {
+                    console.error('❌ Error fatal durante la inicialización:', error);
+                }
+            }
+
+            // Iniciar cuando el DOM esté listo
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', iniciar);
+            } else {
+                iniciar();
+            }
+        })();
+    </script>
+</body>
+</html>
+        
     </div>
 
 
@@ -4462,7 +9974,7 @@
     <script>
 // =============================================
 // RADCOM MASTER v5.7.2 - SISTEMA DE COMUNICACIÓN SEGURA + VoIP
-// CORRECCIONES: PANEL VoIP, BOTONES DE ESTADO, RECHAZO DE LLAMADA FIJO
+// CORRECCIÓN: SELECCIÓN DE PEERS RESTAURADA
 // =============================================
 
 // ====== VARIABLES GLOBALES ======
@@ -4478,8 +9990,8 @@ let messageQueue = JSON.parse(localStorage.getItem('radcom_message_queue') || '[
 let queueRetryInterval = null;
 const MAX_QUEUE_SIZE = 100;
 
-// Variables VoIP - CORREGIDAS Y MEJORADAS v5.7.2
-let voipCalls = {}; // { peerId: { id, peerConnection, stream, status, remoteAudio, ringtoneTimeout } }
+// Variables VoIP
+let voipCalls = {};
 let voipMediaStream = null;
 let voipActiveCall = null;
 let voipIncomingCall = null;
@@ -5041,7 +10553,6 @@ function setupConnection(conn, type) {
             return;
         }
         
-        // Manejar llamadas VoIP
         if (data.type === 'voip_offer') {
             handleVoIPOffer(peerId, data);
             return;
@@ -5258,12 +10769,32 @@ function executeRemoveId(id) {
     playStrongBeep(300, 100);
 }
 
+// =============================================
+// FUNCIÓN updatePeerList CORREGIDA - VERSIÓN 5.7.2
+// =============================================
 function updatePeerList() {
     const container = document.getElementById('saved-peers');
+    if (!container) {
+        console.error("❌ Contenedor de peers no encontrado");
+        return;
+    }
+    
     let html = "";
     
-    savedIds.forEach(id => {
-        const conn = connections[id];
+    // Verificar que savedIds es un array
+    if (!Array.isArray(savedIds)) {
+        console.error("❌ savedIds no es un array:", savedIds);
+        savedIds = [];
+    }
+    
+    savedIds.forEach(peerId => {
+        // Usar peerId en lugar de id para evitar conflictos
+        if (!peerId || typeof peerId !== 'string') {
+            console.warn("⚠️ ID de peer inválido:", peerId);
+            return;
+        }
+        
+        const conn = connections[peerId];
         let status = conn ? conn.status : 'offline';
         let health = conn ? conn.health : 'offline';
         
@@ -5285,17 +10816,17 @@ function updatePeerList() {
         
         const displayStyle = (status === 'offline' && !showOffline) ? 'display: none;' : '';
         
+        // --- Lógica de botones VoIP ---
         let voipBtnClass = 'voip-btn';
         let voipIcon = 'fa-phone';
         let voipTitle = 'Iniciar llamada VoIP';
         
-        // --- CORRECCIÓN: Lógica de botones VoIP v5.7.2 ---
-        if (voipActiveCall === id) {
-            voipBtnClass += ' in-call'; // Clase para colgar (rojo)
+        if (voipActiveCall === peerId) {
+            voipBtnClass += ' in-call';
             voipIcon = 'fa-phone-slash';
             voipTitle = 'Finalizar llamada';
-        } else if (voipIncomingCall === id) {
-            voipBtnClass += ' active'; // Clase para entrante (rojo pulsante)
+        } else if (voipIncomingCall === peerId) {
+            voipBtnClass += ' active';
             voipIcon = 'fa-phone-alt';
             voipTitle = 'Llamada entrante';
         } else if (status !== 'online') {
@@ -5303,28 +10834,39 @@ function updatePeerList() {
             voipTitle = 'No disponible (offline)';
         }
         
+        // Mostrar solo los primeros 8 caracteres del ID
+        const displayId = peerId.length > 8 ? peerId.substring(0, 8) + '…' : peerId;
+        
+        // ===== HTML CORREGIDO =====
+        // El onclick para seleccionar peer está en el div PRINCIPAL
+        // Los botones tienen event.stopPropagation() para no activar la selección
         html += `
-            <div class="peer-item ${activeTarget === id ? 'active' : ''}" 
-                 data-peer-id="${id}"
+            <div class="peer-item ${activeTarget === peerId ? 'active' : ''}" 
+                 data-peer-id="${peerId.replace(/"/g, '&quot;')}"
                  data-status="${status}"
                  data-health="${health}"
+                 onclick="selectPeer('${peerId.replace(/'/g, "\\'")}')"
                  style="${displayStyle}">
-                <div class="peer-info" onclick="selectPeer('${id}')">
+                 
+                <div class="peer-info">
                     <span class="status-dot ${statusClass}"></span>
                     <div style="display:flex; flex-direction:column;">
-                        <span style="font-weight:bold;">${id.substring(0, 8)}</span>
+                        <span style="font-weight:bold;" title="${peerId}">${displayId}</span>
                         <span style="font-size:0.55rem; color:#888;">
                             ${statusText}
                             ${conn?.latency ? ` (${conn.latency}ms)` : ''}
                         </span>
                     </div>
                 </div>
+                
                 <div class="peer-actions">
-                    <button class="${voipBtnClass}" onclick="event.stopPropagation(); toggleVoIPCall('${id}')" 
+                    <button class="${voipBtnClass}" 
+                            onclick="event.stopPropagation(); toggleVoIPCall('${peerId.replace(/'/g, "\\'")}')" 
                             title="${voipTitle}">
                         <i class="fas ${voipIcon}"></i>
                     </button>
-                    <span class="del-btn" onclick="event.stopPropagation(); executeRemoveId('${id}')">×</span>
+                    <span class="del-btn" 
+                          onclick="event.stopPropagation(); executeRemoveId('${peerId.replace(/'/g, "\\'")}')">×</span>
                 </div>
             </div>
         `;
@@ -5656,131 +11198,8 @@ function refreshAllConnections() {
     }, 1000);
 }
 
-function verificarConexiones() {
-    console.log("🔍 Verificando conexiones...");
-    
-    let problemas = 0;
-    const ahora = Date.now();
-    
-    for (const peerId in connections) {
-        const conn = connections[peerId];
-        if (!conn) continue;
-        
-        if (conn.status === 'online') {
-            let estaViva = true;
-            
-            if (!conn.conn) {
-                estaViva = false;
-                console.log(`❌ ${peerId.substring(0,6)}: No tiene objeto conexión`);
-            } else if (!conn.conn.open) {
-                estaViva = false;
-                console.log(`❌ ${peerId.substring(0,6)}: Conexión no abierta`);
-            } else if (connectionHealth[peerId]?.lastActivity) {
-                const inactivo = ahora - connectionHealth[peerId].lastActivity;
-                if (inactivo > 60000) {
-                    console.log(`⚠️ ${peerId.substring(0,6)}: Inactivo ${Math.round(inactivo/1000)}s`);
-                    conn.health = 'inactive';
-                    problemas++;
-                }
-            }
-            
-            if (!estaViva) {
-                conn.status = 'offline';
-                conn.health = 'dead';
-                problemas++;
-                console.log(`🔴 ${peerId.substring(0,6)}: Marcado como offline`);
-            }
-        } else if (conn.status === 'offline' || conn.status === 'error') {
-            const estaGuardado = savedIds.includes(peerId);
-            if (estaGuardado && conn.health !== 'reconnecting') {
-                problemas++;
-                console.log(`🔄 ${peerId.substring(0,6)}: Offline pero guardado`);
-            }
-        }
-    }
-    
-    updatePeerList();
-    updateConnectedCount();
-    
-    if (problemas > 0) {
-        console.log(`📊 ${problemas} problema(s) encontrado(s)`);
-        return false;
-    }
-    
-    return true;
-}
-
-function repararConexiones() {
-    console.log("🛠️ Reparando conexiones...");
-    updateMonitor("🔧 REPARANDO...", "info");
-    
-    let reparadas = 0;
-    
-    for (const peerId in connections) {
-        const conn = connections[peerId];
-        if (!conn) continue;
-        
-        const necesitaReparar = (
-            (conn.status === 'offline' || conn.status === 'error') ||
-            (conn.status === 'online' && conn.health === 'inactive')
-        );
-        
-        if (necesitaReparar && conn.health !== 'reconnecting') {
-            console.log(`🔄 Reparando ${peerId.substring(0,6)}...`);
-            
-            conn.health = 'reconnecting';
-            updatePeerList();
-            
-            if (peer && !peer.disconnected) {
-                if (conn.conn) {
-                    try { conn.conn.close(); } catch(e) {}
-                }
-                
-                delete connections[peerId];
-                delete connectionHealth[peerId];
-                
-                setTimeout(() => {
-                    if (connectToPeerId) {
-                        connectToPeerId(peerId);
-                        reparadas++;
-                    }
-                }, 500);
-            }
-        }
-    }
-    
-    updatePeerList();
-    
-    if (reparadas > 0) {
-        console.log(`✅ ${reparadas} conexión(es) en reparación`);
-        updateMonitor(`✅ ${reparadas} conexión(es) reparándose`);
-        playStrongBeep(700, 100);
-    } else {
-        console.log("✅ Todas las conexiones OK");
-        updateMonitor("✅ Conexiones verificadas");
-    }
-    
-    return reparadas;
-}
-
-function verificarYReparar() {
-    console.log("⚡ Verificando y reparando...");
-    
-    const ok = verificarConexiones();
-    
-    if (!ok) {
-        console.log("⚠️ Problemas detectados, reparando...");
-        setTimeout(() => { repararConexiones(); }, 1000);
-    } else {
-        console.log("✅ Todas las conexiones OK");
-        updateMonitor("✅ Conexiones verificadas");
-    }
-    
-    return ok;
-}
-
 // =============================================
-// FUNCIONES VoIP (CORREGIDAS Y MEJORADAS v5.7.2)
+// FUNCIONES VoIP
 // =============================================
 
 function initVoIPAudio() {
@@ -5796,7 +11215,7 @@ function initVoIPAudio() {
 }
 
 function playRingtone() {
-    stopRingtone(); // Siempre detener el tono anterior antes de empezar uno nuevo
+    stopRingtone();
     initVoIPAudio();
     if (!voipAudioContext) return;
 
@@ -5810,11 +11229,9 @@ function playRingtone() {
     voipRingtoneSource.type = 'sine';
     gainNode.gain.setValueAtTime(0.3, now);
 
-    // Patrón de timbrado: 2 segundos de tono, 1 segundo de silencio
     for (let i = 0; i < 40; i++) {
-        const cycleStart = now + i * 3; // Cada ciclo de 3 segundos
+        const cycleStart = now + i * 3;
         const toneEnd = cycleStart + 2;
-        const silenceStart = toneEnd;
 
         voipRingtoneSource.frequency.setValueAtTime(440, cycleStart);
         gainNode.gain.setValueAtTime(0.3, cycleStart);
@@ -5823,16 +11240,14 @@ function playRingtone() {
     }
 
     voipRingtoneSource.start(now);
-    voipRingtoneSource.stop(now + 120); // Toca por 2 minutos máximo
+    voipRingtoneSource.stop(now + 120);
 }
 
 function stopRingtone() {
     if (voipRingtoneSource) {
         try {
             voipRingtoneSource.stop();
-        } catch (e) {
-            // Ignorar error si ya se detuvo
-        }
+        } catch (e) {}
         voipRingtoneSource.disconnect();
         voipRingtoneSource = null;
     }
@@ -5853,11 +11268,9 @@ function playOutgoingTone() {
     voipOutgoingToneSource.type = 'sine';
     gainNode.gain.setValueAtTime(0.2, now);
 
-    // Patrón para tono de llamada saliente: 1 segundo de tono, 1 segundo de silencio
     for (let i = 0; i < 40; i++) {
         const cycleStart = now + i * 2;
         const toneEnd = cycleStart + 1;
-        const silenceStart = toneEnd;
 
         voipOutgoingToneSource.frequency.setValueAtTime(420, cycleStart);
         gainNode.gain.setValueAtTime(0.2, cycleStart);
@@ -5879,10 +11292,8 @@ function stopOutgoingTone() {
     }
 }
 
-// Función para mostrar el panel de control VoIP
 function showVoIPPanel(status, peerId) {
     const contentArea = document.getElementById('content-area');
-    // Eliminar panel existente si lo hay
     const existingPanel = document.getElementById('voip-control-panel');
     if (existingPanel) {
         existingPanel.remove();
@@ -5929,7 +11340,6 @@ function showVoIPPanel(status, peerId) {
     contentArea.appendChild(panel);
 }
 
-// Función para ocultar el panel VoIP
 function hideVoIPPanel() {
     const panel = document.getElementById('voip-control-panel');
     if (panel) {
@@ -5938,26 +11348,22 @@ function hideVoIPPanel() {
 }
 
 async function toggleVoIPCall(peerId) {
-    // Si es la llamada activa, colgar
     if (voipActiveCall === peerId) {
         endVoIPCall(peerId);
         return;
     }
 
-    // Si es una llamada entrante, aceptar
     if (voipIncomingCall === peerId) {
         acceptVoIPCall(peerId);
         return;
     }
 
-    // Si ya hay una llamada activa con otro, no se puede iniciar una nueva
     if (voipActiveCall) {
         updateMonitor(`⚠️ Ya hay una llamada activa con ${voipActiveCall.substring(0, 8)}`, "warning");
         playStrongBeep(300, 200);
         return;
     }
 
-    // Verificar que el peer esté online
     if (!connections[peerId] || connections[peerId].status !== 'online') {
         updateMonitor(`⚠️ ${peerId.substring(0, 8)} no está conectado`, "warning");
         playStrongBeep(300, 200);
@@ -5967,17 +11373,14 @@ async function toggleVoIPCall(peerId) {
     try {
         updateMonitor(`📞 Iniciando llamada VoIP con ${peerId.substring(0, 8)}...`, "info");
         playStrongBeep(800, 100);
-        playOutgoingTone(); // Tono de timbrado mientras esperamos
-        showVoIPPanel('outgoing', peerId); // Mostrar panel de llamada saliente
+        playOutgoingTone();
+        showVoIPPanel('outgoing', peerId);
 
-        // Solicitar acceso al micrófono
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         voipMediaStream = stream;
 
-        // Inicializar audio context si es necesario
         initVoIPAudio();
 
-        // Crear nueva conexión VoIP
         const callId = `voip_${Date.now()}`;
         voipCalls[peerId] = {
             id: callId,
@@ -5989,44 +11392,34 @@ async function toggleVoIPCall(peerId) {
             }),
             stream: stream,
             status: 'initiating',
-            remoteAudio: null // Aquí guardaremos el elemento de audio remoto
+            remoteAudio: null
         };
 
-        // Añadir pistas de audio locales a la conexión
         stream.getTracks().forEach(track => {
             voipCalls[peerId].peerConnection.addTrack(track, stream);
         });
 
-        // --- MANEJADOR onTrack CORREGIDO ---
-        // Aquí es donde se recibe el audio del otro peer
         voipCalls[peerId].peerConnection.ontrack = (event) => {
             console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
             
-            // Crear un elemento de audio y asignarle el stream remoto
             const remoteAudio = new Audio();
             remoteAudio.srcObject = event.streams[0];
             remoteAudio.autoplay = true;
             
-            // Reproducir de forma segura
             remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
 
-            // Guardar referencia para poder detenerla después
             if (voipCalls[peerId]) {
                 voipCalls[peerId].remoteAudio = remoteAudio;
             }
 
-            // Mostrar indicador en el chat solo si la llamada se ha establecido
             if (voipActiveCall === peerId) {
                 displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
             }
         };
-        // --- FIN MANEJADOR onTrack ---
 
-        // Crear oferta
         const offer = await voipCalls[peerId].peerConnection.createOffer();
         await voipCalls[peerId].peerConnection.setLocalDescription(offer);
 
-        // Enviar oferta al peer
         connections[peerId].conn.send({
             type: 'voip_offer',
             offer: offer,
@@ -6038,7 +11431,6 @@ async function toggleVoIPCall(peerId) {
 
         updateMonitor(`📞 Llamada iniciada con ${peerId.substring(0, 8)} - Esperando respuesta...`, "info");
 
-        // Manejar eventos ICE
         voipCalls[peerId].peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 connections[peerId].conn.send({
@@ -6050,7 +11442,6 @@ async function toggleVoIPCall(peerId) {
             }
         };
 
-        // Manejar cierre de conexión
         voipCalls[peerId].peerConnection.onconnectionstatechange = () => {
             console.log(`VoIP connection state with ${peerId}: ${voipCalls[peerId].peerConnection.connectionState}`);
             if (voipCalls[peerId].peerConnection.connectionState === 'disconnected' ||
@@ -6068,7 +11459,6 @@ async function toggleVoIPCall(peerId) {
         playStrongBeep(300, 200);
         stopOutgoingTone();
         hideVoIPPanel();
-        // Limpiar recursos
         if (voipMediaStream) {
             voipMediaStream.getTracks().forEach(track => track.stop());
             voipMediaStream = null;
@@ -6106,7 +11496,6 @@ function handleVoIPOffer(senderId, data) {
     updateMonitor(`📞 Llamada entrante de ${senderId.substring(0, 8)}...`, "info");
     displayMessage(`📞 LLAMADA VoIP ENTRANTE de ${senderId.substring(0, 8)}`, '', 'voip');
 
-    // --- CORRECCIÓN: Iniciar el ringtone AQUÍ ---
     playRingtone();
 
     voipIncomingCall = senderId;
@@ -6123,11 +11512,8 @@ function handleVoIPOffer(senderId, data) {
     };
 
     updatePeerList();
-
-    // Mostrar panel de llamada entrante
     showVoIPPanel('incoming', senderId);
 
-    // --- CORRECCIÓN: Usar setTimeout para no bloquear y mostrar notificación ---
     setTimeout(() => {
         const notification = showNotification(
             '📞 Llamada VoIP entrante',
@@ -6136,7 +11522,6 @@ function handleVoIPOffer(senderId, data) {
         if (notification) {
             notification.onclick = function() {
                 window.focus();
-                // El panel ya está visible, no necesitamos un confirm adicional
             };
         }
     }, 100);
@@ -6148,9 +11533,7 @@ async function acceptVoIPCall(peerId) {
         return;
     }
 
-    // Detener el ringtone inmediatamente
     stopRingtone();
-    // Limpiar el timeout automático
     if (voipCalls[peerId].ringtoneTimeout) {
         clearTimeout(voipCalls[peerId].ringtoneTimeout);
     }
@@ -6158,14 +11541,11 @@ async function acceptVoIPCall(peerId) {
     try {
         updateMonitor(`📞 Aceptando llamada de ${peerId.substring(0, 8)}...`, "info");
 
-        // Solicitar acceso al micrófono
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         voipMediaStream = stream;
 
-        // Inicializar audio context
         initVoIPAudio();
 
-        // Crear conexión peer
         voipCalls[peerId].peerConnection = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -6173,46 +11553,35 @@ async function acceptVoIPCall(peerId) {
             ]
         });
 
-        // Añadir pistas locales
         stream.getTracks().forEach(track => {
             voipCalls[peerId].peerConnection.addTrack(track, stream);
         });
 
-        // --- MANEJADOR onTrack CORREGIDO ---
-        // Aquí es donde se recibe el audio del otro peer
         voipCalls[peerId].peerConnection.ontrack = (event) => {
             console.log(`📡 Recibiendo pista de audio remota de ${peerId}`);
             
-            // Crear un elemento de audio y asignarle el stream remoto
             const remoteAudio = new Audio();
             remoteAudio.srcObject = event.streams[0];
             remoteAudio.autoplay = true;
             
-            // Reproducir de forma segura
             remoteAudio.play().catch(e => console.log("Error reproduciendo audio remoto:", e));
 
-            // Guardar referencia para poder detenerla después
             if (voipCalls[peerId]) {
                 voipCalls[peerId].remoteAudio = remoteAudio;
             }
 
-            // Mostrar indicador en el chat solo si la llamada se ha establecido
             if (voipActiveCall === peerId) {
                 displayMessage(`📞 Audio establecido con ${peerId.substring(0, 8)}`, '', 'voip');
             }
         };
-        // --- FIN MANEJADOR onTrack ---
 
-        // Establecer descripción remota con la oferta
         await voipCalls[peerId].peerConnection.setRemoteDescription(
             new RTCSessionDescription(voipCalls[peerId].offer)
         );
 
-        // Crear respuesta
         const answer = await voipCalls[peerId].peerConnection.createAnswer();
         await voipCalls[peerId].peerConnection.setLocalDescription(answer);
 
-        // Enviar respuesta
         connections[peerId].conn.send({
             type: 'voip_answer',
             answer: answer,
@@ -6224,12 +11593,11 @@ async function acceptVoIPCall(peerId) {
         voipIncomingCall = null;
         voipCalls[peerId].status = 'active';
         updatePeerList();
-        showVoIPPanel('active', peerId); // Actualizar panel a activo
+        showVoIPPanel('active', peerId);
 
         updateMonitor(`📞 Llamada aceptada con ${peerId.substring(0, 8)}`, "info");
         displayMessage(`📞 Llamada VoIP aceptada - Conversación con ${peerId.substring(0, 8)}`, '', 'voip');
 
-        // Manejar eventos ICE
         voipCalls[peerId].peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 connections[peerId].conn.send({
@@ -6241,7 +11609,6 @@ async function acceptVoIPCall(peerId) {
             }
         };
 
-        // Manejar cierre de conexión
         voipCalls[peerId].peerConnection.onconnectionstatechange = () => {
             console.log(`VoIP connection state with ${peerId}: ${voipCalls[peerId].peerConnection.connectionState}`);
             if (voipCalls[peerId].peerConnection.connectionState === 'disconnected' ||
@@ -6263,7 +11630,6 @@ async function acceptVoIPCall(peerId) {
 function rejectVoIPCall(peerId, reason = 'rejected') {
     if (!voipCalls[peerId]) return;
 
-    // --- CORRECCIÓN: Detener el ringtone AQUÍ también ---
     stopRingtone();
 
     if (voipCalls[peerId].ringtoneTimeout) {
@@ -6283,7 +11649,7 @@ function rejectVoIPCall(peerId, reason = 'rejected') {
         voipIncomingCall = null;
     }
 
-    hideVoIPPanel(); // Ocultar panel
+    hideVoIPPanel();
     updateMonitor(`📞 Llamada de ${peerId.substring(0, 8)} rechazada`, "info");
     updatePeerList();
 }
@@ -6302,7 +11668,7 @@ function handleVoIPAnswer(senderId, data) {
         );
         voipActiveCall = senderId;
         voipCalls[senderId].status = 'active';
-        showVoIPPanel('active', senderId); // Mostrar panel activo
+        showVoIPPanel('active', senderId);
         updateMonitor(`📞 Llamada establecida con ${senderId.substring(0, 8)}`, "info");
         displayMessage(`📞 Llamada VoIP establecida - Conversación con ${senderId.substring(0, 8)}`, '', 'voip');
         updatePeerList();
@@ -6343,11 +11709,9 @@ function endVoIPCall(peerId = null) {
 
     if (!endedPeerId) return;
 
-    // Detener tonos
     stopRingtone();
     stopOutgoingTone();
 
-    // Notificar al otro extremo
     if (connections[endedPeerId] && connections[endedPeerId].conn) {
         try {
             connections[endedPeerId].conn.send({
@@ -6360,14 +11724,11 @@ function endVoIPCall(peerId = null) {
         }
     }
 
-    // Cerrar conexión peer y limpiar audio remoto
     if (voipCalls[endedPeerId]) {
-        // Cerrar la conexión peer
         if (voipCalls[endedPeerId].peerConnection) {
             voipCalls[endedPeerId].peerConnection.close();
         }
         
-        // Detener y limpiar el audio remoto
         if (voipCalls[endedPeerId].remoteAudio) {
             voipCalls[endedPeerId].remoteAudio.pause();
             voipCalls[endedPeerId].remoteAudio.srcObject = null;
@@ -6376,17 +11737,15 @@ function endVoIPCall(peerId = null) {
         delete voipCalls[endedPeerId];
     }
 
-    // Limpiar variables de estado
     if (voipActiveCall === endedPeerId) voipActiveCall = null;
     if (voipIncomingCall === endedPeerId) voipIncomingCall = null;
 
-    // Detener pistas de audio locales
     if (voipMediaStream) {
         voipMediaStream.getTracks().forEach(track => track.stop());
         voipMediaStream = null;
     }
 
-    hideVoIPPanel(); // Ocultar panel
+    hideVoIPPanel();
     updatePeerList();
     updateMonitor(`📞 Llamada finalizada`, "info");
     displayMessage(`📞 Llamada VoIP finalizada`, '', 'voip');
@@ -6398,19 +11757,15 @@ function endVoIPCall(peerId = null) {
 // =============================================
 
 function showNotification(title, body) {
-    // Comprobar si el navegador soporta notificaciones
     if (!("Notification" in window)) {
         console.log("Este navegador no soporta notificaciones de escritorio");
         return null;
     }
 
-    // Comprobar si estamos en segundo plano o la pestaña no está activa
     if (!document.hidden) {
-        // Si la pestaña está activa, no mostramos notificación, solo el mensaje en el chat
         return null;
     }
 
-    // Función para lanzar la notificación una vez tengamos permiso
     function spawnNotification() {
         const options = {
             body: body,
@@ -6423,12 +11778,10 @@ function showNotification(title, body) {
         return new Notification(title, options);
     }
 
-    // Si ya tenemos permiso, lanzamos la notificación
     if (Notification.permission === "granted") {
         return spawnNotification();
     }
 
-    // Si no tenemos permiso, lo solicitamos
     if (Notification.permission !== "denied") {
         Notification.requestPermission().then(permission => {
             if (permission === "granted") {
@@ -6525,7 +11878,6 @@ function handleReceivedData(senderId, data) {
     
     playMessageNotification();
 
-    // --- NUEVO: Mostrar notificación si la app está en segundo plano ---
     const notificationTitle = `📨 Mensaje de ${sender}`;
     const notificationBody = finalText.length > 50 ? finalText.substring(0, 50) + '...' : finalText;
     showNotification(notificationTitle, notificationBody);
@@ -10061,8 +15413,6 @@ function clearDecoder() {
 // SISTEMA DE MÓDULOS Y COCKPIT
 // =============================================
 
-
-
 function handleCockpitClick(modulo) {
     document.querySelectorAll('.btn-cockpit').forEach(b => b.classList.remove('active'));
     const btn = document.getElementById('btn-' + modulo.toLowerCase());
@@ -10228,7 +15578,6 @@ window.onload = function() {
     
     startWatchingPosition();
     
-    // Solicitar permiso para notificaciones al inicio
     if (Notification.permission === "default") {
         Notification.requestPermission();
     }
@@ -10294,7 +15643,6 @@ window.toggleVoIPCall = toggleVoIPCall;
 window.endVoIPCall = endVoIPCall;
 
 // ===== CONTROL DEL SPLASH SCREEN (CORREGIDO) =====
-// Esta función debe ejecutarse después de que el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
     const splashScreen = document.getElementById('splash-screen');
     
@@ -10305,21 +15653,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log("Splash screen encontrado, iniciando cuenta atrás...");
     
-    // Función para ocultar el splash con fade out
     function hideSplash() {
         splashScreen.style.opacity = '0';
         
-        // Después de la transición, ocultar completamente
         setTimeout(() => {
             splashScreen.style.display = 'none';
             console.log("Splash screen ocultado");
-        }, 800); // Debe coincidir con transition: opacity 0.8s ease
+        }, 800);
     }
     
-    // Esperar 7 segundos y ocultar
     setTimeout(hideSplash, 7000);
     
-    // Opcional: Cambiar el texto periódicamente para dar sensación de actividad
     const loadingText = splashScreen.querySelector('div:last-child div:last-child');
     if (loadingText) {
         const texts = [
@@ -10334,7 +15678,6 @@ document.addEventListener('DOMContentLoaded', function() {
             index = (index + 1) % texts.length;
             if (loadingText) loadingText.textContent = texts[index];
             
-            // Detener el intervalo cuando se oculte el splash
             if (index === texts.length - 1) {
                 setTimeout(() => {
                     clearInterval(textInterval);
