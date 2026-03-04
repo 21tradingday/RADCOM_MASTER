@@ -166,41 +166,7 @@
         }
         .modal-btn.cancel { background: #555; color: white; }
 
-        /* Barra de estado - CORREGIDO con los IDs correctos */
-        .status-bar {
-            position: absolute;
-            bottom: 10px;
-            left: 20px;
-            right: 20px;
-            display: flex;
-            justify-content: space-between;
-            color: #666;
-            font-size: 10px;
-            font-weight: bold;
-        }
-        #game-title {
-            color: #333d77;
-            max-width: 150px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        #fps {
-            color: #a22a5e;
-        }
-        .screen-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #0f380f;
-            background: #9bbc0f;
-            padding: 8px 16px;
-            border-radius: 20px;
-            z-index: 100;
-            border: 2px solid #306230;
-            pointer-events: none;
-        }
+        
     </style>
 </head>
 <body>
@@ -276,11 +242,7 @@
             <div class="slot"></div><div class="slot"></div><div class="slot"></div>
         </div>
         
-        <!-- Barra de estado - AHORA CON IDs CORRECTOS -->
-        <div class="status-bar">
-            <span id="game-title">Sin ROM</span>
-            <span id="fps">-- FPS</span>
-        </div>
+        
     </div>
 </div>
 
@@ -10606,6 +10568,65 @@ window.onload = function() {
         XAudioJSWebAudioContextHandle.suspend();
     } catch (e) {}
 };
+
+// AÑADE ESTO AL FINAL DE TU SCRIPT DE CONTROLES
+
+// Caché de sonidos
+const buttonSounds = {};
+
+// Precargar sonidos (usando Web Audio API)
+function preloadButtonSounds() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContext();
+    
+    // Crear sonidos sintéticos (no necesitas archivos)
+    const sounds = {
+        click: { type: 'sine', freq: 800, duration: 0.02 },
+        dpad: { type: 'square', freq: 600, duration: 0.015 },
+        a: { type: 'sine', freq: 1000, duration: 0.03 },
+        b: { type: 'sine', freq: 700, duration: 0.03 },
+        start: { type: 'triangle', freq: 500, duration: 0.04 },
+        select: { type: 'triangle', freq: 400, duration: 0.04 }
+    };
+    
+    // Función para generar sonido
+    window.playButtonSound = function(buttonName) {
+        if (!audioInitialized) return;
+        
+        const sound = sounds[buttonName] || sounds.click;
+        const ctx = XAudioJSWebAudioContextHandle;
+        
+        if (ctx && ctx.state === 'running') {
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.type = sound.type;
+            oscillator.frequency.value = sound.freq;
+            gainNode.gain.value = 0.1; // Volumen bajo para no molestar
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + sound.duration);
+        }
+    };
+}
+
+// Modificar las funciones pressKey/releaseKey para incluir sonidos
+const originalPressKey = window.pressKey;
+window.pressKey = function(keyId) {
+    // Reproducir sonido según el botón
+    const buttonNames = ['dpad', 'dpad', 'dpad', 'dpad', 'a', 'b', 'select', 'start'];
+    playButtonSound(buttonNames[keyId]);
+    
+    // Llamar a la función original
+    originalPressKey(keyId);
+};
+
+// Inicializar sonidos de botones
+preloadButtonSounds();
+
 // Forzar audio con el primer clic en cualquier parte
 document.body.addEventListener('click', function() {
     if (XAudioJSWebAudioContextHandle && XAudioJSWebAudioContextHandle.state === 'suspended') {
