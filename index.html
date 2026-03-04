@@ -166,8 +166,6 @@
         }
         .modal-btn.cancel { background: #555; color: white; }
 
-		
-
         
     </style>
 </head>
@@ -10399,8 +10397,7 @@ function initNewCanvas() {
 <!-- ===== CÓDIGO DE CONEXIÓN CORREGIDO ===== -->
 <script>
 // Variables de estado
-let powerOn = false;
-let audioInitialized = false;
+
 
 // Inicializar audio
 function initAudio() {
@@ -10545,64 +10542,183 @@ function loadROM() {
 }
 
 // ============================================
-// SOLUCIÓN DEFINITIVA PARA MÓVILES - BLOQUEO TOTAL
+// SOLUCIÓN DEFINITIVA - CON APAGADO Y CAMBIO DE CARTUCHO
 // ============================================
 
 // Variables de estado
+let powerOn = false;
+let audioInitialized = false;
+let touchActive = {};
 
-let touchActive = {};  // Para tracking de toques activos
+// Mapeo de IDs a índices
+const buttonMap = {
+    'btn-right': 0,
+    'btn-left': 1,
+    'btn-up': 2,
+    'btn-down': 3,
+    'btn-a': 4,
+    'btn-b': 5,
+    'btn-select': 6,
+    'btn-start': 7
+};
 
-// Prevenir scroll en toda la página cuando la Game Boy está encendida
-document.body.addEventListener('touchmove', function(e) {
+// ============================================
+// CONTROL DE BLOQUEO DE SCROLL - SOLO CUANDO ESTÁ ENCENDIDA
+// ============================================
+
+function updateScrollLock() {
     if (powerOn) {
-        e.preventDefault();
-        e.stopPropagation();
+        // Bloquear scroll SOLO cuando está encendida
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+        document.body.style.touchAction = 'none';
+    } else {
+        // Restaurar scroll cuando está apagada
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        document.body.style.touchAction = '';
     }
-}, { passive: false });
-
-document.body.addEventListener('touchstart', function(e) {
-    if (powerOn) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-}, { passive: false });
-
-// Inicializar audio
-function initAudio() {
-    if (audioInitialized) return true;
-    if (XAudioJSWebAudioContextHandle) {
-        XAudioJSWebAudioContextHandle.resume().then(() => {
-            audioInitialized = true;
-        }).catch(() => {});
-        return true;
-    }
-    return false;
 }
 
-// Función para encender/apagar
+// ============================================
+// FUNCIONES DE CONTROL DE BOTONES
+// ============================================
+
+function handleButtonPress(keyId) {
+    if (!powerOn || !gameboy) return;
+    GameBoyJoyPadEvent(keyId, true);
+    
+    const btnId = ['btn-right','btn-left','btn-up','btn-down','btn-a','btn-b','btn-select','btn-start'][keyId];
+    const btn = document.getElementById(btnId);
+    if (btn) btn.classList.add('pressed');
+}
+
+function handleButtonRelease(keyId) {
+    if (!gameboy) return;
+    GameBoyJoyPadEvent(keyId, false);
+    
+    const btnId = ['btn-right','btn-left','btn-up','btn-down','btn-a','btn-b','btn-select','btn-start'][keyId];
+    const btn = document.getElementById(btnId);
+    if (btn) btn.classList.remove('pressed');
+}
+
+// ============================================
+// CONFIGURACIÓN DE EVENTOS TÁCTILES
+// ============================================
+
+function setupTouchEvents() {
+    console.log("📱 Configurando eventos táctiles...");
+    
+    Object.keys(buttonMap).forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        
+        const keyId = buttonMap[btnId];
+        
+        // Remover eventos existentes
+        btn.removeEventListener('touchstart', btn._touchStart);
+        btn.removeEventListener('touchend', btn._touchEnd);
+        btn.removeEventListener('touchcancel', btn._touchEnd);
+        btn.removeEventListener('mousedown', btn._mouseDown);
+        btn.removeEventListener('mouseup', btn._mouseUp);
+        btn.removeEventListener('mouseleave', btn._mouseLeave);
+        
+        // Nuevos handlers
+        btn._touchStart = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (powerOn && !touchActive[btnId]) {
+                touchActive[btnId] = true;
+                handleButtonPress(keyId);
+            }
+        };
+        
+        btn._touchEnd = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (touchActive[btnId]) {
+                touchActive[btnId] = false;
+                handleButtonRelease(keyId);
+            }
+        };
+        
+        btn._mouseDown = (e) => {
+            e.preventDefault();
+            if (powerOn) handleButtonPress(keyId);
+        };
+        
+        btn._mouseUp = (e) => {
+            e.preventDefault();
+            handleButtonRelease(keyId);
+        };
+        
+        btn._mouseLeave = (e) => {
+            handleButtonRelease(keyId);
+        };
+        
+        // Asignar eventos
+        btn.addEventListener('touchstart', btn._touchStart, { passive: false });
+        btn.addEventListener('touchend', btn._touchEnd, { passive: false });
+        btn.addEventListener('touchcancel', btn._touchEnd, { passive: false });
+        btn.addEventListener('mousedown', btn._mouseDown);
+        btn.addEventListener('mouseup', btn._mouseUp);
+        btn.addEventListener('mouseleave', btn._mouseLeave);
+    });
+}
+
+// ============================================
+// FUNCIÓN DE ENCENDIDO/APAGADO CORREGIDA
+// ============================================
+
 function togglePower() {
     const pswitch = document.getElementById('p-switch');
     const led = document.getElementById('led');
     
     if (powerOn) {
-        // Apagar
+        // APAGAR
+        console.log('🔴 APAGANDO...');
         powerOn = false;
+        
+        // Limpiar estado táctil
+        touchActive = {};
+        
+        // Quitar efectos visuales
         if (pswitch) pswitch.classList.remove('on');
         if (led) led.classList.remove('on');
+        
+        // Quitar clase 'pressed' de todos los botones
+        Object.keys(buttonMap).forEach(btnId => {
+            const btn = document.getElementById(btnId);
+            if (btn) btn.classList.remove('pressed');
+        });
+        
+        // Pausar emulación
         pause();
+        
+        // Pantalla negra
         const ctx = document.getElementById('screen').getContext('2d');
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, 160, 144);
-        console.log('🔴 APAGADO');
+        
+        // RESTAURAR SCROLL
+        updateScrollLock();
+        
+        console.log('🔴 APAGADO COMPLETO');
+        
     } else {
-        // Encender
+        // ENCENDER
+        console.log('🟢 ENCENDIENDO...');
+        
         if (!gameboy) {
             alert('Primero carga una ROM');
             return;
         }
         
         // Activar audio
-        console.log('🎵 FORZANDO AUDIO...');
         if (window.settings) {
             settings[0] = true;
             settings[3] = 1;
@@ -10620,127 +10736,20 @@ function togglePower() {
         }
         
         powerOn = true;
+        
+        // BLOQUEAR SCROLL
+        updateScrollLock();
+        
         if (pswitch) pswitch.classList.add('on');
         if (led) led.classList.add('on');
+        
         run();
         console.log('🟢 ENCENDIDO');
     }
 }
 
 // ============================================
-// FUNCIONES DE CONTROL DE BOTONES - VERSIÓN TÁCTIL
-// ============================================
-
-// Mapeo de IDs a índices
-const buttonMap = {
-    'btn-right': 0,
-    'btn-left': 1,
-    'btn-up': 2,
-    'btn-down': 3,
-    'btn-a': 4,
-    'btn-b': 5,
-    'btn-select': 6,
-    'btn-start': 7
-};
-
-// Función universal para presionar botón
-function handleButtonPress(keyId) {
-    if (!powerOn || !gameboy) return;
-    GameBoyJoyPadEvent(keyId, true);
-    
-    const btnId = ['btn-right','btn-left','btn-up','btn-down','btn-a','btn-b','btn-select','btn-start'][keyId];
-    const btn = document.getElementById(btnId);
-    if (btn) btn.classList.add('pressed');
-}
-
-// Función universal para soltar botón
-function handleButtonRelease(keyId) {
-    if (!gameboy) return;
-    GameBoyJoyPadEvent(keyId, false);
-    
-    const btnId = ['btn-right','btn-left','btn-up','btn-down','btn-a','btn-b','btn-select','btn-start'][keyId];
-    const btn = document.getElementById(btnId);
-    if (btn) btn.classList.remove('pressed');
-}
-
-// ============================================
-// CONFIGURACIÓN DE EVENTOS TÁCTILES
-// ============================================
-
-function setupTouchEvents() {
-    console.log("📱 Configurando eventos táctiles...");
-    
-    // Para cada botón, asignar eventos táctiles directamente
-    Object.keys(buttonMap).forEach(btnId => {
-        const btn = document.getElementById(btnId);
-        if (!btn) return;
-        
-        const keyId = buttonMap[btnId];
-        
-        // Remover eventos existentes (para evitar duplicados)
-        btn.removeEventListener('touchstart', btn._touchStart);
-        btn.removeEventListener('touchend', btn._touchEnd);
-        btn.removeEventListener('touchcancel', btn._touchEnd);
-        btn.removeEventListener('mousedown', btn._mouseDown);
-        btn.removeEventListener('mouseup', btn._mouseUp);
-        btn.removeEventListener('mouseleave', btn._mouseLeave);
-        
-        // Crear nuevos handlers
-        btn._touchStart = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!touchActive[btnId]) {
-                touchActive[btnId] = true;
-                handleButtonPress(keyId);
-            }
-        };
-        
-        btn._touchEnd = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (touchActive[btnId]) {
-                touchActive[btnId] = false;
-                handleButtonRelease(keyId);
-            }
-        };
-        
-        btn._mouseDown = (e) => {
-            e.preventDefault();
-            handleButtonPress(keyId);
-        };
-        
-        btn._mouseUp = (e) => {
-            e.preventDefault();
-            handleButtonRelease(keyId);
-        };
-        
-        btn._mouseLeave = (e) => {
-            handleButtonRelease(keyId);
-        };
-        
-        // Asignar eventos con passive: false para poder prevenir scroll
-        btn.addEventListener('touchstart', btn._touchStart, { passive: false });
-        btn.addEventListener('touchend', btn._touchEnd, { passive: false });
-        btn.addEventListener('touchcancel', btn._touchEnd, { passive: false });
-        btn.addEventListener('mousedown', btn._mouseDown);
-        btn.addEventListener('mouseup', btn._mouseUp);
-        btn.addEventListener('mouseleave', btn._mouseLeave);
-        
-        console.log(`✅ Botón configurado: ${btnId}`);
-    });
-    
-    // Bloquear cualquier intento de scroll en el área de juego
-    const gameArea = document.querySelector('.gameboy, .gameboy-container');
-    if (gameArea) {
-        gameArea.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        }, { passive: false });
-    }
-}
-
-// ============================================
-// FUNCIONES DE CARGA DE ROM
+// FUNCIÓN DE CARGA DE ROM MEJORADA
 // ============================================
 
 function loadROM() {
@@ -10757,13 +10766,18 @@ function loadROM() {
         try {
             const romData = e.target.result;
             
+            // SI ESTÁ ENCENDIDA, APAGAR PRIMERO
+            if (powerOn) {
+                togglePower(); // Apagar
+            }
+            
             // Detener emulación anterior
             clearLastEmulation();
             
             // Iniciar emulador
             start(document.getElementById('screen'), romData);
             
-            // Leer título del header
+            // Leer título
             let title = '';
             for (let i = 0x134; i < 0x143; i++) {
                 if (i >= romData.length) break;
@@ -10772,22 +10786,27 @@ function loadROM() {
                 title += String.fromCharCode(c);
             }
             
-            // Actualizar elementos visuales
+            // Actualizar ranura
             const slotEl = document.getElementById('slot');
             if (slotEl) slotEl.setAttribute('data-label', (title || file.name).slice(0, 8).toUpperCase());
             
             // Cerrar modal
             document.getElementById('cart-modal').style.display = 'none';
             
-            // Asegurar que la consola esté apagada
+            // Asegurar que está apagada
             powerOn = false;
+            updateScrollLock();
+            
             const pswitch = document.getElementById('p-switch');
             const led = document.getElementById('led');
             if (pswitch) pswitch.classList.remove('on');
             if (led) led.classList.remove('on');
             
-            // Reconfigurar eventos táctiles (por si el DOM cambió)
-            setTimeout(setupTouchEvents, 500);
+            // Limpiar efectos de botones
+            Object.keys(buttonMap).forEach(btnId => {
+                const btn = document.getElementById(btnId);
+                if (btn) btn.classList.remove('pressed');
+            });
             
             // Mostrar mensaje
             const msg = document.getElementById('screen-message');
@@ -10797,6 +10816,8 @@ function loadROM() {
                 setTimeout(() => { msg.style.display = 'none'; }, 2000);
             }
             
+            console.log('✅ ROM cargada. Usa el interruptor para encender.');
+            
         } catch (error) {
             alert('Error: ' + error.message);
         }
@@ -10805,13 +10826,41 @@ function loadROM() {
 }
 
 // ============================================
-// KEYBOARD SUPPORT (para debug en PC)
+// INICIALIZACIÓN
+// ============================================
+
+window.onload = function() {
+    // Pantalla negra
+    const ctx = document.getElementById('screen').getContext('2d');
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 160, 144);
+    
+    // Crear contexto de audio
+    try {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        XAudioJSWebAudioContextHandle = new AudioContext();
+        XAudioJSWebAudioContextHandle.suspend();
+    } catch (e) {}
+    
+    // Configurar eventos táctiles
+    setupTouchEvents();
+    
+    // Click en ranura para cargar ROM
+    document.getElementById('slot').onclick = function() {
+        document.getElementById('cart-modal').style.display = 'block';
+    };
+};
+
+// ============================================
+// KEYBOARD SUPPORT
 // ============================================
 
 document.addEventListener('keydown', (e) => {
     if (!powerOn) return;
-    e.preventDefault();
     const key = e.key.toLowerCase();
+    if (['arrowright', 'arrowleft', 'arrowup', 'arrowdown', 'z', 'x', 'shift', 'enter'].includes(key)) {
+        e.preventDefault();
+    }
     if (key === 'arrowright') handleButtonPress(0);
     else if (key === 'arrowleft') handleButtonPress(1);
     else if (key === 'arrowup') handleButtonPress(2);
@@ -10836,27 +10885,6 @@ document.addEventListener('keyup', (e) => {
 });
 
 // ============================================
-// INICIALIZACIÓN
-// ============================================
-
-window.onload = function() {
-    // Pantalla negra
-    const ctx = document.getElementById('screen').getContext('2d');
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, 160, 144);
-    
-    // Crear contexto de audio
-    try {
-        window.AudioContext = window.AudioContext || window.webkitAudioContext;
-        XAudioJSWebAudioContextHandle = new AudioContext();
-        XAudioJSWebAudioContextHandle.suspend();
-    } catch (e) {}
-    
-    // Configurar eventos táctiles
-    setupTouchEvents();
-};
-
-// ============================================
 // MANTENER AUDIO ACTIVO
 // ============================================
 
@@ -10873,6 +10901,8 @@ setInterval(function() {
 // Exponer funciones globalmente
 window.pressKey = handleButtonPress;
 window.releaseKey = handleButtonRelease;
+window.togglePower = togglePower;
+window.loadROM = loadROM;
 
 
 
