@@ -5782,7 +5782,7 @@ GameBoyCore.prototype.GyroEvent = function (x, y) {
 GameBoyCore.prototype.initSound = function () {
 	console.info("INIT SOUND");
 	this.audioResamplerFirstPassFactor = Math.max(Math.min(Math.floor(this.clocksPerSecond / 44100), Math.floor(0xFFFF / 0x1E0)), 1);
-	this.downSampleInputDivider = 0.5 / (this.audioResamplerFirstPassFactor * 0xF0); // Reduced to 0.5 from 1 to half volume.
+	this.downSampleInputDivider = 3.0 / (this.audioResamplerFirstPassFactor * 0xF0); // Reduced to 0.5 from 1 to half volume.
 	if (settings[0]) {
 		this.audioHandle = new XAudioServer(2, this.clocksPerSecond / this.audioResamplerFirstPassFactor, 0, Math.max(this.baseCPUCyclesPerIteration * settings[8] / this.audioResamplerFirstPassFactor, 8192) << 1, null, settings[3], function () {
 			settings[0] = false;
@@ -10412,7 +10412,7 @@ function initAudio() {
     return false;
 }
 
-// Función para encender/apagar - CORREGIDA
+// Función para encender/apagar - CORREGIDA CON AUDIO
 function togglePower() {
     const pswitch = document.getElementById('p-switch');
     const led = document.getElementById('led');
@@ -10423,10 +10423,10 @@ function togglePower() {
         if (pswitch) pswitch.classList.remove('on');
         if (led) led.classList.remove('on');
         pause();
-        // Pantalla negra
         const ctx = document.getElementById('screen').getContext('2d');
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, 160, 144);
+        console.log('🔴 APAGADO');
     } else {
         // Encender
         if (!gameboy) {
@@ -10434,12 +10434,46 @@ function togglePower() {
             return;
         }
         
-        initAudio();
+        // ACTIVAR AUDIO FORZADO
+        console.log('🎵 FORZANDO AUDIO...');
+        
+        // 1. Activar settings
+        if (window.settings) {
+            settings[0] = true;  // Activar sonido
+            settings[3] = 1;      // Volumen máximo
+        }
+        
+        // 2. Reanudar contexto de audio
+        if (window.XAudioJSWebAudioContextHandle) {
+            if (window.XAudioJSWebAudioContextHandle.state === 'suspended') {
+                window.XAudioJSWebAudioContextHandle.resume();
+            }
+        }
+        
+        // 3. Reiniciar audio del juego
+        if (gameboy) {
+            if (gameboy.initSound) {
+                gameboy.initSound();
+            }
+            if (gameboy.changeVolume) {
+                gameboy.changeVolume(1);
+            }
+            // Modificar divisor directamente
+            if (gameboy.downSampleInputDivider) {
+                gameboy.downSampleInputDivider = 3.0 / (gameboy.audioResamplerFirstPassFactor * 0xF0);
+            }
+        }
         
         powerOn = true;
         if (pswitch) pswitch.classList.add('on');
         if (led) led.classList.add('on');
+		// FORZAR AUDIO
+if (window.settings) settings[0] = true;
+if (window.XAudioJSWebAudioContextHandle) {
+    window.XAudioJSWebAudioContextHandle.resume();
+}
         run();
+        console.log('🟢 ENCENDIDO - AUDIO FORZADO');
     }
 }
 
@@ -10568,6 +10602,99 @@ window.onload = function() {
         XAudioJSWebAudioContextHandle.suspend();
     } catch (e) {}
 };
+
+// FORZAR AUDIO ULTRA - Se ejecuta cada segundo
+setInterval(function() {
+    if (powerOn && gameboy) {
+        // Asegurar que el audio está activo
+        if (window.settings) settings[0] = true;
+        
+        // Si el contexto está suspendido, reanudarlo
+        if (window.XAudioJSWebAudioContextHandle && 
+            window.XAudioJSWebAudioContextHandle.state === 'suspended') {
+            window.XAudioJSWebAudioContextHandle.resume();
+            console.log('🔄 Reanudando audio...');
+        }
+    }
+}, 1000);
+
+// ============================================
+// ACTIVADOR DE AUDIO - VERSIÓN CORREGIDA
+// ============================================
+(function() {
+    console.log("🔊 Iniciando activador de audio...");
+    
+    // Función que activa el audio
+    window.activarAudio = function() {
+        console.log("🎵 Activando audio...");
+        
+        // 1. Forzar settings
+        if (window.settings) {
+            window.settings[0] = true;
+            window.settings[3] = 1;
+        }
+        
+        // 2. Reanudar contexto WebAudio
+        if (window.XAudioJSWebAudioContextHandle) {
+            if (window.XAudioJSWebAudioContextHandle.state === 'suspended') {
+                window.XAudioJSWebAudioContextHandle.resume();
+            }
+        } else {
+            // Crear contexto si no existe
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            window.XAudioJSWebAudioContextHandle = new AudioContext();
+        }
+        
+        // 3. Reiniciar audio del juego
+        if (window.gameboy) {
+            if (window.gameboy.initSound) {
+                window.gameboy.initSound();
+            }
+            if (window.gameboy.changeVolume) {
+                window.gameboy.changeVolume(1);
+            }
+        }
+        
+        console.log("✅ Audio activado");
+    };
+    
+    // Interceptar togglePower
+    if (window.togglePower) {
+        var toggleOriginal = window.togglePower;
+        window.togglePower = function() {
+            var resultado = toggleOriginal.apply(this, arguments);
+            setTimeout(window.activarAudio, 200);
+            return resultado;
+        };
+    }
+    
+    // Activar con clic
+    document.body.addEventListener('click', function() {
+        if (window.powerOn) {
+            window.activarAudio();
+        }
+    });
+    
+    // Activar con botón A o START (para cuando pulses START en el menú)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'z' || e.key === 'x') {
+            setTimeout(window.activarAudio, 100);
+        }
+    });
+    
+    console.log("✅ Activador listo");
+})();
+
+// ACTIVADOR DE AUDIO SIMPLE
+document.body.addEventListener('click', function() {
+    if (window.XAudioJSWebAudioContextHandle) {
+        window.XAudioJSWebAudioContextHandle.resume();
+    }
+    if (window.settings) window.settings[0] = true;
+    if (window.gameboy && window.gameboy.initSound) {
+        window.gameboy.initSound();
+    }
+});
 
 </script>
 </body>
