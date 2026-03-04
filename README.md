@@ -166,7 +166,41 @@
         }
         .modal-btn.cancel { background: #555; color: white; }
 
-        
+        /* Barra de estado - CORREGIDO con los IDs correctos */
+        .status-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        #game-title {
+            color: #333d77;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #fps {
+            color: #a22a5e;
+        }
+        .screen-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0f380f;
+            background: #9bbc0f;
+            padding: 8px 16px;
+            border-radius: 20px;
+            z-index: 100;
+            border: 2px solid #306230;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -242,7 +276,11 @@
             <div class="slot"></div><div class="slot"></div><div class="slot"></div>
         </div>
         
-        
+        <!-- Barra de estado - AHORA CON IDs CORRECTOS -->
+        <div class="status-bar">
+            <span id="game-title">Sin ROM</span>
+            <span id="fps">-- FPS</span>
+        </div>
     </div>
 </div>
 
@@ -5782,7 +5820,7 @@ GameBoyCore.prototype.GyroEvent = function (x, y) {
 GameBoyCore.prototype.initSound = function () {
 	console.info("INIT SOUND");
 	this.audioResamplerFirstPassFactor = Math.max(Math.min(Math.floor(this.clocksPerSecond / 44100), Math.floor(0xFFFF / 0x1E0)), 1);
-	this.downSampleInputDivider = 0.8 / (this.audioResamplerFirstPassFactor * 0xF0); // Reduced to 0.5 from 1 to half volume.
+	this.downSampleInputDivider = 0.5 / (this.audioResamplerFirstPassFactor * 0xF0); // Reduced to 0.5 from 1 to half volume.
 	if (settings[0]) {
 		this.audioHandle = new XAudioServer(2, this.clocksPerSecond / this.audioResamplerFirstPassFactor, 0, Math.max(this.baseCPUCyclesPerIteration * settings[8] / this.audioResamplerFirstPassFactor, 8192) << 1, null, settings[3], function () {
 			settings[0] = false;
@@ -10568,10 +10606,21 @@ window.onload = function() {
         XAudioJSWebAudioContextHandle.suspend();
     } catch (e) {}
 };
+// Forzar audio con el primer clic en cualquier parte
+document.body.addEventListener('click', function() {
+    if (XAudioJSWebAudioContextHandle && XAudioJSWebAudioContextHandle.state === 'suspended') {
+        XAudioJSWebAudioContextHandle.resume();
+        console.log('🎵 Audio activado por click');
+    }
+}, { once: true });
 
-
+// También activar con touch para móviles
+document.body.addEventListener('touchstart', function() {
+    if (XAudioJSWebAudioContextHandle && XAudioJSWebAudioContextHandle.state === 'suspended') {
+        XAudioJSWebAudioContextHandle.resume();
+        console.log('🎵 Audio activado por touch');
+    }
+}, { once: true });
 </script>
-
-
 </body>
 </html>
