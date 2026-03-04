@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Game Boy DMG-01 - Emulador CORREGIDO</title>
+    <title>Game Boy DMG-01  USD318884S- Emulador CORREGIDO</title>
     <style>
         /* ===== DISEÑO EXACTO SEGÚN PATENTE USD319277S ===== */
         :root {
@@ -10495,10 +10495,13 @@ function loadROM() {
             // Detener emulación anterior
             clearLastEmulation();
             
-            // Iniciar emulador
+            // INICIAR EMULADOR - ESTO CREA gameboy
             start(document.getElementById('screen'), romData);
             
-            // Leer título del header (solo para mostrar)
+            // VERIFICAR QUE gameboy SE CREÓ
+            console.log("✅ gameboy creado:", !!window.gameboy);
+            
+            // Leer título del header
             let title = '';
             for (let i = 0x134; i < 0x143; i++) {
                 if (i >= romData.length) break;
@@ -10507,22 +10510,17 @@ function loadROM() {
                 title += String.fromCharCode(c);
             }
             
-            // Actualizar elementos visuales (con comprobación de null)
+            // Actualizar elementos visuales
             const gameTitleEl = document.getElementById('game-title');
-            if (gameTitleEl) {
-                gameTitleEl.textContent = title || file.name.slice(0, 15);
-            }
+            if (gameTitleEl) gameTitleEl.textContent = title || file.name.slice(0, 15);
             
             const slotEl = document.getElementById('slot');
-            if (slotEl) {
-                slotEl.setAttribute('data-label', (title || file.name).slice(0, 8).toUpperCase());
-            }
+            if (slotEl) slotEl.setAttribute('data-label', (title || file.name).slice(0, 8).toUpperCase());
             
             // Cerrar modal
-            const modal = document.getElementById('cart-modal');
-            if (modal) modal.style.display = 'none';
+            document.getElementById('cart-modal').style.display = 'none';
             
-            // Asegurar que la consola esté apagada inicialmente
+            // Asegurar que la consola esté apagada
             powerOn = false;
             const pswitch = document.getElementById('p-switch');
             const led = document.getElementById('led');
@@ -10538,27 +10536,108 @@ function loadROM() {
             }
             
         } catch (error) {
-            alert('Error al cargar la ROM: ' + error.message);
-            console.error(error);
+            alert('Error: ' + error.message);
         }
     };
     reader.readAsBinaryString(file);
 }
 
-// Funciones de teclas
-window.pressKey = function(keyId) {
+// ============================================
+// FUNCIÓN PUENTE PARA MÓVILES Y PC
+// ============================================
+window.pressKey = function(keyId, evento) {
+    // Prevenir comportamiento por defecto en móviles (zoom, scroll)
+    if (evento) {
+        evento.preventDefault();
+    }
+    
     if (!powerOn || !gameboy) return;
+    
+    // Llamar a la función original del emulador
     GameBoyJoyPadEvent(keyId, true);
+    
+    // Efecto visual del botón presionado
     const btn = document.getElementById(['btn-right','btn-left','btn-up','btn-down','btn-a','btn-b','btn-select','btn-start'][keyId]);
     if (btn) btn.classList.add('pressed');
 };
 
-window.releaseKey = function(keyId) {
+window.releaseKey = function(keyId, evento) {
+    // Prevenir comportamiento por defecto en móviles
+    if (evento) {
+        evento.preventDefault();
+    }
+    
     if (!gameboy) return;
+    
+    // Llamar a la función original del emulador
     GameBoyJoyPadEvent(keyId, false);
+    
+    // Quitar efecto visual
     const btn = document.getElementById(['btn-right','btn-left','btn-up','btn-down','btn-a','btn-b','btn-select','btn-start'][keyId]);
     if (btn) btn.classList.remove('pressed');
 };
+
+// ============================================
+// ASEGURAR QUE LOS BOTONES TENGAN EVENTOS TÁCTILES
+// (Esta parte la ejecuta automáticamente)
+// ============================================
+(function() {
+    console.log("📱 Activando soporte táctil...");
+    
+    // Función para asegurar que todos los botones tengan eventos táctiles
+    function asegurarEventosTactiles() {
+        const botones = [
+            'btn-up', 'btn-down', 'btn-left', 'btn-right',
+            'btn-a', 'btn-b', 'btn-select', 'btn-start'
+        ];
+        
+        botones.forEach((id, index) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                // Solo agregar eventos si no existen (para evitar duplicados)
+                if (!btn.hasAttribute('data-tactil-activado')) {
+                    btn.setAttribute('data-tactil-activado', 'true');
+                    
+                    // Eventos táctiles
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        window.pressKey(index, e);
+                    }, { passive: false });
+                    
+                    btn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        window.releaseKey(index, e);
+                    }, { passive: false });
+                    
+                    btn.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        window.releaseKey(index, e);
+                    }, { passive: false });
+                    
+                    console.log(`✅ Eventos táctiles añadidos a: ${id}`);
+                }
+            }
+        });
+    }
+    
+    // Ejecutar cuando el DOM esté listo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', asegurarEventosTactiles);
+    } else {
+        asegurarEventosTactiles();
+    }
+    
+    // También ejecutar después de cargar ROM (por si se recrean botones)
+    const loadROMOriginal = window.loadROM;
+    if (loadROMOriginal) {
+        window.loadROM = function() {
+            loadROMOriginal.apply(this, arguments);
+            setTimeout(asegurarEventosTactiles, 500);
+        };
+    }
+    
+    console.log("📱 Puente táctil listo");
+})();
 
 // Teclado
 document.addEventListener('keydown', (e) => {
@@ -10695,6 +10774,87 @@ document.body.addEventListener('click', function() {
         window.gameboy.initSound();
     }
 });
+
+
+// ============================================
+// FORZAR AUDIO DEL JUEGO (NO EL PITIDO)
+// ============================================
+(function() {
+    console.log("🎮 FORZANDO AUDIO DEL JUEGO...");
+    
+    // Función que fuerza el audio del emulador
+    function forceGameAudio() {
+        if (!window.gameboy) return false;
+        
+        console.log("🔊 Aplicando fuerza al gameboy...");
+        
+        // 1. Forzar settings
+        if (window.settings) {
+            window.settings[0] = true;  // Activar sonido
+            window.settings[3] = 1;      // Volumen máximo
+        }
+        
+        // 2. Forzar el audio del emulador directamente
+        try {
+            // Reiniciar el sistema de audio del emulador
+            if (window.gameboy.initSound) {
+                window.gameboy.initSound();
+                console.log("✅ initSound ejecutado");
+            }
+            
+            // Forzar volumen
+            if (window.gameboy.changeVolume) {
+                window.gameboy.changeVolume(1);
+                console.log("✅ changeVolume(1) ejecutado");
+            }
+            
+            // ACCESO DIRECTO: Modificar las propiedades internas
+            if (window.gameboy.audioHandle) {
+                console.log("✅ audioHandle existe");
+            }
+            
+            // Forzar el divisor de volumen
+            if (window.gameboy.downSampleInputDivider !== undefined) {
+                window.gameboy.downSampleInputDivider = 3.0;
+                console.log("✅ downSampleInputDivider = 3.0");
+            }
+            
+            // Activar el master de sonido
+            if (window.gameboy.soundMasterEnabled !== undefined) {
+                window.gameboy.soundMasterEnabled = true;
+                console.log("✅ soundMasterEnabled = true");
+            }
+            
+            return true;
+        } catch(e) {
+            console.log("❌ Error:", e);
+            return false;
+        }
+    }
+    
+    // 3. Probar cada segundo mientras el juego esté encendido
+    setInterval(() => {
+        if (window.powerOn && window.gameboy) {
+            console.log("🔄 Intentando activar audio del juego...");
+            forceGameAudio();
+        }
+    }, 2000);
+    
+    // 4. Activar cuando se pulse START (tecla Enter)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && window.powerOn) {
+            setTimeout(forceGameAudio, 500);
+        }
+    });
+    
+    // 5. Activar al hacer clic en la pantalla
+    document.getElementById('screen')?.addEventListener('click', forceGameAudio);
+    
+    console.log("🎮 Sistema listo - El audio del juego se forzará cada 2 segundos");
+})();
+
+
+
 
 </script>
 </body>
