@@ -165,6 +165,7 @@
             cursor: pointer; font-weight: bold; border-radius: 5px;
         }
         .modal-btn.cancel { background: #555; color: white; }
+		
 
         
     </style>
@@ -246,8 +247,10 @@
     </div>
 </div>
 
-<!-- ===== EMPOTRADO: EMULADOR COMPLETO DE GRANT GALITZ ===== -->
+
 <script>
+
+
 // ============================================================================
 // base64.js
 // ============================================================================
@@ -341,9 +344,7 @@ function base64ToArray(b64String) {
     }
     return outArray;
 }
-</script>
 
-<script>
 // ============================================================================
 // resampler.js
 // ============================================================================
@@ -520,9 +521,7 @@ Resampler.prototype.initializeBuffers = function () {
         this.lastOutput = [];
     }
 };
-</script>
 
-<script>
 // ============================================================================
 // XAudioServer.js
 // ============================================================================
@@ -692,9 +691,8 @@ function XAudioJSGetArraySlice(buffer, lengthOf) {
         }
     }
 }
-</script>
 
-<script>
+"use strict";
 // ============================================================================
 // GameBoyCore.js - VERSIÓN COMPLETA (10,000+ líneas)
 // ============================================================================
@@ -5782,7 +5780,7 @@ GameBoyCore.prototype.GyroEvent = function (x, y) {
 GameBoyCore.prototype.initSound = function () {
 	console.info("INIT SOUND");
 	this.audioResamplerFirstPassFactor = Math.max(Math.min(Math.floor(this.clocksPerSecond / 44100), Math.floor(0xFFFF / 0x1E0)), 1);
-	this.downSampleInputDivider = 3.0 / (this.audioResamplerFirstPassFactor * 0xF0); // Reduced to 0.5 from 1 to half volume.
+	this.downSampleInputDivider = 0.5 / (this.audioResamplerFirstPassFactor * 0xF0); // Reduced to 0.5 from 1 to half volume.
 	if (settings[0]) {
 		this.audioHandle = new XAudioServer(2, this.clocksPerSecond / this.audioResamplerFirstPassFactor, 0, Math.max(this.baseCPUCyclesPerIteration * settings[8] / this.audioResamplerFirstPassFactor, 8192) << 1, null, settings[3], function () {
 			settings[0] = false;
@@ -6957,6 +6955,10 @@ GameBoyCore.prototype.processDraw = function (frameBuffer) {
 	this.graphicsBlit();
 	this.drewFrame = false;
 }
+
+
+
+
 GameBoyCore.prototype.swizzleFrameBuffer = function () {
 	//Convert our dirty 24-bit (24-bit, with internal render flags above it) framebuffer to an 8-bit buffer with separate indices for the RGB channels:
 	let frameBuffer = this.frameBuffer;
@@ -10236,12 +10238,15 @@ GameBoyCore.prototype.getTypedArray = function (length, defaultValue, numberType
 	}
 	return arrayHandle;
 }
-</script>
 
-<script>
+
+
+
 // ============================================================================
 // GameBoyIO.js (VERSIÓN COMPLETA Y CORREGIDA)
 // ============================================================================
+"use strict";
+
 let gameboy = null;
 let gbRunInterval = null;
 let settings = [
@@ -10392,10 +10397,10 @@ function initNewCanvas() {
         gameboy.canvas.height = 144;
     }
 }
-</script>
+
 
 <!-- ===== CÓDIGO DE CONEXIÓN CORREGIDO ===== -->
-<script>
+
 // Variables de estado
 
 
@@ -10411,134 +10416,93 @@ function initAudio() {
     return false;
 }
 
-// Función para encender/apagar - CORREGIDA CON AUDIO
+// ============================================
+// FUNCIÓN DE ENCENDIDO/APAGADO - ÚNICA Y CORREGIDA
+// ============================================
 function togglePower() {
     const pswitch = document.getElementById('p-switch');
     const led = document.getElementById('led');
     
     if (powerOn) {
-        // Apagar
+        // ===== APAGAR =====
+        console.log('🔴 APAGANDO...');
         powerOn = false;
+        
+        // Limpiar estado táctil
+        touchActive = {};
+        
+        // Quitar efectos visuales
         if (pswitch) pswitch.classList.remove('on');
         if (led) led.classList.remove('on');
+        
+        // Quitar clase 'pressed' de todos los botones
+        Object.keys(buttonMap).forEach(btnId => {
+            const btn = document.getElementById(btnId);
+            if (btn) btn.classList.remove('pressed');
+        });
+        
+        // Pausar emulación
         pause();
+        
+        // Pantalla negra
         const ctx = document.getElementById('screen').getContext('2d');
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, 160, 144);
-        console.log('🔴 APAGADO');
+        
+        // RESTAURAR SCROLL
+        updateScrollLock();
+        
+        console.log('🔴 APAGADO COMPLETO');
+        
     } else {
-        // Encender
+        // ===== ENCENDER =====
+        console.log('🟢 ENCENDIENDO...');
+        
         if (!gameboy) {
             alert('Primero carga una ROM');
             return;
         }
         
-        // ACTIVAR AUDIO FORZADO
-        console.log('🎵 FORZANDO AUDIO...');
+        // ACTIVAR AUDIO - VERSIÓN CORREGIDA
+        console.log('🎵 ACTIVANDO AUDIO...');
         
         // 1. Activar settings
         if (window.settings) {
-            settings[0] = true;  // Activar sonido
-            settings[3] = 1;      // Volumen máximo
+            settings[0] = true;
+            settings[3] = 1;
         }
         
         // 2. Reanudar contexto de audio
         if (window.XAudioJSWebAudioContextHandle) {
             if (window.XAudioJSWebAudioContextHandle.state === 'suspended') {
-                window.XAudioJSWebAudioContextHandle.resume();
+                window.XAudioJSWebAudioContextHandle.resume().then(() => {
+                    console.log('✅ AudioContext reanudado');
+                }).catch(e => console.warn('Error:', e));
             }
         }
         
-        // 3. Reiniciar audio del juego
+        // 3. Inicializar audio del juego
         if (gameboy) {
-            if (gameboy.initSound) {
-                gameboy.initSound();
-            }
-            if (gameboy.changeVolume) {
-                gameboy.changeVolume(1);
-            }
-            // Modificar divisor directamente
+            if (gameboy.initSound) gameboy.initSound();
+            if (gameboy.changeVolume) gameboy.changeVolume(1);
+            
+            // 4. LÍNEA CRÍTICA PARA EL AUDIO (tomada de la primera función)
             if (gameboy.downSampleInputDivider) {
                 gameboy.downSampleInputDivider = 3.0 / (gameboy.audioResamplerFirstPassFactor * 0xF0);
             }
         }
         
         powerOn = true;
+        
+        // BLOQUEAR SCROLL
+        updateScrollLock();
+        
         if (pswitch) pswitch.classList.add('on');
         if (led) led.classList.add('on');
-		// FORZAR AUDIO
-if (window.settings) settings[0] = true;
-if (window.XAudioJSWebAudioContextHandle) {
-    window.XAudioJSWebAudioContextHandle.resume();
-}
+        
         run();
-        console.log('🟢 ENCENDIDO - AUDIO FORZADO');
+        console.log('🟢 ENCENDIDO CON AUDIO');
     }
-}
-
-// Función de carga de ROM - CORREGIDA (sin game-title problemático)
-function loadROM() {
-    const fileInput = document.getElementById('rom-file');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        alert('Selecciona un archivo ROM');
-        return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const romData = e.target.result;
-            
-            // Detener emulación anterior
-            clearLastEmulation();
-            
-            // INICIAR EMULADOR - ESTO CREA gameboy
-            start(document.getElementById('screen'), romData);
-            
-            // VERIFICAR QUE gameboy SE CREÓ
-            console.log("✅ gameboy creado:", !!window.gameboy);
-            
-            // Leer título del header
-            let title = '';
-            for (let i = 0x134; i < 0x143; i++) {
-                if (i >= romData.length) break;
-                let c = romData.charCodeAt(i);
-                if (c === 0) break;
-                title += String.fromCharCode(c);
-            }
-            
-            // Actualizar elementos visuales
-            const gameTitleEl = document.getElementById('game-title');
-            if (gameTitleEl) gameTitleEl.textContent = title || file.name.slice(0, 15);
-            
-            const slotEl = document.getElementById('slot');
-            if (slotEl) slotEl.setAttribute('data-label', (title || file.name).slice(0, 8).toUpperCase());
-            
-            // Cerrar modal
-            document.getElementById('cart-modal').style.display = 'none';
-            
-            // Asegurar que la consola esté apagada
-            powerOn = false;
-            const pswitch = document.getElementById('p-switch');
-            const led = document.getElementById('led');
-            if (pswitch) pswitch.classList.remove('on');
-            if (led) led.classList.remove('on');
-            
-            // Mostrar mensaje
-            const msg = document.getElementById('screen-message');
-            if (msg) {
-                msg.textContent = 'ROM CARGADA';
-                msg.style.display = 'block';
-                setTimeout(() => { msg.style.display = 'none'; }, 2000);
-            }
-            
-        } catch (error) {
-            alert('Error: ' + error.message);
-        }
-    };
-    reader.readAsBinaryString(file);
 }
 
 // ============================================
@@ -10561,6 +10525,8 @@ const buttonMap = {
     'btn-select': 6,
     'btn-start': 7
 };
+
+
 
 // ============================================
 // CONTROL DE BLOQUEO DE SCROLL - SOLO CUANDO ESTÁ ENCENDIDA
@@ -10670,83 +10636,6 @@ function setupTouchEvents() {
     });
 }
 
-// ============================================
-// FUNCIÓN DE ENCENDIDO/APAGADO CORREGIDA
-// ============================================
-
-function togglePower() {
-    const pswitch = document.getElementById('p-switch');
-    const led = document.getElementById('led');
-    
-    if (powerOn) {
-        // APAGAR
-        console.log('🔴 APAGANDO...');
-        powerOn = false;
-        
-        // Limpiar estado táctil
-        touchActive = {};
-        
-        // Quitar efectos visuales
-        if (pswitch) pswitch.classList.remove('on');
-        if (led) led.classList.remove('on');
-        
-        // Quitar clase 'pressed' de todos los botones
-        Object.keys(buttonMap).forEach(btnId => {
-            const btn = document.getElementById(btnId);
-            if (btn) btn.classList.remove('pressed');
-        });
-        
-        // Pausar emulación
-        pause();
-        
-        // Pantalla negra
-        const ctx = document.getElementById('screen').getContext('2d');
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, 160, 144);
-        
-        // RESTAURAR SCROLL
-        updateScrollLock();
-        
-        console.log('🔴 APAGADO COMPLETO');
-        
-    } else {
-        // ENCENDER
-        console.log('🟢 ENCENDIENDO...');
-        
-        if (!gameboy) {
-            alert('Primero carga una ROM');
-            return;
-        }
-        
-        // Activar audio
-        if (window.settings) {
-            settings[0] = true;
-            settings[3] = 1;
-        }
-        
-        if (window.XAudioJSWebAudioContextHandle) {
-            if (window.XAudioJSWebAudioContextHandle.state === 'suspended') {
-                window.XAudioJSWebAudioContextHandle.resume();
-            }
-        }
-        
-        if (gameboy) {
-            if (gameboy.initSound) gameboy.initSound();
-            if (gameboy.changeVolume) gameboy.changeVolume(1);
-        }
-        
-        powerOn = true;
-        
-        // BLOQUEAR SCROLL
-        updateScrollLock();
-        
-        if (pswitch) pswitch.classList.add('on');
-        if (led) led.classList.add('on');
-        
-        run();
-        console.log('🟢 ENCENDIDO');
-    }
-}
 
 // ============================================
 // FUNCIÓN DE CARGA DE ROM MEJORADA
@@ -10840,6 +10729,7 @@ window.onload = function() {
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         XAudioJSWebAudioContextHandle = new AudioContext();
         XAudioJSWebAudioContextHandle.suspend();
+		console.log('🎵 Audio listo (suspendido)');
     } catch (e) {}
     
     // Configurar eventos táctiles
@@ -10884,28 +10774,477 @@ document.addEventListener('keyup', (e) => {
     else if (key === 'enter') handleButtonRelease(7);
 });
 
-// ============================================
-// MANTENER AUDIO ACTIVO
-// ============================================
-
-setInterval(function() {
-    if (powerOn && gameboy) {
-        if (window.settings) settings[0] = true;
-        if (window.XAudioJSWebAudioContextHandle && 
-            window.XAudioJSWebAudioContextHandle.state === 'suspended') {
-            window.XAudioJSWebAudioContextHandle.resume();
-        }
-    }
-}, 1000);
-
 // Exponer funciones globalmente
 window.pressKey = handleButtonPress;
 window.releaseKey = handleButtonRelease;
 window.togglePower = togglePower;
 window.loadROM = loadROM;
 
-
-
+// ============================================
+// PUENTE PARA MANDOS (GAMEPAD) - VERSIÓN COMPLETA
+// Soporta: Xbox, PlayStation, Switch Pro, y cualquier gamepad
+// ============================================
+(function() {
+    'use strict';
+    
+    console.log('🎮 [GAMEPAD] Iniciando puente para mandos...');
+    
+    // ========== CONSTANTES ==========
+    const JS_KEY_ALT = 18;
+    const JS_KEY_CTRL = 17;
+    const DEADZONE = 0.1;
+    
+    // ========== MAPEO DE TECLAS POR DEFECTO ==========
+    let defaultKeys = {
+        up: ["ArrowUp", "w", "W"],
+        down: ["ArrowDown", "s", "S"],
+        left: ["ArrowLeft", "a", "A"],
+        right: ["ArrowRight", "d", "D"],
+        a: ["Alt", "z", "j", "Z", "J"],
+        b: ["Control", "k", "x", "K", "X"],
+        start: ["Enter"],
+        select: ["Shift"]
+    };
+    
+    // Construir keyBindings
+    let keyBindings = {};
+    for (let key in defaultKeys) {
+        let keys = defaultKeys[key];
+        for (let i = 0; i < keys.length; i++) {
+            keyBindings[keys[i]] = key;
+            keyBindings[String(keys[i]).toLowerCase()] = key;
+            keyBindings[String(keys[i]).toUpperCase()] = key;
+        }
+    }
+    
+    // ========== VARIABLES GLOBALES DEL PUENTE ==========
+    let isTouchEnabled = "ontouchstart" in document.documentElement;
+    let gamepadSoundInitialized = false;
+    
+    // ========== FUNCIONES DE CONVERSIÓN (GB_KEY A ÍNDICE) ==========
+    // Mapeo de nombres de tecla a índices del emulador (0-7)
+    const gbKeyToIndex = {
+        'right': 0,
+        'left': 1,
+        'up': 2,
+        'down': 3,
+        'a': 4,
+        'b': 5,
+        'select': 6,
+        'start': 7
+    };
+    
+    // Función para enviar tecla al emulador
+    function sendGameBoyKey(keyName, isDown) {
+        if (typeof gameboy === 'undefined' || !gameboy) return;
+        if (typeof GameBoyJoyPadEvent === 'undefined') return;
+        
+        const index = gbKeyToIndex[keyName];
+        if (index !== undefined) {
+            GameBoyJoyPadEvent(index, isDown);
+            
+            // También actualizar el efecto visual en los botones HTML
+            const btnMap = ['btn-right', 'btn-left', 'btn-up', 'btn-down', 'btn-a', 'btn-b', 'btn-select', 'btn-start'];
+            const btnId = btnMap[index];
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                if (isDown) {
+                    btn.classList.add('pressed');
+                } else {
+                    btn.classList.remove('pressed');
+                }
+            }
+        }
+    }
+    
+    function GameBoyKeyDown(keyName) {
+        sendGameBoyKey(keyName, true);
+    }
+    
+    function GameBoyKeyUp(keyName) {
+        sendGameBoyKey(keyName, false);
+    }
+    
+    // ========== INICIALIZAR SONIDO EN INTERACCIÓN ==========
+    function initSound() {
+        if (gamepadSoundInitialized) return;
+        
+        // Activar audio si existe la función
+        if (typeof window.resumeGameBoyAudio === 'function') {
+            window.resumeGameBoyAudio();
+        } else if (typeof window.forceAudio === 'function') {
+            window.forceAudio();
+        } else if (gameboy && gameboy.initSound) {
+            // Activar settings
+            if (typeof settings !== 'undefined') {
+                settings[0] = true;
+                settings[3] = 1;
+            }
+            // Reanudar AudioContext
+            if (window.XAudioJSWebAudioContextHandle && window.XAudioJSWebAudioContextHandle.state === 'suspended') {
+                window.XAudioJSWebAudioContextHandle.resume();
+            }
+            gameboy.initSound();
+            if (gameboy.audioHandle && gameboy.audioHandle.changeVolume) {
+                gameboy.audioHandle.changeVolume(1);
+            }
+        }
+        
+        gamepadSoundInitialized = true;
+        console.log('🎵 [GAMEPAD] Sonido activado por interacción con mando');
+    }
+    
+    // ========== CONTROLES TÁCTILES ==========
+    function bindButton(el, code) {
+        if (!el) return;
+        
+        el.addEventListener("touchstart", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            initSound();
+            el.classList.add("btnPressed");
+            GameBoyKeyDown(code);
+        });
+        
+        el.addEventListener("touchend", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            el.classList.remove("btnPressed");
+            GameBoyKeyUp(code);
+        });
+        
+        // Mouse soporte también
+        el.addEventListener("mousedown", function (e) {
+            e.preventDefault();
+            initSound();
+            el.classList.add("btnPressed");
+            GameBoyKeyDown(code);
+        });
+        
+        el.addEventListener("mouseup", function (e) {
+            e.preventDefault();
+            el.classList.remove("btnPressed");
+            GameBoyKeyUp(code);
+        });
+        
+        el.addEventListener("mouseleave", function (e) {
+            el.classList.remove("btnPressed");
+            GameBoyKeyUp(code);
+        });
+    }
+    
+    function bindDpad(el) {
+        if (!el) return;
+        
+        function move(x, y) {
+            // Manejo horizontal
+            if (x < -DEADZONE || x > DEADZONE) {
+                if (y > x && y < -x) {
+                    GameBoyKeyUp("right");
+                    GameBoyKeyDown("left");
+                } else if (y > -x && y < x) {
+                    GameBoyKeyUp("left");
+                    GameBoyKeyDown("right");
+                }
+                
+                if (y > -DEADZONE && y < DEADZONE) {
+                    GameBoyKeyUp("up");
+                    GameBoyKeyUp("down");
+                }
+            } else {
+                GameBoyKeyUp("left");
+                GameBoyKeyUp("right");
+            }
+            
+            // Manejo vertical
+            if (y < -DEADZONE || y > DEADZONE) {
+                if (x > y && x < -y) {
+                    GameBoyKeyUp("down");
+                    GameBoyKeyDown("up");
+                } else if (x > -y && x < y) {
+                    GameBoyKeyUp("up");
+                    GameBoyKeyDown("down");
+                }
+                
+                if (x > -DEADZONE && x < DEADZONE) {
+                    GameBoyKeyUp("left");
+                    GameBoyKeyUp("right");
+                }
+            } else {
+                GameBoyKeyUp("up");
+                GameBoyKeyUp("down");
+            }
+        }
+        
+        el.addEventListener("touchstart", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            initSound();
+            let rect = el.getBoundingClientRect();
+            let x = (2 * (e.targetTouches[0].clientX - rect.left)) / rect.width - 1;
+            let y = (2 * (e.targetTouches[0].clientY - rect.top)) / rect.height - 1;
+            move(x, y);
+        });
+        
+        el.addEventListener("touchmove", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            let rect = el.getBoundingClientRect();
+            let x = (2 * (e.targetTouches[0].clientX - rect.left)) / rect.width - 1;
+            let y = (2 * (e.targetTouches[0].clientY - rect.top)) / rect.height - 1;
+            move(x, y);
+        });
+        
+        el.addEventListener("touchend", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            GameBoyKeyUp("left");
+            GameBoyKeyUp("right");
+            GameBoyKeyUp("up");
+            GameBoyKeyUp("down");
+        });
+    }
+    
+    // ========== TECLADO ==========
+    function bindKeyboard() {
+        window.onkeydown = function (e) {
+            initSound();
+            if (isTouchEnabled) {
+                const controllerEl = document.getElementById("controller");
+                if (controllerEl) controllerEl.style.display = "none";
+                isTouchEnabled = false;
+            }
+            if (e.keyCode !== JS_KEY_CTRL && e.keyCode !== JS_KEY_ALT && (e.altKey || e.ctrlKey || e.metaKey)) {
+                return;
+            }
+            if (keyBindings[e.key]) {
+                GameBoyKeyDown(keyBindings[e.key]);
+            }
+            e.preventDefault();
+        };
+        
+        window.onkeyup = function (e) {
+            if (e.key === "Dead") {
+                ["right", "left", "up", "down", "a", "b", "select", "start"].forEach(key => {
+                    GameBoyKeyUp(key);
+                });
+            }
+            if (keyBindings[e.key]) {
+                GameBoyKeyUp(keyBindings[e.key]);
+            }
+            e.preventDefault();
+        };
+    }
+    
+    function bindClick() {
+        window.addEventListener("click", function (e) {
+            initSound();
+        });
+    }
+    
+    // ========== GAMEPAD API ==========
+    const GAMEPAD_POLLING_INTERVAL = 1000 / 60 / 4;
+    const GAMEPAD_KEYMAP_STANDARD_STR = "standard";
+    
+    const GAMEPAD_KEYMAP_STANDARD = [
+        { gb_key: "b", gp_button: 0, type: "button" },
+        { gb_key: "a", gp_button: 1, type: "button" },
+        { gb_key: "select", gp_button: 8, type: "button" },
+        { gb_key: "start", gp_button: 9, type: "button" },
+        { gb_key: "up", gp_button: 12, type: "button" },
+        { gb_key: "down", gp_button: 13, type: "button" },
+        { gb_key: "left", gp_button: 14, type: "button" },
+        { gb_key: "right", gp_button: 15, type: "button" }
+    ];
+    
+    const GAMEPAD_KEYMAP_DEFAULT = [
+        { gb_key: "a", gp_button: 0, type: "button" },
+        { gb_key: "b", gp_button: 1, type: "button" },
+        { gb_key: "select", gp_button: 2, type: "button" },
+        { gb_key: "start", gp_button: 3, type: "button" },
+        { gb_key: "up", gp_button: 2, type: "axis" },
+        { gb_key: "down", gp_button: 3, type: "axis" },
+        { gb_key: "left", gp_button: 0, type: "axis" },
+        { gb_key: "right", gp_button: 1, type: "axis" }
+    ];
+    
+    let gp = {
+        apiID: undefined,
+        timerID: undefined,
+        keybinds: undefined,
+        axes: {
+            last: undefined,
+            cur: [],
+            changed: []
+        },
+        buttons: {
+            last: undefined,
+            cur: [],
+            changed: []
+        }
+    };
+    
+    function gamepadBindKeys(strMapping) {
+        if (strMapping === GAMEPAD_KEYMAP_STANDARD_STR)
+            gp.keybinds = GAMEPAD_KEYMAP_STANDARD;
+        else
+            gp.keybinds = GAMEPAD_KEYMAP_DEFAULT;
+    }
+    
+    function gamepadCacheValues(gamepad) {
+        // Leer botones
+        for (let k = 0; k < gamepad.buttons.length; k++) {
+            gp.buttons.cur[k] = (gamepad.buttons[k].value > 0 || gamepad.buttons[k].pressed == true);
+            if (gp.buttons.last !== undefined)
+                gp.buttons.changed[k] = (gp.buttons.cur[k] != gp.buttons.last[k]);
+        }
+        
+        // Leer ejes
+        for (let k = 0; k < gamepad.axes.length; k++) {
+            gp.axes.cur[(k * 2)] = (gamepad.axes[k] < -DEADZONE);
+            gp.axes.cur[(k * 2) + 1] = (gamepad.axes[k] > DEADZONE);
+            
+            if (gp.axes.last !== undefined) {
+                gp.axes.changed[(k * 2)] = (gp.axes.cur[(k * 2)] != gp.axes.last[(k * 2)]);
+                gp.axes.changed[(k * 2) + 1] = (gp.axes.cur[(k * 2) + 1] != gp.axes.last[(k * 2) + 1]);
+            }
+        }
+        
+        gp.axes.last = gp.axes.cur.slice(0);
+        gp.buttons.last = gp.buttons.cur.slice(0);
+    }
+    
+    function gamepadHandleButton(keyBind) {
+        let buttonCache = (keyBind.type === "button") ? gp.buttons : gp.axes;
+        
+        if (keyBind.gp_button < buttonCache.changed.length) {
+            if (buttonCache.changed[keyBind.gp_button]) {
+                if (buttonCache.cur[keyBind.gp_button])
+                    GameBoyKeyDown(keyBind.gb_key);
+                else
+                    GameBoyKeyUp(keyBind.gb_key);
+            }
+        }
+    }
+    
+    function gamepadGetCurrent() {
+        let gamepad = navigator.getGamepads()[gp.apiID];
+        if (gamepad && gamepad.connected) return gamepad;
+        return undefined;
+    }
+    
+    function gamepadUpdate() {
+        let gamepad = gamepadGetCurrent();
+        if (gamepad !== undefined) {
+            gamepadCacheValues(gamepad);
+            for (let i = 0; i < gp.keybinds.length; i++)
+                gamepadHandleButton(gp.keybinds[i]);
+        } else {
+            gamepadStop();
+        }
+    }
+    
+    function gamepadStart(gamepad) {
+        if ((gamepad.mapping === GAMEPAD_KEYMAP_STANDARD_STR) ||
+            ((gamepad.axes.length >= 2) && (gamepad.buttons.length >= 4))) {
+            
+            gp.apiID = gamepad.index;
+            gamepadBindKeys(gamepad.mapping);
+            gp.timerID = setInterval(() => gamepadUpdate(), GAMEPAD_POLLING_INTERVAL);
+            console.log('🎮 [GAMEPAD] Mando conectado:', gamepad.id);
+        }
+    }
+    
+    function gamepadStop() {
+        if (gp.timerID !== undefined) {
+            clearInterval(gp.timerID);
+            gp.timerID = undefined;
+        }
+        gp.axes.last = undefined;
+        gp.buttons.last = undefined;
+        gp.keybinds = undefined;
+        gp.apiID = undefined;
+        console.log('🎮 [GAMEPAD] Mando desconectado');
+    }
+    
+    function initGamePad() {
+        window.addEventListener("gamepadconnected", (event) => {
+            initSound();
+            let gamepad = navigator.getGamepads()[event.gamepad.index];
+            if (gamepad) gamepadStart(gamepad);
+        });
+        
+        window.addEventListener("gamepaddisconnected", (event) => {
+            gamepadStop();
+        });
+        
+        // Verificar si ya hay mandos conectados al cargar
+        setTimeout(() => {
+            let gamepads = navigator.getGamepads();
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i] && gamepads[i].connected) {
+                    gamepadStart(gamepads[i]);
+                }
+            }
+        }, 1000);
+    }
+    
+    // ========== INICIALIZAR CONTROLES ==========
+    function initControls() {
+        // Buscar elementos del control táctil
+        let controllerDiv = document.getElementById("controller");
+        let btnA_el = document.getElementById("controller_a");
+        let btnB_el = document.getElementById("controller_b");
+        let btnStart_el = document.getElementById("controller_start");
+        let btnSelect_el = document.getElementById("controller_select");
+        let dpad_el = document.getElementById("controller_dpad");
+        
+        // Si no existen, crearlos dinámicamente? No, solo si están en el HTML
+        
+        if (isTouchEnabled && controllerDiv) {
+            controllerDiv.style.display = "block";
+            if (btnA_el) bindButton(btnA_el, "a");
+            if (btnB_el) bindButton(btnB_el, "b");
+            if (btnStart_el) bindButton(btnStart_el, "start");
+            if (btnSelect_el) bindButton(btnSelect_el, "select");
+            if (dpad_el) bindDpad(dpad_el);
+        } else if (controllerDiv) {
+            controllerDiv.style.display = "none";
+        }
+        
+        bindKeyboard();
+        bindClick();
+        initGamePad();
+    }
+    
+    function resetKeys() {
+        for (let key in defaultKeys) {
+            GameBoyKeyUp(key);
+        }
+    }
+    
+    window.addEventListener("focus", resetKeys);
+    window.addEventListener("blur", resetKeys);
+    
+    // Exponer funciones para uso externo
+    window.gamepadResetKeys = resetKeys;
+    window.gamepadForceConnect = function() {
+        let gamepads = navigator.getGamepads();
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i] && gamepads[i].connected) {
+                gamepadStart(gamepads[i]);
+            }
+        }
+    };
+    
+    // Inicializar
+    initControls();
+    
+    console.log('🎮 [GAMEPAD] Puente para mandos inicializado');
+    console.log('💡 Conecta un mando Xbox, PlayStation o Switch Pro');
+    console.log('💡 Para forzar detección: gamepadForceConnect()');
+    
+})();
 
 </script>
 </body>
