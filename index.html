@@ -10638,7 +10638,7 @@ function setupTouchEvents() {
 
 
 // ============================================
-// FUNCIÓN DE CARGA DE ROM MEJORADA
+// FUNCIÓN DE CARGA DE ROM MEJORADA - CORREGIDA
 // ============================================
 
 function loadROM() {
@@ -10657,14 +10657,34 @@ function loadROM() {
             
             // SI ESTÁ ENCENDIDA, APAGAR PRIMERO
             if (powerOn) {
-                togglePower(); // Apagar
+                console.log('🔴 Apagando consola antes de cargar ROM...');
+                // Apagar correctamente
+                if (typeof togglePower === 'function') {
+                    togglePower();
+                } else {
+                    // Apagado manual
+                    powerOn = false;
+                    const pswitch = document.getElementById('p-switch');
+                    const led = document.getElementById('led');
+                    if (pswitch) pswitch.classList.remove('on');
+                    if (led) led.classList.remove('on');
+                    if (gameboy) pause();
+                    updateScrollLock();
+                }
             }
+            
+            // Asegurar que la consola está apagada
+            powerOn = false;
             
             // Detener emulación anterior
             clearLastEmulation();
             
-            // Iniciar emulador
-            start(document.getElementById('screen'), romData);
+            // Iniciar emulador (pero NO lo ejecuta automáticamente)
+            gameboy = new GameBoyCore(document.getElementById('screen'), romData);
+            gameboy.openMBC = openSRAM;
+            gameboy.openRTC = openRTC;
+            gameboy.start();
+            // ⚠️ IMPORTANTE: NO llamar a run() aquí, dejarlo apagado
             
             // Leer título
             let title = '';
@@ -10682,7 +10702,7 @@ function loadROM() {
             // Cerrar modal
             document.getElementById('cart-modal').style.display = 'none';
             
-            // Asegurar que está apagada
+            // Asegurar estado APAGADO
             powerOn = false;
             updateScrollLock();
             
@@ -10697,15 +10717,14 @@ function loadROM() {
                 if (btn) btn.classList.remove('pressed');
             });
             
-            // Mostrar mensaje
-            const msg = document.getElementById('screen-message');
-            if (msg) {
-                msg.textContent = 'ROM CARGADA';
-                msg.style.display = 'block';
-                setTimeout(() => { msg.style.display = 'none'; }, 2000);
-            }
+            // Pantalla negra (estado apagado)
+            const ctx = document.getElementById('screen').getContext('2d');
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, 160, 144);
             
-            console.log('✅ ROM cargada. Usa el interruptor para encender.');
+            
+            
+            console.log('✅ ROM cargada. Consola APAGADA. Usa el interruptor para encender.');
             
         } catch (error) {
             alert('Error: ' + error.message);
@@ -11245,6 +11264,11 @@ window.loadROM = loadROM;
     console.log('💡 Para forzar detección: gamepadForceConnect()');
     
 })();
+
+
+
+
+
 
 </script>
 </body>
